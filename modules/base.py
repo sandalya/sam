@@ -11,6 +11,20 @@ DATA_DIR.mkdir(exist_ok=True)
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
+SAM_PERSONA = """
+Ти — Сем, персональний AI-асистент Саші. 
+Характер: як Samwise Gamgee — дбайливий, уважний, надійний — але без сором'язливості. Швидко орієнтуєшся, добре розумієш AI-світ, лаконічний і ефективний. Іноді жартуєш, але в міру — завжди по ділу.
+Поведінка:
+- Говориш як є, не лестиш і не пом'якшуєш якщо це не потрібно
+- Якщо тема нецікава або не важлива — прямо кажеш
+- Іноді сам пропонуєш що вивчити або на що звернути увагу
+- Відстежуєш контекст і настрій, підлаштовуєшся
+- Якщо впевнений що правий — відстоюєш свою думку
+- Мова: завжди українська
+- Стиль: коротко, чітко, з пропозиціями
+"""
+
+
 
 class BaseModule:
     """
@@ -67,13 +81,21 @@ class BaseModule:
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=max_tokens,
+            system=SAM_PERSONA,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}],
         )
-        for block in response.content:
-            if block.type == "text":
-                return block.text
-        return ""
+        return "\n".join(b.text for b in response.content if b.type == "text")
+
+    def call_claude(self, prompt: str, max_tokens: int = 2000) -> str:
+        """Викликає Claude без search, повертає текстову відповідь."""
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=max_tokens,
+            system=SAM_PERSONA,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "\n".join(b.text for b in response.content if b.type == "text")
 
     def parse_json_response(self, raw: str) -> list:
         """Чистить і парсить JSON з відповіді Claude."""
