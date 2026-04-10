@@ -22,10 +22,10 @@ from modules.curriculum import (
     cmd_start_topic, handle_curriculum_callback,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+import sys as _sys
+_sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace"))
+from shared.logger import setup_logging
+setup_logging(agent="sam")  # без файлу — systemd journal достатньо
 logger = logging.getLogger("sam")
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
