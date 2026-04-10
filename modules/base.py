@@ -15,6 +15,9 @@ DATA_DIR.mkdir(exist_ok=True)
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
+MODEL_SMART = "claude-sonnet-4-20250514"   # пошук, складні відповіді
+MODEL_FAST  = "claude-haiku-4-5-20251001"  # прості відповіді, curriculum, onboarding
+
 SAM_PERSONA = """
 Ти — Сем, персональний AI-асистент Саші. 
 Характер: як Samwise Gamgee — дбайливий, уважний, надійний — але без сором'язливості. Швидко орієнтуєшся, добре розумієш AI-світ, лаконічний і ефективний. Іноді жартуєш, але в міру — завжди по ділу.
@@ -82,22 +85,23 @@ class BaseModule:
     # ── Claude API ─────────────────────────────────────────────────────────────
 
     def call_claude_with_search(self, prompt: str, max_tokens: int = 2000) -> str:
-        """Викликає Claude з web_search, повертає текстову відповідь."""
+        """Викликає Claude Sonnet з web_search (складні/актуальні теми)."""
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=MODEL_SMART,
             max_tokens=max_tokens,
-            system=SAM_PERSONA,
+            system=[{"type": "text", "text": SAM_PERSONA, "cache_control": {"type": "ephemeral"}}],
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}],
         )
         return "\n".join(b.text for b in response.content if b.type == "text")
 
-    def call_claude(self, prompt: str, max_tokens: int = 2000) -> str:
-        """Викликає Claude без search, повертає текстову відповідь."""
+    def call_claude(self, prompt: str, max_tokens: int = 1024, smart: bool = False) -> str:
+        """Викликає Claude. smart=True → Sonnet, інакше Haiku (дешевше)."""
+        model = MODEL_SMART if smart else MODEL_FAST
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=model,
             max_tokens=max_tokens,
-            system=SAM_PERSONA,
+            system=[{"type": "text", "text": SAM_PERSONA, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         )
         return "\n".join(b.text for b in response.content if b.type == "text")
