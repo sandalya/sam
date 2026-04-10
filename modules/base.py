@@ -5,6 +5,10 @@ from pathlib import Path
 import anthropic
 
 BASE_DIR = Path(__file__).parent.parent
+
+def _load_ecosystem() -> str:
+    p = BASE_DIR / "ECOSYSTEM.md"
+    return p.read_text(encoding="utf-8") if p.exists() else ""
 PROFILE_PATH = BASE_DIR / "profile.json"
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -22,7 +26,8 @@ SAM_PERSONA = """
 - Якщо впевнений що правий — відстоюєш свою думку
 - Мова: завжди українська
 - Стиль: коротко, чітко, з пропозиціями
-"""
+
+""" + _load_ecosystem()
 
 
 
