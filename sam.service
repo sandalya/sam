@@ -1,0 +1,15 @@
+[Unit]
+Description=Sam — Personal Agent
+After=network.target
+
+[Service]
+Type=simple
+User=sashok
+WorkingDirectory=/home/sashok/.openclaw/workspace/sam
+EnvironmentFile=/home/sashok/.openclaw/workspace/sam/.env
+ExecStart=/home/sashok/.openclaw/workspace/sam/venv/bin/python main.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
