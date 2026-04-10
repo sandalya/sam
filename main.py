@@ -16,6 +16,7 @@ from modules.digest import DigestModule
 from modules.catchup import CatchupModule
 from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
+from modules.jobs import JobsModule
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
     cmd_start_topic, handle_curriculum_callback,
@@ -36,6 +37,7 @@ digest = DigestModule(owner_chat_id=OWNER_CHAT_ID)
 science = ScienceModule(owner_chat_id=OWNER_CHAT_ID)
 catchup = CatchupModule(owner_chat_id=OWNER_CHAT_ID)
 onboarding = OnboardingModule(owner_chat_id=OWNER_CHAT_ID)
+jobs = JobsModule(owner_chat_id=OWNER_CHAT_ID)
 
 # ── Core handlers ──────────────────────────────────────────────────────────────
 
@@ -88,6 +90,12 @@ async def cmd_catchup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await catchup.send_catchup(update, days)
 
 
+async def cmd_jobs(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    await jobs.send_on_command(update, context.application)
+
+
 async def cmd_onboarding(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
@@ -123,6 +131,11 @@ async def job_daily_digest(context: ContextTypes.DEFAULT_TYPE):
     await digest.send(context.application)
 
 
+async def job_weekly_jobs(context: ContextTypes.DEFAULT_TYPE):
+    logger.info("Running weekly jobs analysis")
+    await jobs.send(context.application)
+
+
 async def job_weekly_science(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Running weekly science job")
     await science.send(context.application)
@@ -143,6 +156,7 @@ def main():
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
+    app.add_handler(CommandHandler("jobs", cmd_jobs))
     app.add_handler(CommandHandler("onboarding", cmd_onboarding))
     app.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern=r"^onb_"))
 
@@ -157,6 +171,7 @@ def main():
     jq = app.job_queue
     jq.run_daily(job_daily_digest, time=time(6, 0, 0))        # 09:00 Kyiv
     jq.run_daily(job_weekly_science, time=time(7, 0, 0), days=(5,))  # субота 10:00 Kyiv
+    jq.run_daily(job_weekly_jobs, time=time(7, 0, 0), days=(6,))  # неділя 10:00 Kyiv
 
     logger.info("Sam is running 🚀")
     app.run_polling()
