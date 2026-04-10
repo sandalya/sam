@@ -119,7 +119,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🤔 Думаю...")
     answer = digest.call_claude(
-        f"Користувач вивчає AI-розробку. Відповідай коротко, по ділу, українською.\n\nПовідомлення: {text}"
+        f"Користувач вивчає AI-розробку. Відповідай коротко, по ділу, українською.\n\nПовідомлення: {text}",
+        smart=True
     )
     await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
 
