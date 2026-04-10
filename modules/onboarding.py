@@ -2,6 +2,7 @@ import re
 import logging
 from datetime import datetime
 
+from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -56,6 +57,24 @@ class OnboardingModule(BaseModule):
             reply_markup=self._make_menu(),
         )
 
+
+    def _cache_path(self, key: str) -> Path:
+        from .base import DATA_DIR
+        return DATA_DIR / f"onboarding_{key}.txt"
+
+    def _load_cache(self, key: str):
+        from datetime import datetime, timedelta
+        p = self._cache_path(key)
+        if not p.exists():
+            return None
+        age = datetime.now() - datetime.fromtimestamp(p.stat().st_mtime)
+        if age > timedelta(days=30):
+            return None
+        return p.read_text()
+
+    def _save_cache(self, key: str, text: str):
+        self._cache_path(key).write_text(text)
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -83,6 +102,7 @@ class OnboardingModule(BaseModule):
                 return
 
             # Шлемо частинами якщо довго
+            self._save_cache(key, text)
             if len(text) > 4000:
                 chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
                 for chunk in chunks:
