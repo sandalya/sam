@@ -103,13 +103,17 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Вільний текст → зберігаємо як побажання до профілю"""
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
     text = update.message.text.strip()
-    if len(text) > 10:
-        digest.add_note(text)
-        await update.message.reply_text("📝 Записав! Врахую при наступному дайджесті.")
+    if not text:
+        return
+
+    await update.message.reply_text("🤔 Думаю...")
+    answer = digest.call_claude(
+        f"Користувач вивчає AI-розробку. Відповідай коротко, по ділу, українською.\n\nПовідомлення: {text}"
+    )
+    await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
 
 
 # ── Scheduled jobs ─────────────────────────────────────────────────────────────
