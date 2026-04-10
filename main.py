@@ -13,6 +13,8 @@ from telegram.ext import (
 )
 
 from modules.digest import DigestModule
+from modules.catchup import CatchupModule
+from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
@@ -32,6 +34,8 @@ OWNER_CHAT_ID = int(os.environ["OWNER_CHAT_ID"])
 
 digest = DigestModule(owner_chat_id=OWNER_CHAT_ID)
 science = ScienceModule(owner_chat_id=OWNER_CHAT_ID)
+catchup = CatchupModule(owner_chat_id=OWNER_CHAT_ID)
+onboarding = OnboardingModule(owner_chat_id=OWNER_CHAT_ID)
 
 # ── Core handlers ──────────────────────────────────────────────────────────────
 
@@ -66,6 +70,32 @@ async def cmd_science(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text("⏳ Збираю науковий дайджест...")
     await science.send(context.application)
+
+
+async def cmd_catchup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    args = context.args
+    period = args[0] if args else "7d"
+    from modules.catchup import PERIOD_OPTIONS
+    if period not in PERIOD_OPTIONS:
+        await update.message.reply_text(
+            "Використання: /catchup [період]\n"
+            "Доступні: 3d, 7d, 14d, 30d, 60d, 180d, 365d"
+        )
+        return
+    _, days = PERIOD_OPTIONS[period]
+    await catchup.send_catchup(update, days)
+
+
+async def cmd_onboarding(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    await onboarding.send_menu(update)
+
+
+async def handle_onboarding_callback(update, context):
+    await onboarding.handle_callback(update, context)
 
 
 async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,6 +138,9 @@ def main():
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
+    app.add_handler(CommandHandler("catchup", cmd_catchup))
+    app.add_handler(CommandHandler("onboarding", cmd_onboarding))
+    app.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern=r"^onb_"))
 
     # Callbacks
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_(start|done)\|"))
