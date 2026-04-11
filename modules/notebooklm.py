@@ -121,9 +121,12 @@ async def generate_and_notify(
             )
             return
 
-        if rc != 0:
-            log.error(f"Generate failed: {stderr}")
-            await bot.send_message(chat_id, f"❌ Помилка генерації.\n{nb_url}")
+        if rc != 0 or "rate limited" in stdout.lower():
+            log.error(f"Generate failed: rc={rc} stdout={stdout} stderr={stderr}")
+            if "rate limited" in stdout.lower():
+                await bot.send_message(chat_id, f"⏳ Google rate limit — спробуй через 1-24 год.\n{nb_url}")
+            else:
+                await bot.send_message(chat_id, f"❌ Помилка генерації.\n{nb_url}")
             return
 
         await bot.send_message(
