@@ -1,4 +1,9 @@
 {
-  "scores": {},
+  "scores": {
+    "llm_models": 1,
+    "mcp_integration": 1,
+    "agents_adoption": 1,
+    "agents_usecase": 2
+  },
   "notes": []
 }
