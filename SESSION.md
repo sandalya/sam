@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 21:40
+# SESSION — 2026-04-11 21:48
 
 ## Проект
 sam
 
 ## Що зробили
-Стабілізація NotebookLM інтеграції: фікс парсингу notebook ID, очистка стану. CLI коректно створює notebooks під правильним акаунтом. Notebooks видно в list.
+NotebookLM інтеграція: фікс rate limit detection (rc=0 але stdout містить 'rate limited'). Notebooks створюються коректно, джерела додаються. Генерація відео впирається в daily quota Google — треба тестувати завтра.
 
 ## Наступний крок
-Дочекатись успішної генерації відео. Потім: мульти-вибір форматів + /notebooks команда + динамічний curriculum
+Завтра: протестувати генерацію відео після reset квоти. Потім: мульти-вибір форматів + /notebooks команда + динамічний curriculum
 
 ## Контекст
-notebooklm_notebooks.json тепер чистий, notebooks: Agentic Loops=8aca66e9, Evals=6226fef0
+Rate limit = 1-24 год. notebooklm_notebooks.json: topic 1=Tool Use, topic 2=Agentic Loops. shared/notebooklm.py — зробити коли Гарсіа теж захоче NbLM
