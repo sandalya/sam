@@ -18,6 +18,7 @@ from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.jobs import JobsModule
 from modules.podcast import cmd_podcast
+from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
     cmd_start_topic, handle_curriculum_callback,
@@ -217,6 +218,7 @@ def main():
             BotCommand("onboarding", "🗺️ Онбординг"),
             BotCommand("profile",    "👤 Профіль інтересів"),
             BotCommand("podcast",    "🎙️ Подкаст по curriculum"),
+            BotCommand("notebooks",  "📓 Мої NotebookLM notebooks"),
         ])
 
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
@@ -229,6 +231,7 @@ def main():
     app.add_handler(CommandHandler("cur", cmd_curriculum))
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
     app.add_handler(CommandHandler("podcast", cmd_podcast))
+    app.add_handler(CommandHandler("notebooks", cmd_notebooks))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
