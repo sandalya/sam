@@ -102,6 +102,7 @@ async def generate_and_notify(
     source_url: str,
     fmt: str,
     instructions: str,
+    skip_source: bool = False,
 ) -> None:
     format_name = FORMAT_NAMES.get(fmt, fmt)
     try:
@@ -112,13 +113,14 @@ async def generate_and_notify(
 
         nb_url = notebook_url(notebook_id)
 
-        rc, stdout, stderr = await _run(
-            ["source", "add", "-n", notebook_id, source_url]
-        )
-        if rc != 0:
-            log.error(f"Add source failed: {stderr}")
-            await bot.send_message(chat_id, "❌ Не вдалось додати джерело.")
-            return
+        if not skip_source:
+            rc, stdout, stderr = await _run(
+                ["source", "add", "-n", notebook_id, source_url]
+            )
+            if rc != 0:
+                log.error(f"Add source failed: {stderr}")
+                await bot.send_message(chat_id, "❌ Не вдалось додати джерело.")
+                return
 
         format_cmd = {
             "video":    ["generate", "video", "-n", notebook_id, "--wait"],

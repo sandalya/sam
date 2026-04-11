@@ -227,13 +227,17 @@ def _item_keyboard(item_id: int) -> InlineKeyboardMarkup:
     ])
 
 
-def _format_keyboard(item_id: int) -> InlineKeyboardMarkup:
+def _format_keyboard(item_id: int, selected: list) -> InlineKeyboardMarkup:
     buttons = [
-        InlineKeyboardButton(label, callback_data=f"cur_nbfmt|{item_id}|{fmt}")
+        InlineKeyboardButton(
+            f"{'✅' if fmt in selected else '⬜'} {label}",
+            callback_data=f"cur_nbtoggle|{item_id}|{fmt}"
+        )
         for label, fmt in NOTEBOOKLM_FORMATS
     ]
-    # По 2 в ряд
     rows = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+    if selected:
+        rows.append([InlineKeyboardButton(f"▶️ Генерувати ({len(selected)})", callback_data=f"cur_nbrun|{item_id}")])
     rows.append([InlineKeyboardButton("← Назад", callback_data=f"cur_item|{item_id}")])
     return InlineKeyboardMarkup(rows)
 
@@ -487,47 +491,80 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
         item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
+        context.user_data[f"nb_selected_{item_id}"] = []
         await query.edit_message_text(
-            f"🎧 *{item['title']}*\n\nОбери формат для NotebookLM:",
+            f"🎧 *{item['title']}*\n\nОбери формати для NotebookLM:",
             parse_mode="Markdown",
-            reply_markup=_format_keyboard(item_id),
+            reply_markup=_format_keyboard(item_id, []),
         )
 
-    # ── cur_nbfmt — запустити генерацію в NotebookLM ──
-    elif action == "cur_nbfmt":
+    # ── cur_nbtoggle — toggle формату ──
+    elif action == "cur_nbtoggle":
         item_id = int(parts[1])
         fmt = parts[2]
         item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
-
-        format_name = FORMAT_NAMES.get(fmt, fmt)
-
-        # Читаємо сторінку і генеруємо промпт для інструкцій
+        key = f"nb_selected_{item_id}"
+        selected = context.user_data.get(key, [])
+        if fmt in selected:
+            selected.remove(fmt)
+        else:
+            selected.append(fmt)
+        context.user_data[key] = selected
         await query.edit_message_text(
-            f"📖 Читаю ресурс і запускаю генерацію {format_name}...\n\n"
-            f"Тема: {item['title']}\n\n"
-            f"Повідомлю коли буде готово ⏳",
+            f"🎧 *{item['title']}*\n\nОбери формати для NotebookLM:",
+            parse_mode="Markdown",
+            reply_markup=_format_keyboard(item_id, selected),
+        )
+
+    # ── cur_nbrun — запустити всі вибрані формати ──
+    elif action == "cur_nbrun":
+        item_id = int(parts[1])
+        item = next((i for i in all_topics if i["id"] == item_id), None)
+        if not item:
+            return
+        selected = context.user_data.get(f"nb_selected_{item_id}", [])
+        if not selected:
+            await query.answer("Обери хоча б один формат", show_alert=True)
+            return
+
+        names = ", ".join(FORMAT_NAMES.get(f, f) for f in selected)
+        await query.edit_message_text(
+            f"⏳ Генерую: {names}\n\nТема: *{item['title']}*",
+            parse_mode="Markdown",
         )
 
         page_text = await _fetch_page(item["read"])
-        instructions = ""
-        if page_text:
-            instructions = _generate_notebooklm_prompt(item, fmt, page_text)
-            # Беремо тільки перший промпт як інструкцію (коротко)
-            if "📌 Промпт 1:" in instructions:
-                instructions = instructions.split("📌 Промпт 1:")[-1].split("📌 Промпт 2:")[0].strip()
-            instructions = instructions[:500]  # ліміт CLI
-
-        from .notebooklm import generate_and_notify
+        from .notebooklm import generate_and_notify, get_or_create_notebook
         import asyncio
 
-        asyncio.create_task(generate_and_notify(
-            bot=query.get_bot(),
-            chat_id=query.message.chat_id,
-            topic_id=item_id,
-            topic_title=item["title"],
-            source_url=item["read"],
-            fmt=fmt,
-            instructions=instructions,
-        ))
+        # Створюємо notebook і додаємо джерело заздалегідь — один раз для всіх форматів
+        from .notebooklm import _run as nb_run, save_nb_state, load_nb_state
+        notebook_id = await get_or_create_notebook(item_id, item["title"])
+        if not notebook_id:
+            await query.message.reply_text("❌ Не вдалось створити notebook.")
+            return
+
+        rc, stdout, stderr = await nb_run(["source", "add", "-n", notebook_id, item["read"]])
+        if rc != 0 and "already" not in stderr.lower() and "already" not in stdout.lower():
+            log.warning(f"Add source warning (ignored): {stderr[:200]}")
+
+        for fmt in selected:
+            instructions = ""
+            if page_text:
+                instructions = _generate_notebooklm_prompt(item, fmt, page_text)
+                if "📌 Промпт 1:" in instructions:
+                    instructions = instructions.split("📌 Промпт 1:")[-1].split("📌 Промпт 2:")[0].strip()
+                instructions = instructions[:500]
+            asyncio.create_task(generate_and_notify(
+                bot=query.get_bot(),
+                chat_id=query.message.chat_id,
+                topic_id=item_id,
+                topic_title=item["title"],
+                source_url=item["read"],
+                fmt=fmt,
+                instructions=instructions,
+                skip_source=True,
+            ))
+
