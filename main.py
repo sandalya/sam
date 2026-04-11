@@ -241,6 +241,7 @@ def main():
 
     # Callbacks
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_"))
+    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_nbtoggle|cur_nbrun"))
     app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
 
     # Free text
