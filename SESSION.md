@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 21:12
+# SESSION — 2026-04-11 21:40
 
 ## Проект
 sam
 
 ## Що зробили
-Інтеграція NotebookLM: автоматична генерація відео/подкасту через notebooklm-py. Новий модуль modules/notebooklm.py — створює notebook на тему, додає джерело, генерує контент з --wait, надсилає посилання в TG коли готово.
+Стабілізація NotebookLM інтеграції: фікс парсингу notebook ID, очистка стану. CLI коректно створює notebooks під правильним акаунтом. Notebooks видно в list.
 
 ## Наступний крок
-Зробити зручний перегляд notebooks з Telegram (/notebooks або кнопка в /cur)
+Дочекатись успішної генерації відео. Потім: мульти-вибір форматів + /notebooks команда + динамічний curriculum
 
 ## Контекст
-Cookies в ~/.notebooklm/storage_state.json. Notebook IDs зберігаються в data/notebooklm_notebooks.json
+notebooklm_notebooks.json тепер чистий, notebooks: Agentic Loops=8aca66e9, Evals=6226fef0
