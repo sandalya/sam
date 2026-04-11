@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 22:24
+# SESSION — 2026-04-11 22:27
 
 ## Проект
 sam
 
 ## Що зробили
-Додали podcast модуль (OpenAI TTS onyx, 10-15/20-25 хв, /podcast [N] [deep]). Динамічний curriculum (_get_full_curriculum, _generate_dynamic_topics, id>=100 ✨). Пасивний аналіз інтересів з розмов (update_interests в base.py). save_profile в BaseModule.
+Додали podcast модуль (OpenAI TTS onyx, 10-15/20-25 хв). Динамічний curriculum з _get_full_curriculum. Пасивний аналіз інтересів. /notebooks команда — показує всі NbLM notebooks з посиланнями.
 
 ## Наступний крок
-Мульти-вибір форматів у /cur + /notebooks команда. Тест NbLM відео після reset квоти.
+Тест NbLM відео після reset квоти (завтра). Мульти-вибір форматів у /cur.
 
 ## Контекст
-Динамічні теми генеруються коли є interests в profile.json. Інтереси накопичуються автоматично з handle_text через _extract_interests.
+notebooklm_notebooks.json: topic 2=Agentic Loops, topic 3=Evals. /notebooks читає state і будує список з посиланнями.

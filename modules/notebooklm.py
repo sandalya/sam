@@ -50,6 +50,25 @@ async def _run(args: list[str], timeout: int = 900) -> tuple[int, str, str]:
     return proc.returncode, stdout.decode(), stderr.decode()
 
 
+async def cmd_notebooks(update, context):
+    from telegram import Update
+    state = load_nb_state()
+    if not state:
+        await update.message.reply_text("Ще немає жодного notebook. Створи через /cur → тема → NotebookLM.")
+        return
+
+    from .curriculum import CURRICULUM
+    topic_map = {str(i["id"]): i["title"] for i in CURRICULUM}
+
+    lines = ["📓 *Твої NotebookLM notebooks:*\n"]
+    for topic_id, notebook_id in state.items():
+        title = topic_map.get(topic_id, f"Тема {topic_id}")
+        url = notebook_url(notebook_id)
+        lines.append(f"• [{title}]({url})")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown", disable_web_page_preview=True)
+
+
 async def get_or_create_notebook(topic_id: int, topic_title: str) -> str | None:
     state = load_nb_state()
     key = str(topic_id)
