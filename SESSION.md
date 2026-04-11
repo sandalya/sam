@@ -1,10 +1,13 @@
-# SESSION — 2026-04-11 13:30
+# SESSION — 2026-04-11 19:25
 
 ## Проект
 sam
 
 ## Що зробили
-додали inline-кнопки до /cur: внизу повідомлення рядок кнопок 1-5, тап відкриває деталі теми (як /cur_item N); пофіксили pattern у CallbackQueryHandler щоб включав cur_item
+Додали NotebookLM промпт-генератор в /cur: кнопка 🎧 → вибір формату (відео/подкаст/монолог/study/briefing) → Сем читає ресурс і генерує англійські промпти для NotebookLM. Edit-in-place картки тем. Menu button з командами.
 
 ## Наступний крок
-наступне: —
+Тестувати промпти в NotebookLM по кожній темі curriculum. Далі — варіант 2 (notebooklm-py автоматизація)
+
+## Контекст
+requests→httpx async fetch, parse_mode прибрано щоб не ламався Markdown, URL як plain text для копіювання
