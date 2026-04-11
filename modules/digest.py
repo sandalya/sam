@@ -47,9 +47,9 @@ class DigestModule(BaseModule):
         raw = self.call_claude_with_search(self._build_prompt())
         return self.parse_json_response(raw)
 
-    def _format_item(self, item: dict) -> str:
+    def _format_item(self, item: dict, idx: int) -> str:
         return (
-            f"🤖 *{item['title']}*\n"
+            f"*({idx}) {item['title']}*\n"
             f"{item['summary']}\n"
             f"[Читати далі]({item.get('url', '#')})"
         )
@@ -60,6 +60,18 @@ class DigestModule(BaseModule):
             InlineKeyboardButton("👎 Нудно", callback_data=f"dislike|{item_id}|{topic_key}"),
         ]])
 
+    def _build_overview(self, items: list[dict]) -> str:
+        titles = "\n".join(f"({i+1}) {item['title']}: {item['summary']}" for i, item in enumerate(items))
+        prompt = (
+            f"Ось пронумерований список AI-новин за сьогодні:\n{titles}\n\n"
+            "Напиши вижимку українською: 3-5 речень. "
+            "Що за день в AI-світі? Які теми домінують? Що найважливіше і чому? "
+            "Дай свою суб'єктивну оцінку — що реально варто уваги, а що шум. "
+            "Посилайся на новини через номери в дужках, наприклад: (2), (3). "
+            "Стиль — як Сем: коротко, чітко, з характером. Без заголовків і списків."
+        )
+        return self.call_claude(prompt, smart=False) or ""
+
     async def send(self, app: Application):
         items = self._fetch_items()
         if not items:
@@ -69,9 +81,11 @@ class DigestModule(BaseModule):
             )
             return
 
+        overview = self._build_overview(items)
         header = (
-            f"🤖 *AI Дайджест — {datetime.now().strftime('%d.%m.%Y')}*\n"
-            f"Найцікавіше за останні 24 години:"
+            f"🤖 *AI Дайджест — {datetime.now().strftime('%d.%m.%Y')}*\n\n"
+            f"{overview}\n\n"
+            f"— — —"
         )
         await app.bot.send_message(chat_id=self.owner_chat_id, text=header, parse_mode="Markdown")
 
@@ -80,7 +94,7 @@ class DigestModule(BaseModule):
             topic_key = item.get("topic_key", "general")
             await app.bot.send_message(
                 chat_id=self.owner_chat_id,
-                text=self._format_item(item),
+                text=self._format_item(item, idx + 1),
                 parse_mode="Markdown",
                 reply_markup=self._feedback_keyboard(item_id, topic_key),
                 disable_web_page_preview=False,
