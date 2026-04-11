@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 22:27
+# SESSION — 2026-04-11 22:40
 
 ## Проект
 sam
 
 ## Що зробили
-Додали podcast модуль (OpenAI TTS onyx, 10-15/20-25 хв). Динамічний curriculum з _get_full_curriculum. Пасивний аналіз інтересів. /notebooks команда — показує всі NbLM notebooks з посиланнями.
+Podcast модуль готовий (5 епізодів згенеровано). Мульти-вибір форматів NbLM працює — один notebook, джерело додається один раз, формати генеруються паралельно. Динамічний curriculum + пасивний аналіз інтересів.
 
 ## Наступний крок
-Тест NbLM відео після reset квоти (завтра). Мульти-вибір форматів у /cur.
+Завтра: тест NbLM після reset квоти (спробувати Briefing окремо від Відео). Додати /podcast в bot menu.
 
 ## Контекст
-notebooklm_notebooks.json: topic 2=Agentic Loops, topic 3=Evals. /notebooks читає state і будує список з посиланнями.
+Rate limit тільки на Відео або на все — з'ясуємо завтра. notebooklm_notebooks.json: 2=Agentic Loops, 3=Evals, 4=RAG.
