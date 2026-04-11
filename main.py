@@ -145,7 +145,20 @@ async def job_weekly_science(context: ContextTypes.DEFAULT_TYPE):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    async def post_init(application):
+        from telegram import BotCommand
+        await application.bot.set_my_commands([
+            BotCommand("start",      "👋 Привіт і список команд"),
+            BotCommand("digest",     "🤖 AI дайджест за 24 год"),
+            BotCommand("science",    "🔬 Науковий дайджест тижня"),
+            BotCommand("cur",        "📚 План навчання AI"),
+            BotCommand("catchup",    "📊 Catchup за період"),
+            BotCommand("jobs",       "💼 Ринок праці"),
+            BotCommand("onboarding", "🗺️ Онбординг"),
+            BotCommand("profile",    "👤 Профіль інтересів"),
+        ])
+
+    app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
@@ -162,7 +175,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern=r"^onb_"))
 
     # Callbacks
-    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_(item|start|done)\|"))
+    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_"))
     app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
 
     # Free text
