@@ -47,7 +47,25 @@ class BaseModule:
 
     def load_profile(self) -> dict:
         if PROFILE_PATH.exists():
-            return json.loads(PROFILE_PATH.read_text())
+            data = json.loads(PROFILE_PATH.read_text())
+            data.setdefault("interests", [])
+            data.setdefault("curriculum_hints", [])
+            return data
+        return {"scores": {}, "notes": [], "interests": [], "curriculum_hints": []}
+
+    def save_profile(self, profile: dict):
+        PROFILE_PATH.write_text(json.dumps(profile, ensure_ascii=False, indent=2))
+
+    def update_interests(self, new_interests: list[str]):
+        if not new_interests:
+            return
+        profile = self.load_profile()
+        existing = set(i.lower() for i in profile["interests"])
+        for item in new_interests:
+            if item.lower() not in existing:
+                profile["interests"].append(item)
+                existing.add(item.lower())
+        self.save_profile(profile)
         return {"scores": {}, "notes": []}
 
     def save_profile(self, profile: dict):
