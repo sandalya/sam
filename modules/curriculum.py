@@ -406,7 +406,7 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
             reply_markup=_format_keyboard(item_id),
         )
 
-    # ── cur_nbfmt — генерувати промпт під обраний формат ──
+    # ── cur_nbfmt — запустити генерацію в NotebookLM ──
     elif action == "cur_nbfmt":
         item_id = int(parts[1])
         fmt = parts[2]
@@ -416,33 +416,31 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
 
         format_name = FORMAT_NAMES.get(fmt, fmt)
 
-        # Показуємо "читаю..."
+        # Читаємо сторінку і генеруємо промпт для інструкцій
         await query.edit_message_text(
-            f"📖 Читаю ресурс по темі *{item['title']}*...\n\n"
-            f"Формат: {format_name}\n\n"
-            f"Зачекай хвилинку ⏳",
-            parse_mode="Markdown",
+            f"📖 Читаю ресурс і запускаю генерацію {format_name}...\n\n"
+            f"Тема: {item['title']}\n\n"
+            f"Повідомлю коли буде готово ⏳",
         )
 
-        # Завантажуємо сторінку
         page_text = await _fetch_page(item["read"])
-        if not page_text:
-            await query.message.reply_text(
-                f"❌ Не вдалось прочитати сторінку: {item['read']}\n"
-                "Спробуй пізніше або відкрий вручну."
-            )
-            return
+        instructions = ""
+        if page_text:
+            instructions = _generate_notebooklm_prompt(item, fmt, page_text)
+            # Беремо тільки перший промпт як інструкцію (коротко)
+            if "📌 Промпт 1:" in instructions:
+                instructions = instructions.split("📌 Промпт 1:")[-1].split("📌 Промпт 2:")[0].strip()
+            instructions = instructions[:500]  # ліміт CLI
 
-        # Генеруємо промпт через Claude
-        result = _generate_notebooklm_prompt(item, fmt, page_text)
+        from .notebooklm import generate_and_notify
+        import asyncio
 
-        # Відправляємо результат окремим повідомленням
-        response_text = (
-            f"🎧 NotebookLM промпт — {item['title']}\n"
-            f"Формат: {format_name}\n"
-            f"Джерело: {item['read']}\n\n"
-            f"{'─' * 30}\n\n"
-            f"{result}"
-        )
-
-        await query.message.reply_text(response_text)
+        asyncio.create_task(generate_and_notify(
+            bot=query.get_bot(),
+            chat_id=query.message.chat_id,
+            topic_id=item_id,
+            topic_title=item["title"],
+            source_url=item["read"],
+            fmt=fmt,
+            instructions=instructions,
+        ))

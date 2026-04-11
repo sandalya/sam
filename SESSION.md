@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 19:25
+# SESSION — 2026-04-11 21:12
 
 ## Проект
 sam
 
 ## Що зробили
-Додали NotebookLM промпт-генератор в /cur: кнопка 🎧 → вибір формату (відео/подкаст/монолог/study/briefing) → Сем читає ресурс і генерує англійські промпти для NotebookLM. Edit-in-place картки тем. Menu button з командами.
+Інтеграція NotebookLM: автоматична генерація відео/подкасту через notebooklm-py. Новий модуль modules/notebooklm.py — створює notebook на тему, додає джерело, генерує контент з --wait, надсилає посилання в TG коли готово.
 
 ## Наступний крок
-Тестувати промпти в NotebookLM по кожній темі curriculum. Далі — варіант 2 (notebooklm-py автоматизація)
+Зробити зручний перегляд notebooks з Telegram (/notebooks або кнопка в /cur)
 
 ## Контекст
-requests→httpx async fetch, parse_mode прибрано щоб не ламався Markdown, URL як plain text для копіювання
+Cookies в ~/.notebooklm/storage_state.json. Notebook IDs зберігаються в data/notebooklm_notebooks.json
