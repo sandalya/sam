@@ -100,11 +100,17 @@ async def cmd_curriculum(update: Update, context: ContextTypes.DEFAULT_TYPE):
         icon = _status_icon(item["id"], state)
         lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}")
 
-    lines.append("\n/cur_item N — деталі теми")
-    lines.append("/done N — виконано")
-    lines.append("/begin N — почав")
+    lines.append("\n/done N — виконано | /begin N — почав")
 
-    await update.message.reply_text("\n".join(lines))
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(
+            f"{_status_icon(item['id'], state)} {item['id']}",
+            callback_data=f"cur_item|{item['id']}"
+        )
+        for item in CURRICULUM
+    ]])
+
+    await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
 
 
 async def cmd_curriculum_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -200,7 +206,25 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
     if not item:
         return
 
-    if action == "cur_done":
+    if action == "cur_item":
+        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        if not item:
+            return
+        icon = _status_icon(item_id, state)
+        text = (
+            f"{icon} *{item['id']}. {item['title']}*\n"
+            f"⏱ {item['estimate']}\n\n"
+            f"*Навіщо:* {item['why']}\n\n"
+            f"*Почитати:* [посилання]({item['read']})\n\n"
+            f"*Зробити руками:*\n{item['do']}"
+        )
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔄 Почав", callback_data=f"cur_start|{item_id}"),
+            InlineKeyboardButton("✅ Готово", callback_data=f"cur_done|{item_id}"),
+        ]])
+        await query.message.reply_text(text, parse_mode="Markdown", reply_markup=kb)
+
+    elif action == "cur_done":
         if item_id not in state["completed"]:
             state["completed"].append(item_id)
         if item_id in state["started"]:

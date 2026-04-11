@@ -162,7 +162,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern=r"^onb_"))
 
     # Callbacks
-    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_(start|done)\|"))
+    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_(item|start|done)\|"))
     app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
 
     # Free text
