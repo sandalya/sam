@@ -16,6 +16,7 @@ from .base import DATA_DIR, client, MODEL_SMART, SAM_PERSONA
 log = logging.getLogger("sam.curriculum")
 
 CURRICULUM_STATE_PATH = DATA_DIR / "curriculum.json"
+DYNAMIC_CURRICULUM_PATH = DATA_DIR / "curriculum_dynamic.json"
 
 CURRICULUM = [
     {
@@ -104,6 +105,70 @@ FORMAT_NAMES = {
     "study": "📋 Study guide",
     "briefing": "📄 Briefing",
 }
+
+
+# ── Dynamic curriculum ────────────────────────────────────────────────────────
+
+def _load_dynamic_topics() -> list:
+    if DYNAMIC_CURRICULUM_PATH.exists():
+        return json.loads(DYNAMIC_CURRICULUM_PATH.read_text())
+    return []
+
+
+def _save_dynamic_topics(topics: list):
+    DYNAMIC_CURRICULUM_PATH.write_text(json.dumps(topics, ensure_ascii=False, indent=2))
+
+
+def _generate_dynamic_topics(state: dict, profile: dict) -> list:
+    """Генерує 3-5 нових тем на основі профілю, інтересів і прогресу."""
+    completed_titles = [i["title"] for i in CURRICULUM if i["id"] in state["completed"]]
+    all_titles = [i["title"] for i in CURRICULUM]
+    interests = profile.get("interests", [])
+    scores = profile.get("scores", {})
+
+    prompt = (
+        "You are a personalized AI curriculum designer.\n\n"
+        "The learner is a Python developer building AI agents and Telegram bots with Anthropic API.\n\n"
+        f"Completed topics: {completed_titles}\n"
+        f"All seed topics: {all_titles}\n"
+        f"Detected interests from conversations: {interests}\n"
+        f"Skill scores (0-3): {scores}\n\n"
+        "Generate 3-5 NEW learning topics that logically follow from the completed work "
+        "and align with detected interests. Topics should be practical and buildable.\n\n"
+        "Return ONLY a JSON array of objects with fields: "
+        "id (start from 100), title, estimate, why, read (URL), do. "
+        "No explanation, just the JSON array."
+    )
+
+    try:
+        response = client.messages.create(
+            model=MODEL_SMART,
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "\n".join(b.text for b in response.content if b.type == "text")
+        import re
+        match = re.search(r"\[.*?\]", text, re.DOTALL)
+        if not match:
+            return []
+        topics = json.loads(match.group())
+        _save_dynamic_topics(topics)
+        return topics
+    except Exception as e:
+        log.error(f"Dynamic curriculum generation failed: {e}")
+        return []
+
+
+def _get_full_curriculum(state: dict, profile: dict) -> list:
+    """Повертає seed + динамічні теми. Регенерує якщо є нові інтереси."""
+    dynamic = _load_dynamic_topics()
+
+    # Регенеруємо якщо є інтереси але динамічних тем ще нема
+    interests = profile.get("interests", [])
+    if interests and not dynamic:
+        dynamic = _generate_dynamic_topics(state, profile)
+
+    return CURRICULUM + dynamic
 
 
 # ── State ──────────────────────────────────────────────────────────────────────
@@ -229,12 +294,24 @@ def _generate_notebooklm_prompt(item: dict, fmt: str, page_text: str) -> str:
 # ── Handlers ───────────────────────────────────────────────────────────────────
 
 async def cmd_curriculum(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    state = load_state()
-    lines = [f"📚 Твій AI Curriculum\n{_progress_bar(state)}\n"]
+    from .base import PROFILE_PATH
+    profile = json.loads(PROFILE_PATH.read_text()) if PROFILE_PATH.exists() else {}
+    profile.setdefault("interests", [])
 
-    for item in CURRICULUM:
+    state = load_state()
+    all_topics = _get_full_curriculum(state, profile)
+
+    total = len(all_topics)
+    done = len(state["completed"])
+    filled = round(done / total * 10) if total else 0
+    bar = "█" * filled + "░" * (10 - filled)
+    progress = f"[{bar}] {done}/{total}"
+
+    lines = [f"📚 Твій AI Curriculum\n{progress}\n"]
+    for item in all_topics:
         icon = _status_icon(item["id"], state)
-        lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}")
+        tag = " ✨" if item["id"] >= 100 else ""
+        lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}{tag}")
 
     lines.append("\nОбери тему:")
 
@@ -243,7 +320,7 @@ async def cmd_curriculum(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{_status_icon(item['id'], state)} {item['id']}",
             callback_data=f"cur_item|{item['id']}"
         )
-        for item in CURRICULUM
+        for item in all_topics
     ]])
 
     await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
@@ -330,11 +407,15 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
     action = parts[0]
 
     state = load_state()
+    from .base import PROFILE_PATH
+    profile = json.loads(PROFILE_PATH.read_text()) if PROFILE_PATH.exists() else {}
+    profile.setdefault("interests", [])
+    all_topics = _get_full_curriculum(state, profile)
 
     # ── cur_item — показати картку теми (edit in place) ──
     if action == "cur_item":
         item_id = int(parts[1])
-        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
         await query.edit_message_text(
@@ -345,24 +426,30 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
 
     # ── cur_back — повернутись до списку ──
     elif action == "cur_back":
-        lines = [f"📚 Твій AI Curriculum\n{_progress_bar(state)}\n"]
-        for item in CURRICULUM:
+        total = len(all_topics)
+        done = len(state["completed"])
+        filled = round(done / total * 10) if total else 0
+        bar = "█" * filled + "░" * (10 - filled)
+        progress = f"[{bar}] {done}/{total}"
+        lines = [f"📚 Твій AI Curriculum\n{progress}\n"]
+        for item in all_topics:
             icon = _status_icon(item["id"], state)
-            lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}")
+            tag = " ✨" if item["id"] >= 100 else ""
+            lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}{tag}")
         lines.append("\nОбери тему:")
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton(
                 f"{_status_icon(item['id'], state)} {item['id']}",
                 callback_data=f"cur_item|{item['id']}"
             )
-            for item in CURRICULUM
+            for item in all_topics
         ]])
         await query.edit_message_text("\n".join(lines), reply_markup=keyboard)
 
     # ── cur_start — позначити "в процесі" ──
     elif action == "cur_start":
         item_id = int(parts[1])
-        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
         if item_id not in state["started"] and item_id not in state["completed"]:
@@ -378,7 +465,7 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
     # ── cur_done — позначити виконаним ──
     elif action == "cur_done":
         item_id = int(parts[1])
-        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
         if item_id not in state["completed"]:
@@ -397,7 +484,7 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
     # ── cur_nb — показати вибір формату ──
     elif action == "cur_nb":
         item_id = int(parts[1])
-        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
         await query.edit_message_text(
@@ -410,7 +497,7 @@ async def handle_curriculum_callback(update: Update, context: ContextTypes.DEFAU
     elif action == "cur_nbfmt":
         item_id = int(parts[1])
         fmt = parts[2]
-        item = next((i for i in CURRICULUM if i["id"] == item_id), None)
+        item = next((i for i in all_topics if i["id"] == item_id), None)
         if not item:
             return
 

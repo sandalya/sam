@@ -17,6 +17,7 @@ from modules.catchup import CatchupModule
 from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.jobs import JobsModule
+from modules.podcast import cmd_podcast
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
     cmd_start_topic, handle_curriculum_callback,
@@ -124,6 +125,65 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
 
+    import asyncio
+    asyncio.create_task(_extract_interests(text, answer or ""))
+
+
+async def _extract_interests(user_text: str, bot_answer: str):
+    try:
+        prompt = (
+            "Analyze this conversation fragment and extract any AI/ML/programming topics "
+            "the user seems interested in or is asking about.\n\n"
+            f"User: {user_text}\nAssistant: {bot_answer}\n\n"
+            "Return ONLY a JSON array of short topic strings (2-4 words max each). "
+            "Example: [\"RAG\", \"vector search\", \"streaming responses\"] "
+            "If no clear technical interest — return empty array []. "
+            "No explanation, just the JSON array."
+        )
+        result = digest.call_claude(prompt, smart=False)
+        if not result:
+            return
+        import json, re
+        match = re.search(r"\[.*?\]", result, re.DOTALL)
+        if not match:
+            return
+        interests = json.loads(match.group())
+        if interests:
+            digest.update_interests(interests)
+            logger.info(f"Interests updated: {interests}")
+    except Exception as e:
+        logger.warning(f"Interest extraction failed: {e}")
+
+    # Пасивний аналіз інтересів
+    import asyncio
+    asyncio.create_task(_extract_interests(text, answer or ""))
+
+
+async def _extract_interests(user_text: str, bot_answer: str):
+    try:
+        prompt = (
+            "Analyze this conversation fragment and extract any AI/ML/programming topics "
+            "the user seems interested in or is asking about.\n\n"
+            f"User: {user_text}\nAssistant: {bot_answer}\n\n"
+            "Return ONLY a JSON array of short topic strings (2-4 words max each). "
+            "Example: [\"RAG\", \"vector search\", \"streaming responses\"] "
+            "If no clear technical interest — return empty array []. "
+            "No explanation, just the JSON array."
+        )
+        result = digest.call_claude(prompt, smart=False)
+        if not result:
+            return
+        import json, re
+        match = re.search(r"\[.*?\]", result, re.DOTALL)
+        if not match:
+            return
+        interests = json.loads(match.group())
+        if interests:
+            digest.update_interests(interests)
+            logger.info(f"Interests updated: {interests}")
+    except Exception as e:
+        logger.warning(f"Interest extraction failed: {e}")
+
 
 # ── Scheduled jobs ─────────────────────────────────────────────────────────────
 
@@ -156,6 +216,7 @@ def main():
             BotCommand("jobs",       "💼 Ринок праці"),
             BotCommand("onboarding", "🗺️ Онбординг"),
             BotCommand("profile",    "👤 Профіль інтересів"),
+            BotCommand("podcast",    "🎙️ Подкаст по curriculum"),
         ])
 
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
@@ -167,6 +228,7 @@ def main():
     app.add_handler(CommandHandler("profile", cmd_profile))
     app.add_handler(CommandHandler("cur", cmd_curriculum))
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
+    app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
