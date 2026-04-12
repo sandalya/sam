@@ -1,13 +1,13 @@
-# SESSION — 2026-04-12 22:40
+# SESSION — 2026-04-12 22:43
 
 ## Проект
 sam
 
 ## Що зробили
-додали _build_context_snapshot в agent_base — живий стан curriculum/дата/остання активність; пофіксили BaseModule Sam через AgentBase; прибрали web_search для особистих питань; додали назви тем через патч _sam_snapshot; оновили SAM_PERSONA щоб впевнено читав контекст
+рівень 2 — очистили memory.json від дублікатів/сміття (8 корисних фактів); покращили _extract_and_save_memory: Sonnet замість Haiku, строгий промпт проти очевидного/дублікатів; перевірили — новий факт про Kit tool use зберігся коректно
 
 ## Наступний крок
-рівень 2 — покращити _extract_and_save_memory (Sonnet замість Haiku, кращий промпт); потім те саме для Garcia
+рівень 3 — проактивність: агент після відповіді іноді сам пропонує наступний крок на основі curriculum стану
 
 ## Контекст
-agent_base.py спільний для Sam і Garcia; Sam data/curriculum.json має started:[1] — Tool Use / Function Calling
+agent_base.py спільний; Sam data/memory.json чистий; _is_personal_question додано
