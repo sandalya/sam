@@ -1,13 +1,13 @@
-# SESSION — 2026-04-11 22:46
+# SESSION — 2026-04-12 18:50
 
 ## Проект
 sam
 
 ## Що зробили
-Дайджест: додали overview з оцінкою Сема і нумерацією новин з посиланнями (2)(3). Podcast модуль (OpenAI TTS onyx). Мульти-вибір форматів NbLM. Динамічний curriculum + пасивний аналіз інтересів. /notebooks команда.
+Додали кнопку 🎙️ Подкаст у /cur → картка теми. Адаптивна довжина: short (~8-12 хв) якщо тема мала, deep (~15-20 хв) якщо велика (за розміром why+do+title). _generate_podcast_for_item в curriculum_engine.py запускає через asyncio.create_task.
 
 ## Наступний крок
-Завтра: тест NbLM після reset квоти (Briefing окремо від Відео).
+Наступне: протестувати NbLM відео після reset квоти. Потім shared/notebooklm.py для Гарсіа.
 
 ## Контекст
-Rate limit тільки на Відео або на все — з'ясуємо завтра. notebooklm_notebooks.json: 2=Agentic Loops, 3=Evals, 4=RAG.
+podcast_module.py: _adaptive_format(item). ENGINE: cur_podcast callback + _generate_podcast_for_item метод. Кнопка поряд з NbLM.
