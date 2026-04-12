@@ -89,6 +89,11 @@
       "fact": "Має агента Garcia який також базується на agent_base.py, планує перенести туди зміни з Sam",
       "category": "projects",
       "date": "2026-04-12"
+    },
+    {
+      "fact": "Планує додати в curriculum три конкретні теми: Context Management & Memory Patterns, Error Handling & Recovery, Performance & Cost Optimization для роботи з екосистемою агентів",
+      "category": "goals",
+      "date": "2026-04-12"
     }
   ]
 }

@@ -1,0 +1,26 @@
+[
+  {
+    "id": 6,
+    "title": "Context Management & Memory Patterns",
+    "estimate": "2-3 дні",
+    "why": "Ти робиш це в кожному агенті по-різному — час стандартизувати підхід.",
+    "read": "https://docs.anthropic.com/en/docs/build-with-claude/memory",
+    "do": "Порівняти як влаштована пам'ять в Sam, Abby і InSilver. Зробити єдину схему."
+  },
+  {
+    "id": 7,
+    "title": "Error Handling & Recovery",
+    "estimate": "1-2 дні",
+    "why": "Systemd перезапуски — це добре, але graceful degradation при API лімітах — інший рівень.",
+    "read": "https://docs.anthropic.com/en/docs/api-errors",
+    "do": "Додати fallback в одного агента: Claude недоступний → Haiku → відповідь з кешу."
+  },
+  {
+    "id": 8,
+    "title": "Performance & Cost Optimization",
+    "estimate": "1-2 дні",
+    "why": "Твої агенти активні щодня — без контролю витрат це накопичується непомітно.",
+    "read": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
+    "do": "Порахувати скільки токенів витрачає кожен агент на день. Знайти де найбільший drain."
+  }
+]
