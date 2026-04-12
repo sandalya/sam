@@ -1,0 +1,109 @@
+{
+  "memories": [
+    {
+      "fact": "Користувач активно вчиться AI — має структурований curriculum для навчання",
+      "category": "goals",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Користувач уподобає структурований підхід — користується /curriculum status для отримання прогресу",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Користувач слідкує за своїм прогресом в навчанні AI",
+      "category": "preferences",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Має структурований AI curriculum з кількома темами (ID), активно навчається",
+      "category": "goals",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Потребує точної інформації про свій прогрес і не задовольняється загальними відповідями",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Використовує команди типу `/curriculum status` для отримання статусу",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Активно навчається AI — має структурований curriculum з кількома темами",
+      "category": "goals",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Використовує команди типу `/curriculum status` для отримання інформації",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Очікує конкретних відповідей з деталями, а не загальних фраз",
+      "category": "preferences",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Активно вивчає AI: Tool Use / Function Calling",
+      "category": "skills",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Використовує структурований curriculum для навчання",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Цікавить отримувати точні дані замість припущень",
+      "category": "preferences",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Вивчає Tool Use / Function Calling в curriculum",
+      "category": "goals",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Активно розвиває екосистему AI-агентів на Pi5 (Kit, InSilver, Abby, Maggy, Sam)",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Працює з Claude, OpenAI GPT-4, Gemini — багатомодельний підхід",
+      "category": "skills",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Побудував production-сервіси (ювелірний бот InSilver з 36 Q&A, домашній асистент Maggy з інтеграцією Metro)",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Уважний до деталей — трекує 254 замовлення, 1168 товарів, написав 63KB style knowledge для Abby",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Цінує практичне застосування — всі агенти живі, в використанні, не теоретичні",
+      "category": "preferences",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Систематичний — використовує systemd, git, аліаси, документує процеси",
+      "category": "style",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Активно вивчає AI/ML теми через структурований curriculum (зараз на Tool Use / Function Calling)",
+      "category": "goals",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Цікавиться деталями власної навчальної траєкторії і прогресом",
+      "category": "preferences",
+      "date": "2026-04-12"
+    }
+  ]
+}
