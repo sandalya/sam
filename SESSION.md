@@ -1,13 +1,13 @@
-# SESSION — 2026-04-12 18:55
+# SESSION — 2026-04-12 20:17
 
 ## Проект
 sam
 
 ## Що зробили
-Запушили workspace на github.com/sandalya/sam. Прибрали sam/.env з усієї git history через filter-branch.
+Кнопка 🎙️ Подкаст у /cur. NbLM відкривається з усіма форматами вибраними. Адаптивна довжина подкасту. Репо запушено на github.com/sandalya/sam, .env відновлено після filter-branch.
 
 ## Наступний крок
-Наступне: NbLM відео тест після reset квоти. shared/notebooklm.py для Гарсіа.
+Тест NbLM всіх форматів включно зі study guide. Потім shared/notebooklm.py для Гарсіа.
 
 ## Контекст
-Remote: https://github.com/sandalya/sam.git. .env в .gitignore але був в старих комітах — тепер чисто.
+cur_nb тепер all_fmts за замовчуванням. _generate_podcast_for_item в curriculum_engine.py. Remote: https://github.com/sandalya/sam.git
