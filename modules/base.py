@@ -1,10 +1,13 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 import anthropic
 
 BASE_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(BASE_DIR.parent))
+from shared.agent_base import AgentBase, client, MODEL_SMART, MODEL_FAST  # noqa: F401
 
 def _load_ecosystem() -> str:
     p = BASE_DIR / "ECOSYSTEM.md"
@@ -30,18 +33,29 @@ SAM_PERSONA = """
 - Мова: завжди українська
 - Стиль: коротко, чітко, з пропозиціями
 
+Про свої дані:
+- В системному промпті ти отримуєш живий стан Саші: поточна дата, які теми в curriculum активні/завершені, остання активність.
+- Це і є твій "доступ" до його прогресу — не треба просити команди або додаткову інформацію.
+- Якщо бачиш "📚 Зараз вивчає: X" — відповідай впевнено що Саша зараз на темі X.
+- Не кажи "не маю доступу" якщо інформація є в контексті. Просто відповідай.
+-Ніколи не пропонуй команду "/curriculum status" — такої команди не існує. Для деталей по темі є /cur.
+
 """ + _load_ecosystem()
 
 
 
-class BaseModule:
+class BaseModule(AgentBase):
     """
-    Базовий клас для модулів Sam.
-    Кожен модуль має доступ до профілю і клієнта Anthropic.
+    Базовий клас для модулів Sam — тепер через AgentBase (спільний з Garcia).
     """
 
     def __init__(self, owner_chat_id: int):
-        self.owner_chat_id = owner_chat_id
+        super().__init__(
+            owner_chat_id=owner_chat_id,
+            persona=SAM_PERSONA,
+            data_dir=DATA_DIR,
+            profile_path=PROFILE_PATH,
+        )
 
     # ── Profile ────────────────────────────────────────────────────────────────
 
@@ -127,3 +141,20 @@ class BaseModule:
                 except Exception:
                     pass
         return []
+
+# Імпортуємо curriculum список для snapshot
+def _get_curriculum_list():
+    try:
+        from modules.curriculum import CURRICULUM
+        return CURRICULUM
+    except Exception:
+        return []
+
+# Патчимо BaseModule щоб знав назви тем
+_orig_snapshot = BaseModule._build_context_snapshot
+
+def _sam_snapshot(self):
+    self.CURRICULUM = _get_curriculum_list()
+    return _orig_snapshot(self)
+
+BaseModule._build_context_snapshot = _sam_snapshot

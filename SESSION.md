@@ -1,13 +1,13 @@
-# SESSION — 2026-04-12 20:17
+# SESSION — 2026-04-12 22:40
 
 ## Проект
 sam
 
 ## Що зробили
-Кнопка 🎙️ Подкаст у /cur. NbLM відкривається з усіма форматами вибраними. Адаптивна довжина подкасту. Репо запушено на github.com/sandalya/sam, .env відновлено після filter-branch.
+додали _build_context_snapshot в agent_base — живий стан curriculum/дата/остання активність; пофіксили BaseModule Sam через AgentBase; прибрали web_search для особистих питань; додали назви тем через патч _sam_snapshot; оновили SAM_PERSONA щоб впевнено читав контекст
 
 ## Наступний крок
-Тест NbLM всіх форматів включно зі study guide. Потім shared/notebooklm.py для Гарсіа.
+рівень 2 — покращити _extract_and_save_memory (Sonnet замість Haiku, кращий промпт); потім те саме для Garcia
 
 ## Контекст
-cur_nb тепер all_fmts за замовчуванням. _generate_podcast_for_item в curriculum_engine.py. Remote: https://github.com/sandalya/sam.git
+agent_base.py спільний для Sam і Garcia; Sam data/curriculum.json має started:[1] — Tool Use / Function Calling
