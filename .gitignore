@@ -6,3 +6,4 @@
 
 # Embedded git repos (manage separately)
 garcia/
+venv/

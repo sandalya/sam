@@ -61,6 +61,13 @@ fi
 echo "✅ SESSION.md → $SESSION_FILE"
 
 cd "$PROJECT_DIR" || exit 1
+
+# Анти-venv: переконатись що venv не трекується
+if ! grep -q "^venv/" .gitignore 2>/dev/null; then
+    echo "venv/" >> .gitignore
+fi
+git rm -r --cached venv/ 2>/dev/null || true
+
 git add "$SESSION_FILE" "$PROJECT_DIR/" 2>/dev/null
 COMMIT_MSG="chkp: $PROJECT — $DESCRIPTION"
 git commit --no-verify -m "$COMMIT_MSG" 2>/dev/null && git push 2>/dev/null && echo "✅ Git: $COMMIT_MSG" || echo "⚠️  Git: нічого або push не вдався"
