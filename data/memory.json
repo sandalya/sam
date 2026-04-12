@@ -44,6 +44,41 @@
       "fact": "Працює над додаванням tool use/function calling до Кіта (engineering-агента)",
       "category": "projects",
       "date": "2026-04-12"
+    },
+    {
+      "fact": "Розробляє engineering-агента Kit з модульною системою tools, розглядає структурування по доменах (system/git/monitoring/workspace)",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Активно розробляє Kit - engineering-агента для Pi5 екосистеми, зараз планує структурування tools",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Використовує OpenClaw framework для розробки агентів",
+      "category": "skills",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Планує структурувати tools в Kit по доменах (system/, git/, monitor/, workspace/)",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Розглядає переписування Меггі з ручного JSON парсингу на нативні tools для function calling",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Розробляє engineering-агента Kit для Pi5 з tools для системних операцій, git, моніторингу та workspace management",
+      "category": "projects",
+      "date": "2026-04-12"
+    },
+    {
+      "fact": "Планує структурувати tools по доменах: system/, git/, monitor/, workspace/ для кращої організації",
+      "category": "goals",
+      "date": "2026-04-12"
     }
   ]
 }
