@@ -1,13 +1,13 @@
-# SESSION — 2026-04-12 23:19
+# SESSION — 2026-04-12 23:53
 
 ## Проект
 sam
 
 ## Що зробили
-додали читання SESSION.md в _build_context_snapshot — Сем тепер знає що Кіт робив останнім часом; Garcia отримала _garcia_snapshot патч для назв тем curriculum; обидва агенти перезапущені і працюють
+пофіксили IndentationError в curriculum_engine після run_in_executor патчу; перевірили — /cur працює, кнопки по 5, нумерація 6/7/8, NotebookLM не зависає
 
 ## Наступний крок
-підключити KIT_LOG.md для більш детального логу від Кота; розглянути як curriculum може адаптуватись на основі memory.json
+зробити промпт щоб Сем сам додавав теми через текст без команд; перевірити Garcia після всіх змін agent_base
 
 ## Контекст
-agent_base.py спільний; Sam і Garcia повністю на рівнях 1-2-3; SESSION.md читається Семом
+curriculum_engine.py спільний; dynamic теми в sam/data/curriculum_dynamic.json; run_in_executor для _generate_nb_prompt

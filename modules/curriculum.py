@@ -85,3 +85,8 @@ async def handle_curriculum_callback(update, context):
 
 def load_state():
     return _get().load_state()
+
+
+async def cmd_cur_add(update, context):
+    inst = _get(update.effective_user.id)
+    await inst.cmd_cur_add(update, context)
