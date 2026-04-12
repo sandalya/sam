@@ -1,68 +1,13 @@
 {
   "memories": [
     {
-      "fact": "Користувач активно вчиться AI — має структурований curriculum для навчання",
-      "category": "goals",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Користувач уподобає структурований підхід — користується /curriculum status для отримання прогресу",
-      "category": "style",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Користувач слідкує за своїм прогресом в навчанні AI",
-      "category": "preferences",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Має структурований AI curriculum з кількома темами (ID), активно навчається",
-      "category": "goals",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Потребує точної інформації про свій прогрес і не задовольняється загальними відповідями",
-      "category": "style",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Використовує команди типу `/curriculum status` для отримання статусу",
-      "category": "style",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Активно навчається AI — має структурований curriculum з кількома темами",
-      "category": "goals",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Використовує команди типу `/curriculum status` для отримання інформації",
-      "category": "style",
-      "date": "2026-04-12"
-    },
-    {
       "fact": "Очікує конкретних відповідей з деталями, а не загальних фраз",
       "category": "preferences",
       "date": "2026-04-12"
     },
     {
-      "fact": "Активно вивчає AI: Tool Use / Function Calling",
-      "category": "skills",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Використовує структурований curriculum для навчання",
-      "category": "style",
-      "date": "2026-04-12"
-    },
-    {
       "fact": "Цікавить отримувати точні дані замість припущень",
       "category": "preferences",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Вивчає Tool Use / Function Calling в curriculum",
-      "category": "goals",
       "date": "2026-04-12"
     },
     {
@@ -96,13 +41,8 @@
       "date": "2026-04-12"
     },
     {
-      "fact": "Активно вивчає AI/ML теми через структурований curriculum (зараз на Tool Use / Function Calling)",
-      "category": "goals",
-      "date": "2026-04-12"
-    },
-    {
-      "fact": "Цікавиться деталями власної навчальної траєкторії і прогресом",
-      "category": "preferences",
+      "fact": "Працює над додаванням tool use/function calling до Кіта (engineering-агента)",
+      "category": "projects",
       "date": "2026-04-12"
     }
   ]
