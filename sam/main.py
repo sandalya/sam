@@ -17,6 +17,8 @@ from modules.catchup import CatchupModule
 from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.jobs import JobsModule
+from modules.podcast import cmd_podcast
+from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
     cmd_start_topic, handle_curriculum_callback,
@@ -124,6 +126,65 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
 
+    import asyncio
+    asyncio.create_task(_extract_interests(text, answer or ""))
+
+
+async def _extract_interests(user_text: str, bot_answer: str):
+    try:
+        prompt = (
+            "Analyze this conversation fragment and extract any AI/ML/programming topics "
+            "the user seems interested in or is asking about.\n\n"
+            f"User: {user_text}\nAssistant: {bot_answer}\n\n"
+            "Return ONLY a JSON array of short topic strings (2-4 words max each). "
+            "Example: [\"RAG\", \"vector search\", \"streaming responses\"] "
+            "If no clear technical interest — return empty array []. "
+            "No explanation, just the JSON array."
+        )
+        result = digest.call_claude(prompt, smart=False)
+        if not result:
+            return
+        import json, re
+        match = re.search(r"\[.*?\]", result, re.DOTALL)
+        if not match:
+            return
+        interests = json.loads(match.group())
+        if interests:
+            digest.update_interests(interests)
+            logger.info(f"Interests updated: {interests}")
+    except Exception as e:
+        logger.warning(f"Interest extraction failed: {e}")
+
+    # Пасивний аналіз інтересів
+    import asyncio
+    asyncio.create_task(_extract_interests(text, answer or ""))
+
+
+async def _extract_interests(user_text: str, bot_answer: str):
+    try:
+        prompt = (
+            "Analyze this conversation fragment and extract any AI/ML/programming topics "
+            "the user seems interested in or is asking about.\n\n"
+            f"User: {user_text}\nAssistant: {bot_answer}\n\n"
+            "Return ONLY a JSON array of short topic strings (2-4 words max each). "
+            "Example: [\"RAG\", \"vector search\", \"streaming responses\"] "
+            "If no clear technical interest — return empty array []. "
+            "No explanation, just the JSON array."
+        )
+        result = digest.call_claude(prompt, smart=False)
+        if not result:
+            return
+        import json, re
+        match = re.search(r"\[.*?\]", result, re.DOTALL)
+        if not match:
+            return
+        interests = json.loads(match.group())
+        if interests:
+            digest.update_interests(interests)
+            logger.info(f"Interests updated: {interests}")
+    except Exception as e:
+        logger.warning(f"Interest extraction failed: {e}")
+
 
 # ── Scheduled jobs ─────────────────────────────────────────────────────────────
 
@@ -145,7 +206,22 @@ async def job_weekly_science(context: ContextTypes.DEFAULT_TYPE):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    async def post_init(application):
+        from telegram import BotCommand
+        await application.bot.set_my_commands([
+            BotCommand("start",      "👋 Привіт і список команд"),
+            BotCommand("digest",     "🤖 AI дайджест за 24 год"),
+            BotCommand("science",    "🔬 Науковий дайджест тижня"),
+            BotCommand("cur",        "📚 План навчання AI"),
+            BotCommand("catchup",    "📊 Catchup за період"),
+            BotCommand("jobs",       "💼 Ринок праці"),
+            BotCommand("onboarding", "🗺️ Онбординг"),
+            BotCommand("profile",    "👤 Профіль інтересів"),
+            BotCommand("podcast",    "🎙️ Подкаст по curriculum"),
+            BotCommand("notebooks",  "📓 Мої NotebookLM notebooks"),
+        ])
+
+    app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
@@ -154,6 +230,8 @@ def main():
     app.add_handler(CommandHandler("profile", cmd_profile))
     app.add_handler(CommandHandler("cur", cmd_curriculum))
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
+    app.add_handler(CommandHandler("podcast", cmd_podcast))
+    app.add_handler(CommandHandler("notebooks", cmd_notebooks))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
@@ -162,7 +240,8 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern=r"^onb_"))
 
     # Callbacks
-    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_(item|start|done)\|"))
+    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_"))
+    app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_nbtoggle|cur_nbrun"))
     app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
 
     # Free text

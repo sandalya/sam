@@ -138,6 +138,7 @@ class CurriculumEngine(AgentBase):
                 InlineKeyboardButton("✅ Готово", callback_data=f"cur_done|{item_id}"),
             ],
             [InlineKeyboardButton("🎧 NotebookLM промпт", callback_data=f"cur_nb|{item_id}")],
+            [InlineKeyboardButton("🎙️ Подкаст", callback_data=f"cur_podcast|{item_id}")],
             [InlineKeyboardButton("← Назад", callback_data="cur_back")],
         ])
 
@@ -245,6 +246,50 @@ class CurriculumEngine(AgentBase):
             text += "\n\n🎉 Curriculum завершено!"
         await msg.reply_text(text, parse_mode="Markdown")
 
+    async def _generate_podcast_for_item(self, query, item: dict):
+        """Генерує подкаст прямо з /cur без /podcast команди."""
+        try:
+            from shared.podcast_module import PodcastModule
+            # Рахуємо "розмір" теми: довжина why + do + title як proxy
+            content_size = len(item.get("why", "")) + len(item.get("do", "")) + len(item.get("title", ""))
+            fmt = "deep" if content_size > 300 else "short"
+
+            # Створюємо тимчасовий podcast instance з налаштуваннями поточного агента
+            class _TmpPodcast(PodcastModule):
+                podcast_audience = getattr(self, "podcast_audience", "AI developer")
+                podcast_style = getattr(self, "podcast_style", "")
+                CURRICULUM = getattr(self, "CURRICULUM", [])
+
+            pod = _TmpPodcast.__new__(_TmpPodcast)
+            pod.podcast_audience = getattr(self, "podcast_audience", "AI developer")
+            pod.podcast_style = getattr(self, "podcast_style", "")
+            pod.CURRICULUM = getattr(self, "CURRICULUM", [])
+            pod.data_dir = self.data_dir
+            pod.profile_path = self.profile_path
+
+            script = pod._generate_script(item, fmt)
+            mp3_path = pod._tts(script)
+
+            label = "~8-12 хв" if fmt == "short" else "~15-20 хв"
+            caption = (
+                f"*{item['title']}*\n"
+                f"_{label} • Curriculum #{item['id']}_\n\n"
+                f"{item['why']}"
+            )
+            with open(mp3_path, "rb") as f:
+                await query.message.reply_audio(
+                    audio=f,
+                    title=item["title"],
+                    performer="Sam Podcast",
+                    caption=caption,
+                    parse_mode="Markdown",
+                )
+            mp3_path.unlink(missing_ok=True)
+        except Exception as e:
+            import logging
+            logging.getLogger("shared.curriculum_engine").error(f"Podcast from cur failed: {e}", exc_info=True)
+            await query.message.reply_text(f"❌ Помилка генерації подкасту: {e}")
+
     async def handle_curriculum_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
@@ -333,6 +378,17 @@ class CurriculumEngine(AgentBase):
                 parse_mode="Markdown",
                 reply_markup=self._format_keyboard(item_id, selected),
             )
+
+        elif action == "cur_podcast":
+            item_id = int(parts[1])
+            item = next((i for i in all_topics if i["id"] == item_id), None)
+            if not item: return
+            await query.edit_message_text(
+                f"🎙️ *{item['title']}*\n\nГенерую подкаст... займе ~1-2 хв",
+                parse_mode="Markdown",
+            )
+            import asyncio
+            asyncio.create_task(self._generate_podcast_for_item(query, item))
 
         elif action == "cur_nbrun":
             item_id = int(parts[1])

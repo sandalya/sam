@@ -20,7 +20,12 @@ def _openai_client():
     return OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
 
 WORD_COUNT = {"short": 1400, "deep": 2800}
-FORMAT_LABEL = {"short": "10-15 хв", "deep": "20-25 хв"}
+FORMAT_LABEL = {"short": "~8-12 хв", "deep": "~15-20 хв"}
+
+def _adaptive_format(item: dict) -> str:
+    """Визначає формат на основі розміру теми."""
+    size = len(item.get("why", "")) + len(item.get("do", "")) + len(item.get("title", ""))
+    return "deep" if size > 300 else "short"
 
 SCRIPT_SYSTEM = (
     "Ти — сценарист освітніх подкастів. Пишеш скрипт для аудіо — без заголовків, без markdown, "
