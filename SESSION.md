@@ -1,13 +1,13 @@
-# SESSION — 2026-04-12 23:53
+# SESSION — 2026-04-13 08:11
 
 ## Проект
 sam
 
 ## Що зробили
-пофіксили IndentationError в curriculum_engine після run_in_executor патчу; перевірили — /cur працює, кнопки по 5, нумерація 6/7/8, NotebookLM не зависає
+додали 4 нові формати NotebookLM: Flashcards, Mind Map, Slide Deck, Infographic — тепер всього 9; пофіксили pycache проблему через очистку pycache
 
 ## Наступний крок
-зробити промпт щоб Сем сам додавав теми через текст без команд; перевірити Garcia після всіх змін agent_base
+перевірити Garcia після всіх змін agent_base; зробити щоб Сем сам додавав теми через текст
 
 ## Контекст
-curriculum_engine.py спільний; dynamic теми в sam/data/curriculum_dynamic.json; run_in_executor для _generate_nb_prompt
+curriculum_engine.py спільний; NOTEBOOKLM_FORMATS має 9 форматів
