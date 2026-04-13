@@ -1,10 +1,13 @@
-# SESSION — 2026-04-11 13:30
+# SESSION — 2026-04-13 08:11
 
 ## Проект
 sam
 
 ## Що зробили
-додали inline-кнопки до /cur: внизу повідомлення рядок кнопок 1-5, тап відкриває деталі теми (як /cur_item N); пофіксили pattern у CallbackQueryHandler щоб включав cur_item
+додали 4 нові формати NotebookLM: Flashcards, Mind Map, Slide Deck, Infographic — тепер всього 9; пофіксили pycache проблему через очистку pycache
 
 ## Наступний крок
-наступне: —
+перевірити Garcia після всіх змін agent_base; зробити щоб Сем сам додавав теми через текст
+
+## Контекст
+curriculum_engine.py спільний; NOTEBOOKLM_FORMATS має 9 форматів

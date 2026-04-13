@@ -21,6 +21,10 @@ NOTEBOOKLM_FORMATS = [
     ("🎤 Монолог", "audio"),
     ("📋 Study guide", "study"),
     ("📄 Briefing", "briefing"),
+    ("🃏 Flashcards", "flashcards"),
+    ("🧠 Mind Map", "mindmap"),
+    ("📊 Slide Deck", "slides"),
+    ("📈 Infographic", "infographic"),
 ]
 
 FORMAT_NAMES = {
@@ -29,6 +33,10 @@ FORMAT_NAMES = {
     "audio": "🎤 Монолог",
     "study": "📋 Study guide",
     "briefing": "📄 Briefing",
+    "flashcards": "🃏 Flashcards",
+    "mindmap": "🧠 Mind Map",
+    "slides": "📊 Slide Deck",
+    "infographic": "📈 Infographic",
 }
 
 FORMAT_INSTRUCTIONS = {
@@ -37,6 +45,10 @@ FORMAT_INSTRUCTIONS = {
     "audio": "Створи промпт для АУДІО МОНОЛОГУ. Впевнений тон, чітка структура, як якісна лекція.",
     "study": "Створи промпт для STUDY GUIDE. Ключові концепти → FAQ → питання для самоперевірки.",
     "briefing": "Створи промпт для BRIEFING DOC. Коротко: що це, навіщо, головні ідеї, застосування.",
+    "flashcards": "Створи промпт для FLASHCARDS. Питання на одному боці, відповідь на іншому.",
+    "mindmap": "Створи промпт для MIND MAP. Центральна ідея → гілки → підгілки.",
+    "slides": "Створи промпт для SLIDE DECK. Кожен слайд — одна ідея.",
+    "infographic": "Створи промпт для INFOGRAPHIC. Ключові цифри, порівняння, процеси у вигляді схем.",
 }
 
 
@@ -115,8 +127,8 @@ class CurriculumEngine(AgentBase):
         if item_id in state["started"]: return "🔄"
         return "⬜"
 
-    def _progress_bar(self, state: dict) -> str:
-        total = len(self.CURRICULUM)
+    def _progress_bar(self, state: dict, total_override: int = None) -> str:
+        total = total_override or len(self.CURRICULUM)
         done = len(state["completed"])
         filled = round(done / total * 10) if total else 0
         return f"[{'█' * filled}{'░' * (10 - filled)}] {done}/{total}"
@@ -210,13 +222,45 @@ class CurriculumEngine(AgentBase):
             tag = " ✨" if item["id"] >= 100 else ""
             lines.append(f"{icon} {item['id']}. {item['title']} — {item['estimate']}{tag}")
         lines.append("\nОбери тему:")
-        keyboard = InlineKeyboardMarkup([[
+        btn_list = [
             InlineKeyboardButton(
                 f"{self._status_icon(item['id'], state)} {item['id']}",
                 callback_data=f"cur_item|{item['id']}"
             ) for item in all_topics
-        ]])
+        ]
+        rows = [btn_list[i:i+5] for i in range(0, len(btn_list), 5)]
+        keyboard = InlineKeyboardMarkup(rows)
         await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
+
+
+    async def cmd_cur_add(self, update, context):
+        """Додає нову тему в curriculum через /cur_add Назва теми."""
+        args = context.args
+        if not args:
+            await update.message.reply_text(
+                "Використання: /cur_add Назва теми\n"
+                "Приклад: /cur_add Context Management & Memory Patterns"
+            )
+            return
+        title = " ".join(args).strip()
+        dynamic = self._load_dynamic()
+        # ID: починаємо з 100 або наступний після останнього
+        existing_ids = [t.get("id", 0) for t in dynamic]
+        next_id = max(existing_ids + [99]) + 1
+        new_topic = {
+            "id": next_id,
+            "title": title,
+            "estimate": "1-3 дні",
+            "why": "Додано вручну.",
+            "read": "",
+            "do": "",
+        }
+        dynamic.append(new_topic)
+        self._save_dynamic(dynamic)
+        await update.message.reply_text(
+            f"✅ Тему додано в curriculum:\n*{title}*\n\nВикористай /cur щоб побачити оновлений план.",
+            parse_mode="Markdown",
+        )
 
     async def cmd_done(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         args = context.args
@@ -267,8 +311,10 @@ class CurriculumEngine(AgentBase):
             pod.data_dir = self.data_dir
             pod.profile_path = self.profile_path
 
-            script = pod._generate_script(item, fmt)
-            mp3_path = pod._tts(script)
+            import asyncio
+            loop = asyncio.get_event_loop()
+            script = await loop.run_in_executor(None, pod._generate_script, item, fmt)
+            mp3_path = await loop.run_in_executor(None, pod._tts, script)
 
             label = "~8-12 хв" if fmt == "short" else "~15-20 хв"
             caption = (
@@ -357,11 +403,12 @@ class CurriculumEngine(AgentBase):
             item_id = int(parts[1])
             item = next((i for i in all_topics if i["id"] == item_id), None)
             if not item: return
-            context.user_data[f"nb_selected_{item_id}"] = []
+            all_fmts = [fmt for _, fmt in NOTEBOOKLM_FORMATS]
+            context.user_data[f"nb_selected_{item_id}"] = all_fmts
             await query.edit_message_text(
                 f"🎧 *{item['title']}*\n\nОбери формати для NotebookLM:",
                 parse_mode="Markdown",
-                reply_markup=self._format_keyboard(item_id, []),
+                reply_markup=self._format_keyboard(item_id, all_fmts),
             )
 
         elif action == "cur_nbtoggle":
@@ -404,27 +451,52 @@ class CurriculumEngine(AgentBase):
             )
             from shared.notebooklm_module import generate_and_notify, get_or_create_notebook, _run as nb_run
             import asyncio
-            notebook_id = await get_or_create_notebook(item_id, item["title"], self.data_dir)
-            if not notebook_id:
-                await query.message.reply_text("❌ Не вдалось створити notebook.")
-                return
-            page_text = await self._fetch_page(item["read"])
-            await nb_run(["source", "add", "-n", notebook_id, item["read"]])
-            for fmt in selected:
-                instructions = ""
-                if page_text:
-                    instructions = self._generate_nb_prompt(item, fmt, page_text)
-                    if "📌 Промпт 1:" in instructions:
-                        instructions = instructions.split("📌 Промпт 1:")[-1].split("📌 Промпт 2:")[0].strip()
-                    instructions = instructions[:500]
-                asyncio.create_task(generate_and_notify(
-                    bot=query.get_bot(),
-                    chat_id=query.message.chat_id,
-                    topic_id=item_id,
-                    topic_title=item["title"],
-                    source_url=item["read"],
-                    fmt=fmt,
-                    instructions=instructions,
-                    skip_source=True,
-                    data_dir=self.data_dir,
-                ))
+
+            async def _run_all_formats(bot, chat_id, item, selected, data_dir):
+                try:
+                    notebook_id = await get_or_create_notebook(item["id"], item["title"], data_dir)
+                except Exception as e:
+                    try:
+                        await bot.send_message(chat_id, f"❌ Не вдалось створити notebook: {e}")
+                    except Exception:
+                        pass
+                    return
+                if not notebook_id:
+                    try:
+                        await bot.send_message(chat_id, "❌ Не вдалось створити notebook.")
+                    except Exception:
+                        pass
+                    return
+                page_text = await self._fetch_page(item["read"])
+                await nb_run(["source", "add", "-n", notebook_id, item["read"]])
+                for fmt in selected:
+                    instructions = ""
+                    if page_text:
+                        loop = asyncio.get_event_loop()
+                        instructions = await loop.run_in_executor(None, self._generate_nb_prompt, item, fmt, page_text)
+                        if "📌 Промпт 1:" in instructions:
+                            instructions = instructions.split("📌 Промпт 1:")[-1].split("📌 Промпт 2:")[0].strip()
+                        instructions = instructions[:500]
+                    try:
+                        await generate_and_notify(
+                            bot=bot,
+                            chat_id=chat_id,
+                            topic_id=item["id"],
+                            topic_title=item["title"],
+                            source_url=item["read"],
+                            fmt=fmt,
+                            instructions=instructions,
+                            skip_source=True,
+                            data_dir=data_dir,
+                        )
+                    except Exception as e:
+                        import logging
+                        logging.getLogger("shared.curriculum").warning(f"generate_and_notify failed: {e}")
+
+            asyncio.create_task(_run_all_formats(
+                bot=query.get_bot(),
+                chat_id=query.message.chat_id,
+                item=item,
+                selected=selected,
+                data_dir=self.data_dir,
+            ))

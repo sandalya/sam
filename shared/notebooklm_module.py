@@ -104,11 +104,15 @@ async def generate_and_notify(
                 await bot.send_message(chat_id, "❌ Не вдалось додати джерело.")
                 return
         format_cmd = {
-            "video":    ["generate", "video", "-n", notebook_id, "--wait"],
-            "podcast":  ["generate", "audio", "-n", notebook_id, "--wait"],
-            "audio":    ["generate", "audio", "-n", notebook_id, "--wait"],
-            "study":    ["generate", "report", "-n", notebook_id, "--format", "study-guide", "--wait"],
-            "briefing": ["generate", "report", "-n", notebook_id, "--format", "briefing-doc", "--wait"],
+            "video":       ["generate", "video", "-n", notebook_id, "--wait"],
+            "podcast":     ["generate", "audio", "-n", notebook_id, "--wait"],
+            "audio":       ["generate", "audio", "-n", notebook_id, "--wait"],
+            "study":       ["generate", "report", "-n", notebook_id, "--format", "study-guide", "--wait"],
+            "briefing":    ["generate", "report", "-n", notebook_id, "--format", "briefing-doc", "--wait"],
+            "flashcards":  ["generate", "flashcards", "-n", notebook_id, "--wait"],
+            "mindmap":     ["generate", "mind-map", "-n", notebook_id, "--wait"],
+            "slides":      ["generate", "slide-deck", "-n", notebook_id, "--wait"],
+            "infographic": ["generate", "infographic", "-n", notebook_id, "--wait"],
         }
         args = format_cmd.get(fmt, format_cmd["video"])
         if instructions:

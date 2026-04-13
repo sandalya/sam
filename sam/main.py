@@ -21,7 +21,7 @@ from modules.podcast import cmd_podcast
 from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
-    cmd_start_topic, handle_curriculum_callback,
+    cmd_start_topic, handle_curriculum_callback, cmd_cur_add,
 )
 
 import sys as _sys
@@ -66,7 +66,11 @@ async def cmd_digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
     await update.message.reply_text("⏳ Збираю AI дайджест, хвилинку...")
-    await digest.send(context.application)
+    try:
+        await digest.send(context.application)
+    except Exception as e:
+        logger.error(f"Digest error: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Помилка дайджесту: {e}")
 
 
 async def cmd_science(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -119,45 +123,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
-    await update.message.reply_text("🤔 Думаю...")
-    answer = digest.call_claude(
-        f"Користувач вивчає AI-розробку. Відповідай коротко, по ділу, українською.\n\nПовідомлення: {text}",
-        smart=True
-    )
+    await update.message.chat.send_action("typing")
+    answer = digest.call_claude_chat(text, max_tokens=1500)
     await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
-
-    import asyncio
-    asyncio.create_task(_extract_interests(text, answer or ""))
-
-
-async def _extract_interests(user_text: str, bot_answer: str):
-    try:
-        prompt = (
-            "Analyze this conversation fragment and extract any AI/ML/programming topics "
-            "the user seems interested in or is asking about.\n\n"
-            f"User: {user_text}\nAssistant: {bot_answer}\n\n"
-            "Return ONLY a JSON array of short topic strings (2-4 words max each). "
-            "Example: [\"RAG\", \"vector search\", \"streaming responses\"] "
-            "If no clear technical interest — return empty array []. "
-            "No explanation, just the JSON array."
-        )
-        result = digest.call_claude(prompt, smart=False)
-        if not result:
-            return
-        import json, re
-        match = re.search(r"\[.*?\]", result, re.DOTALL)
-        if not match:
-            return
-        interests = json.loads(match.group())
-        if interests:
-            digest.update_interests(interests)
-            logger.info(f"Interests updated: {interests}")
-    except Exception as e:
-        logger.warning(f"Interest extraction failed: {e}")
-
-    # Пасивний аналіз інтересів
-    import asyncio
-    asyncio.create_task(_extract_interests(text, answer or ""))
 
 
 async def _extract_interests(user_text: str, bot_answer: str):
@@ -233,6 +201,7 @@ def main():
     app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("notebooks", cmd_notebooks))
     app.add_handler(CommandHandler("done", cmd_done))
+    app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
     app.add_handler(CommandHandler("jobs", cmd_jobs))
@@ -242,7 +211,7 @@ def main():
     # Callbacks
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_"))
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_nbtoggle|cur_nbrun"))
-    app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
+    app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike|detail)\|"))
 
     # Free text
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
