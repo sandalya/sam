@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 21:19
+# SESSION — 2026-04-13 23:36
 
 ## Проект
 sam
 
 ## Що зробили
-Podcast tracking повністю готовий: динамічні кнопки слухати/генерувати/+Deep/+Short, file_id зберігається, 8 подкастів заповнені вручну, формат визначається автоматично по розміру теми
+NbLM error handling: retry rate_limit+rc=1 (3 спроби 0/15/30хв), одне підсумкове повідомлення замість спаму, _md_escape для Markdown в _item_text
 
 ## Наступний крок
-Додати podcast рядок в картку теми (як NbLM рядок показує що вже є). Видалити /getfileid коли не потрібна.
+Повернути RETRY_DELAYS назад на [0, 1560, 3060] якщо ще тестові — перевірити grep
 
 ## Контекст
-podcasts_state.json: теми 1-8 short. Наступне: podcast рядок в _item_text
+curriculum_engine.py: _run_all_formats збирає results dict і пише одне повідомлення. generate_fmt повертає (ok, err_type). Тестові затримки [0,10,10] можливо ще в engine

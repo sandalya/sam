@@ -66,5 +66,51 @@
     "generated": [
       "flashcards"
     ]
+  },
+  "9": {
+    "notebook_id": "a086560a-3143-4ea6-a8ed-b995cd84ebd8",
+    "generated": [
+      "study",
+      "briefing",
+      "flashcards",
+      "infographic"
+    ]
+  },
+  "10": {
+    "notebook_id": "73302ac1-fb15-4b22-85fd-e88f1867cf0e",
+    "generated": [
+      "study",
+      "briefing",
+      "flashcards",
+      "slides",
+      "infographic"
+    ]
+  },
+  "11": {
+    "notebook_id": "6fb780e3-b7b2-4e99-a246-796594e9c916",
+    "generated": [
+      "study",
+      "briefing",
+      "flashcards",
+      "infographic"
+    ]
+  },
+  "12": {
+    "notebook_id": "1d06040e-57d0-4e99-853c-35219e3be74b",
+    "generated": [
+      "study",
+      "briefing",
+      "flashcards",
+      "slides",
+      "infographic"
+    ]
+  },
+  "13": {
+    "notebook_id": "441441d6-22c3-440c-a94e-dd142c6d6cac",
+    "generated": []
+  },
+  "14": {
+    "notebook_id": "085270bc-0eef-4223-8b8a-c24833b4face",
+    "generated": []
   }
 }
