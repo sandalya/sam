@@ -173,6 +173,13 @@ async def job_weekly_science(context: ContextTypes.DEFAULT_TYPE):
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+async def cmd_getfileid(update, context):
+    msg = update.message.reply_to_message
+    if not msg or not msg.audio:
+        await update.message.reply_text("Відповідай на аудіо повідомлення командою /getfileid")
+        return
+    await update.message.reply_text(f"`{msg.audio.file_id}`", parse_mode="Markdown")
+
 def main():
     async def post_init(application):
         from telegram import BotCommand
@@ -200,6 +207,7 @@ def main():
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
     app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("notebooks", cmd_notebooks))
+    app.add_handler(CommandHandler("getfileid", cmd_getfileid))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
