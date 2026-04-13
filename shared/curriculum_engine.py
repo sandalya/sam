@@ -244,9 +244,9 @@ class CurriculumEngine(AgentBase):
             return
         title = " ".join(args).strip()
         dynamic = self._load_dynamic()
-        # ID: починаємо з 100 або наступний після останнього
-        existing_ids = [t.get("id", 0) for t in dynamic]
-        next_id = max(existing_ids + [99]) + 1
+        # ID: продовжуємо після останнього ID з усіх тем (static + dynamic)
+        all_ids = [t.get("id", 0) for t in self.CURRICULUM] + [t.get("id", 0) for t in dynamic]
+        next_id = max(all_ids + [0]) + 1
         new_topic = {
             "id": next_id,
             "title": title,
