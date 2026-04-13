@@ -66,7 +66,11 @@ async def cmd_digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
     await update.message.reply_text("⏳ Збираю AI дайджест, хвилинку...")
-    await digest.send(context.application)
+    try:
+        await digest.send(context.application)
+    except Exception as e:
+        logger.error(f"Digest error: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Помилка дайджесту: {e}")
 
 
 async def cmd_science(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -207,7 +211,7 @@ def main():
     # Callbacks
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_"))
     app.add_handler(CallbackQueryHandler(handle_curriculum_callback, pattern=r"^cur_nbtoggle|cur_nbrun"))
-    app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike)\|"))
+    app.add_handler(CallbackQueryHandler(handle_feedback, pattern=r"^(like|dislike|detail)\|"))
 
     # Free text
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))

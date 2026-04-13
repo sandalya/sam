@@ -21,78 +21,196 @@ TOPICS = [
 class DigestModule(BaseModule):
 
     def _build_prompt(self) -> str:
-        today = datetime.now().strftime("%d %B %Y")
+        now = datetime.now()
+        today_str = now.strftime("%d %B %Y")
+        today_iso = now.strftime("%Y-%m-%d")
         topics_str = "\n".join(f"- {t}" for t in TOPICS)
         profile_ctx = self.profile_to_context()
 
-        return f"""Сьогодні {today}. Знайди 5-7 найцікавіших новин за останні 24 години по темах:
+        return f"""Сьогодні {today_str} ({today_iso}). Знайди актуальні AI-новини по темах:
 {topics_str}
 
 {profile_ctx}
 
-Сортуй від найцікавішої до найменш цікавої.
-Відповідь ТІЛЬКИ у форматі JSON масиву, без markdown, без пояснень:
-[
-  {{
-    "title": "Коротка назва (до 10 слів)",
-    "summary": "2-3 речення: що сталось і чому важливо.",
-    "url": "https://...",
-    "topic_key": "категорія англійською 1-2 слова"
-  }}
-]
+Розбий знахідки на 3 блоки:
 
-Тільки реальні новини з реальними URL. Не вигадуй."""
+БЛОК 1 — "hot": 3-4 новини строго за останні 24-48 годин (не старіше). Тільки свіже.
+БЛОК 2 — "week": 2-3 важливі події цього тижня, які ще актуальні але можуть бути 3-7 днів тому.
+БЛОК 3 — "foryou": 1-2 речі конкретно корисні для розробника AI-продуктів зараз (інструменти, техніки, практики).
 
-    def _fetch_items(self) -> list[dict]:
-        raw = self.call_claude_with_search(self._build_prompt())
-        return self.parse_json_response(raw)
+Відповідь ТІЛЬКИ у форматі JSON, без markdown, без пояснень:
+{{
+  "hot": [
+    {{
+      "title": "Коротка назва (до 10 слів)",
+      "summary": "2-3 речення суті.",
+      "detail": "5-7 речень детального аналізу: що відбулось, чому важливо, які наслідки для AI-розробників.",
+      "url": "https://...",
+      "topic_key": "категорія англійською 1-2 слова",
+      "date_hint": "коли приблизно (напр: сьогодні, вчора, 2 дні тому)"
+    }}
+  ],
+  "week": [ ...той самий формат... ],
+  "foryou": [ ...той самий формат... ]
+}}
 
-    def _format_item(self, item: dict) -> str:
+Тільки реальні новини з реальними URL. Не вигадуй. Дата має бути точною."""
+
+    def _fetch_items(self) -> dict:
+        raw = self.call_claude_with_search(self._build_prompt(), max_tokens=3000)
+        logger.info(f"RAW response (first 500): {raw[:500] if raw else 'EMPTY'}")
+        parsed = self.parse_json_response(raw)
+        logger.info(f"PARSED type={type(parsed).__name__}, value={str(parsed)[:300]}")
+        if isinstance(parsed, dict):
+            return parsed
+        return {"hot": parsed or [], "week": [], "foryou": []}
+
+    def _build_overview(self, data: dict) -> str:
+        all_items = []
+        for block in ["hot", "week", "foryou"]:
+            all_items.extend(data.get(block, []))
+
+        if not all_items:
+            return ""
+
+        numbered = "\n".join(
+            f"({i+1}) [{item.get('date_hint', '')}] {item['title']}: {item['summary']}"
+            for i, item in enumerate(all_items)
+        )
+        prompt = (
+            f"Ось пронумеровані AI-новини на {datetime.now().strftime('%d.%m.%Y')}:\n{numbered}\n\n"
+            "Напиши міні-бріф: 3-4 речення. Що головне сьогодні? Які теми домінують? "
+            "Посилайся на новини через номери в дужках: (1), (2) тощо. "
+            "Стиль — як Сем: лаконічно, по ділу, з характером. Без заголовків і списків."
+        )
+        return self.call_claude(prompt) or ""
+
+    def _format_item(self, item: dict, idx: int) -> str:
+        date_hint = item.get("date_hint", "")
+        date_tag = f" _({date_hint})_" if date_hint else ""
         return (
-            f"🤖 *{item['title']}*\n"
+            f"*({idx}) {item['title']}*{date_tag}\n"
             f"{item['summary']}\n"
             f"[Читати далі]({item.get('url', '#')})"
         )
 
-    def _feedback_keyboard(self, item_id: str, topic_key: str) -> InlineKeyboardMarkup:
+    def _detail_keyboard(self, item_id: str, topic_key: str) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔍 Детальніше", callback_data=f"detail|{item_id}|{topic_key}"),
             InlineKeyboardButton("🔥 Топ", callback_data=f"like|{item_id}|{topic_key}"),
             InlineKeyboardButton("👎 Нудно", callback_data=f"dislike|{item_id}|{topic_key}"),
         ]])
 
     async def send(self, app: Application):
-        items = self._fetch_items()
-        if not items:
+        data = self._fetch_items()
+
+        hot = data.get("hot", [])
+        week = data.get("week", [])
+        foryou = data.get("foryou", [])
+
+        all_items = hot + week + foryou
+
+        if not all_items:
             await app.bot.send_message(
                 chat_id=self.owner_chat_id,
                 text="😶 Нічого цікавого за останні 24 год. Спробую завтра."
             )
             return
 
-        header = (
-            f"🤖 *AI Дайджест — {datetime.now().strftime('%d.%m.%Y')}*\n"
-            f"Найцікавіше за останні 24 години:"
-        )
-        await app.bot.send_message(chat_id=self.owner_chat_id, text=header, parse_mode="Markdown")
+        # Зберігаємо detail для callback
+        self._detail_cache = {}
+        for i, item in enumerate(all_items):
+            item_id = f"{datetime.now().strftime('%Y%m%d')}_{i}"
+            item["_id"] = item_id
+            self._detail_cache[item_id] = item.get("detail", "")
 
-        for idx, item in enumerate(items):
-            item_id = f"{datetime.now().strftime('%Y%m%d')}_{idx}"
-            topic_key = item.get("topic_key", "general")
+        overview = self._build_overview(data)
+
+        header = (
+            f"🤖 *AI Дайджест — {datetime.now().strftime('%d.%m.%Y')}*\n\n"
+            f"{overview}\n\n— — —"
+        )
+        await app.bot.send_message(
+            chat_id=self.owner_chat_id, text=header, parse_mode="Markdown"
+        )
+        await asyncio.sleep(0.3)
+
+        idx = 1
+
+        if hot:
             await app.bot.send_message(
-                chat_id=self.owner_chat_id,
-                text=self._format_item(item),
-                parse_mode="Markdown",
-                reply_markup=self._feedback_keyboard(item_id, topic_key),
-                disable_web_page_preview=False,
+                chat_id=self.owner_chat_id, text="🔥 *Гаряче (24г)*", parse_mode="Markdown"
             )
-            await asyncio.sleep(0.5)
+            for item in hot:
+                await app.bot.send_message(
+                    chat_id=self.owner_chat_id,
+                    text=self._format_item(item, idx),
+                    parse_mode="Markdown",
+                    reply_markup=self._detail_keyboard(item["_id"], item.get("topic_key", "general")),
+                    disable_web_page_preview=True,
+                )
+                await asyncio.sleep(0.4)
+                idx += 1
+
+        if week:
+            await app.bot.send_message(
+                chat_id=self.owner_chat_id, text="📌 *Важливо цього тижня*", parse_mode="Markdown"
+            )
+            for item in week:
+                await app.bot.send_message(
+                    chat_id=self.owner_chat_id,
+                    text=self._format_item(item, idx),
+                    parse_mode="Markdown",
+                    reply_markup=self._detail_keyboard(item["_id"], item.get("topic_key", "general")),
+                    disable_web_page_preview=True,
+                )
+                await asyncio.sleep(0.4)
+                idx += 1
+
+        if foryou:
+            await app.bot.send_message(
+                chat_id=self.owner_chat_id, text="💡 *Для тебе зараз*", parse_mode="Markdown"
+            )
+            for item in foryou:
+                await app.bot.send_message(
+                    chat_id=self.owner_chat_id,
+                    text=self._format_item(item, idx),
+                    parse_mode="Markdown",
+                    reply_markup=self._detail_keyboard(item["_id"], item.get("topic_key", "general")),
+                    disable_web_page_preview=True,
+                )
+                await asyncio.sleep(0.4)
+                idx += 1
 
     async def handle_feedback(self, update):
         query = update.callback_query
         await query.answer()
 
         parts = query.data.split("|")
-        action, item_id, topic_key = parts[0], parts[1], parts[2]
+        action = parts[0]
+
+        if action == "detail":
+            item_id = parts[1]
+            topic_key = parts[2]
+            detail_text = getattr(self, "_detail_cache", {}).get(item_id, "")
+            if detail_text:
+                original = query.message.text or ""
+                title_line = original.split("\n")[0] if original else ""
+                new_text = f"{title_line}\n\n{detail_text}"
+                feedback_kb = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔥 Топ", callback_data=f"like|{item_id}|{topic_key}"),
+                    InlineKeyboardButton("👎 Нудно", callback_data=f"dislike|{item_id}|{topic_key}"),
+                ]])
+                await query.edit_message_text(
+                    text=new_text,
+                    reply_markup=feedback_kb,
+                    parse_mode="Markdown",
+                )
+            else:
+                await query.answer("😕 Деталі не збереглись — спробуй /digest знову.", show_alert=True)
+            return
+
+        item_id, topic_key = parts[1], parts[2]
 
         if action == "like":
             self.update_score(topic_key, +1)
