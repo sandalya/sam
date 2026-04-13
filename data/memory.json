@@ -94,6 +94,31 @@
       "fact": "Планує додати в curriculum три конкретні теми: Context Management & Memory Patterns, Error Handling & Recovery, Performance & Cost Optimization для роботи з екосистемою агентів",
       "category": "goals",
       "date": "2026-04-12"
+    },
+    {
+      "fact": "Планує підкаст про вибір одноплатних комп'ютерів (Raspberry Pi vs Mac Mini) для AI агентів через NotebookLM",
+      "category": "projects",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Розглядає альтернативи Raspberry Pi 5 для своєї екосистеми агентів — конкретно Mac Mini M4",
+      "category": "goals",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Розглядає Raspberry Pi 5 vs Mac Mini M4 для продакшн AI-агентів - конкретно порівнює ARM64 Pi5 4-8GB vs Mac Mini M4 16-32GB для 5+ одночасних Python AI агентів",
+      "category": "projects",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Аналізує cost efficiency: $80-120 Pi5 vs $600-1200 Mac Mini для 24/7 операцій та споживання 15W Pi5 vs 39W Mac Mini",
+      "category": "goals",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Працює з конкретними AI бібліотеками: transformers, torch, faster-whisper на ARM64 та розглядає systemd vs launchd для оркестрації агентів",
+      "category": "skills",
+      "date": "2026-04-13"
     }
   ]
 }

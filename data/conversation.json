@@ -59,6 +59,36 @@
       "role": "assistant",
       "text": "Маєш рацію! Я сказав що додам, але не виконав команди. Додаю зараз:\n\n/cur add \"Context Management & Memory Patterns\"\n\n/cur add \"Error Handling & Recovery\"\n\n/cur add \"Performance & Cost Optimization\"\n\nТепер теми додані в curriculum і можу запустити генерацію подкастів!",
       "time": "2026-04-12 23:29"
+    },
+    {
+      "role": "user",
+      "text": "Згенеруй промт для нблм для подскаста на тему який одноплаиний пк краще для моїх проектів з агентами: разпбері пай або макміні?",
+      "time": "2026-04-13 00:14"
+    },
+    {
+      "role": "assistant",
+      "text": "Ось промпт для NotebookLM:\n\n---\n\n**Тема подкасту:** \"Raspberry Pi 5 vs Mac Mini M4 для розробки AI агентів - що краще для production екосистеми?\"\n\n**Контекст спікерів:** Два AI research engineers обговорюють вибір single-board комп'ютера для запуску множинних AI агентів в домашній/малій production системі.\n\n**Ключові точки для обговорення:**\n\n• **Performance comparison:** ARM64 Pi5 4-8GB vs Mac Mini M4 16-32GB для одночасної роботи 5+ Python AI агентів\n• **Cost efficiency:** $80-120 Pi5 vs $600-1200 Mac Mini для 24/7 operation\n• **Power consumption:** 15W Pi5 vs 39W Mac Mini при постійній роботі\n• **Thermal management:** passive vs active cooling для AI workloads\n• **OS ecosystem:** Linux ARM64 compatibility vs macOS для AI libraries (transformers, torch)\n• **Systemd vs launchd:** управління сервісами в production\n• **Memory limitations:** swap strategies, memory optimization для множинних агентів\n• **API rate limiting:** як hardware впливає на concurrent API calls до Claude/OpenAI\n• **Maintenance overhead:** remote SSH management vs local GUI access\n• **Scalability path:** додавання другого Pi5 vs upgrade Mac Mini specs\n• **Community support:** документація та troubleshooting для AI deployments\n\n**Стиль:** Практичний, з конкретними прикладами, цифрами споживання ресурсів та real-world досвідом.\n\n---\n\nЗапускати генерацію?",
+      "time": "2026-04-13 00:14"
+    },
+    {
+      "role": "user",
+      "text": "Англійською",
+      "time": "2026-04-13 00:15"
+    },
+    {
+      "role": "assistant",
+      "text": "Ось промпт англійською для NotebookLM:\n\n---\n\n**Podcast Topic:** \"Raspberry Pi 5 vs Mac Mini M4 for AI Agent Development - Which is Better for Production Ecosystems?\"\n\n**Speaker Context:** Two AI research engineers discussing the choice of single-board computers for running multiple AI agents in home/small production systems.\n\n**Key Discussion Points:**\n\n• **Performance comparison:** ARM64 Pi5 4-8GB vs Mac Mini M4 16-32GB for running 5+ concurrent Python AI agents\n• **Cost efficiency:** $80-120 Pi5 vs $600-1200 Mac Mini for 24/7 operation\n• **Power consumption:** 15W Pi5 vs 39W Mac Mini for continuous workloads\n• **Thermal management:** Passive vs active cooling for AI inference tasks\n• **OS ecosystem:** Linux ARM64 compatibility vs macOS for AI libraries (transformers, torch, faster-whisper)\n• **Service management:** systemd vs launchd for production AI agent orchestration\n• **Memory limitations:** Swap strategies and memory optimization for multi-agent systems\n• **API rate limiting:** How hardware specs affect concurrent API calls to Claude/OpenAI/Gemini\n• **Maintenance overhead:** Remote SSH management vs local GUI access\n• **Scalability path:** Adding second Pi5 vs upgrading Mac Mini specs\n• **Community support:** Documentation and troubleshooting resources for AI deployments\n• **Real-world scenarios:** Telegram bots, image generation, voice processing, file operations\n\n**Style:** Practical discussion with specific numbers, resource consumption data, and real-world deployment experience.\n\n---\n\nGenerate the podcast?",
+      "time": "2026-04-13 00:15"
+    },
+    {
+      "role": "user",
+      "text": "А можеш ще ресурс якийсь добрячий для цього підшукають?",
+      "time": "2026-04-13 00:16"
+    },
+    {
+      "role": "assistant",
+      "text": ".\n\nДодаю ці ресурси в промпт:\n\n---\n\n**Additional Resources:**\n- Jeff Geerling's M4 Mac Mini efficiency analysis: https://www.jeffgeerling.com/blog/2024/m4-mac-minis-efficiency-incredible/\n- OpenClaw hardware comparison: https://www.getopenclaw.ai/compare/raspberry-pi-vs-mac-mini  \n- 2026 AI Hardware Buyer's Guide: https://gist.github.com/yalexx/2b48ec416ec78f5782d14d6fa8a45b8d\n\n**Key data points to reference:**\n- M4 efficiency: 6.74 Gflops/W vs typical ARM SBC 2-5% yearly gains\n- Power costs: Pi $8/year vs Mac Mini $40/year for 24/7 operation\n- Performance gap: Apple M1 4x faster than Pi 5 in Geekbench tests\n- Memory advantage: Mac Mini unified memory vs Pi limited RAM for AI workloads\n\n---\n\nГотово для NotebookLM генерації?",
+      "time": "2026-04-13 00:17"
     }
   ]
 }
