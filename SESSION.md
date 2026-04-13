@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 23:56
+# SESSION — 2026-04-14 00:02
 
 ## Проект
 sam
 
 ## Що зробили
-Фаза 1 завершена: keyword pre-router в handle_text ловить очевидні команди (дайджест/digest/cur/science/catchup/jobs/cost) без API виклику; KEYWORD_ROUTES dict на початку main.py
+Мігрували token tracking на shared/token_tracker.py (TokenTracker), /cost показує реальні витрати (-bash.42 за сесію), keyword pre-router працює, сумісність старого формату token_logger в get_stats()
 
 ## Наступний крок
-Фаза 2 по інструкції Опуса: learning_state.json або наступний пріоритет з інструкції
+Фаза 2 по Опусу: learning_state.json або /nbstatus команда
 
 ## Контекст
-token_log.jsonl має 4 записи, router верифікований — wc -l не зріс після 'дайджест'
+token_log.jsonl в shared/, старі записи мають cost_usd/cache_write — compat патч в token_tracker.py рядок ~125
