@@ -119,6 +119,21 @@
       "fact": "Працює з конкретними AI бібліотеками: transformers, torch, faster-whisper на ARM64 та розглядає systemd vs launchd для оркестрації агентів",
       "category": "skills",
       "date": "2026-04-13"
+    },
+    {
+      "fact": "Має повну екосистему з 5 AI агентів на Raspberry Pi5: Kit (engineering), InSilver v3 (jewelry consultant), Abby (design для дружини), Maggy (домашній), Sam (навчальний). Всі в продакшні через systemd.",
+      "category": "projects",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Отримав глибокий технічний аналіз своєї екосистеми від Claude Opus, який розібрав реальний код і архітектурні рішення",
+      "category": "projects",
+      "date": "2026-04-13"
+    },
+    {
+      "fact": "Планує вивчати Graceful Degradation Patterns, State Management Architecture, Multi-Model Strategy як найближчі пріоритети",
+      "category": "goals",
+      "date": "2026-04-13"
     }
   ]
 }
