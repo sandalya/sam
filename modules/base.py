@@ -120,7 +120,7 @@ class BaseModule(AgentBase):
         )
         return "\n".join(b.text for b in response.content if b.type == "text")
 
-    def parse_json_response(self, raw: str) -> list:
+    def parse_json_response(self, raw: str) -> list | dict:
         """Чистить і парсить JSON з відповіді Claude."""
         import re
         clean = raw.strip()
@@ -132,9 +132,11 @@ class BaseModule(AgentBase):
         clean = clean.strip()
         try:
             result = json.loads(clean)
-            return result if isinstance(result, list) else []
+            if isinstance(result, (list, dict)):
+                return result
+            return []
         except json.JSONDecodeError:
-            match = re.search(r'\[.*\]', clean, re.DOTALL)
+            match = re.search(r'[\[\{].*[\]\}]', clean, re.DOTALL)
             if match:
                 try:
                     return json.loads(match.group())
