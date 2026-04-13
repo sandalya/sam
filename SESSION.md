@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 08:11
+# SESSION — 2026-04-13 18:39
 
 ## Проект
 sam
 
 ## Що зробили
-додали 4 нові формати NotebookLM: Flashcards, Mind Map, Slide Deck, Infographic — тепер всього 9; пофіксили pycache проблему через очистку pycache
+Дайджест повністю перероблено: 3 блоки (hot/week/foryou), overview з нумерацією, кнопка Детальніше (edit in place), фікс cite-тегів з web_search, мова українська, фільтр дат у промпті. parse_json_response живе в shared/agent_base.py
 
 ## Наступний крок
-перевірити Garcia після всіх змін agent_base; зробити щоб Сем сам додавав теми через текст
+Далі: перенести зміни digest в Garcia, потім /stage команда для Ксюші
 
 ## Контекст
-curriculum_engine.py спільний; NOTEBOOKLM_FORMATS має 9 форматів
+detail_cache в пам'яті — після рестарту старі кнопки Детальніше не працюють, ок
