@@ -28,10 +28,14 @@ from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.jobs import JobsModule
 from modules.podcast import cmd_podcast
-import sys as _sys
+import sys as _sys, os as _os
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).parent.parent))
-from shared.token_logger import get_stats
+from shared.token_tracker import TokenTracker as _TokenTracker
+_cost_tracker = _TokenTracker(
+    log_path=_os.path.expanduser("~/.openclaw/workspace/shared/token_log.jsonl"),
+    agent="sam",
+)
 from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
@@ -80,14 +84,17 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
-    stats = get_stats(since_days=30)
-    total = stats["total_cost_usd"]
-    calls = stats["total_calls"]
-    lines = [f"💰 Витрати за 30 днів: ${total:.4f}", f"📞 Всього викликів: {calls}", ""]
-    for agent, d in sorted(stats["by_agent"].items(), key=lambda x: -x[1]["cost_usd"]):
-        lines.append(f"• {agent}: ${d['cost_usd']:.4f} ({d['calls']} calls)")
-        lines.append(f"  in={d['input']} out={d['output']} cache={d['cache_read']}")
-    await update.message.reply_text("\n".join(lines) if lines else "Даних ще немає")
+    s = _cost_tracker.get_stats(days=30)
+    if not s:
+        await update.message.reply_text("Даних ще немає")
+        return
+    lines = [
+        f"💰 Витрати за 30 днів: ${s['total_cost']:.4f}",
+        f"📞 Запитів: {s['total_requests']}",
+        f"🗃 Кеш: {s['cache_hit_rate']}% | зекономлено: ${s['total_saved']:.4f}",
+        f"📈 in={s['total_input']:,} out={s['total_output']:,} cache_r={s['total_cache_read']:,}",
+    ]
+    await update.message.reply_text("\n".join(lines))
 
 async def cmd_digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
