@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 23:36
+# SESSION — 2026-04-13 23:50
 
 ## Проект
 sam
 
 ## Що зробили
-NbLM error handling: retry rate_limit+rc=1 (3 спроби 0/15/30хв), одне підсумкове повідомлення замість спаму, _md_escape для Markdown в _item_text
+Фаза 0 завершена: token_logger.py в shared/, log_usage вшитий в agent_base.py (4 місця), команда /cost в main.py показує витрати за 30 днів по агентах
 
 ## Наступний крок
-Повернути RETRY_DELAYS назад на [0, 1560, 3060] якщо ще тестові — перевірити grep
+Фаза 1: keyword pre-router щоб не витрачати API виклик на очевидні команди (/cur, /digest тощо)
 
 ## Контекст
-curriculum_engine.py: _run_all_formats збирає results dict і пише одне повідомлення. generate_fmt повертає (ok, err_type). Тестові затримки [0,10,10] можливо ще в engine
+token_log.jsonl пишеться в shared/, agent= це class.name, зараз DigestModule логується коректно

@@ -18,6 +18,10 @@ from modules.onboarding import OnboardingModule
 from modules.science import ScienceModule
 from modules.jobs import JobsModule
 from modules.podcast import cmd_podcast
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).parent.parent))
+from shared.token_logger import get_stats
 from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
@@ -61,6 +65,19 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await digest.send_profile(update)
 
+
+
+async def cmd_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    stats = get_stats(since_days=30)
+    total = stats["total_cost_usd"]
+    calls = stats["total_calls"]
+    lines = [f"💰 Витрати за 30 днів: ${total:.4f}", f"📞 Всього викликів: {calls}", ""]
+    for agent, d in sorted(stats["by_agent"].items(), key=lambda x: -x[1]["cost_usd"]):
+        lines.append(f"• {agent}: ${d['cost_usd']:.4f} ({d['calls']} calls)")
+        lines.append(f"  in={d['input']} out={d['output']} cache={d['cache_read']}")
+    await update.message.reply_text("\n".join(lines) if lines else "Даних ще немає")
 
 async def cmd_digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
@@ -200,6 +217,7 @@ def main():
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("science", cmd_science))
     app.add_handler(CommandHandler("profile", cmd_profile))
