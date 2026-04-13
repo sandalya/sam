@@ -1,3 +1,13 @@
+KEYWORD_ROUTES = {
+    "хаб": "hub", "hub": "hub",
+    "дайджест": "digest", "digest": "digest",
+    "cur": "curriculum", "курікулум": "curriculum", "curriculum": "curriculum",
+    "наука": "science", "science": "science",
+    "catchup": "catchup", "кетчап": "catchup",
+    "jobs": "jobs", "джобс": "jobs", "вакансії": "jobs",
+    "cost": "cost", "витрати": "cost", "вартість": "cost",
+}
+
 import os
 import logging
 from datetime import time
@@ -139,6 +149,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
+
+
+    low = text.lower().strip()
+    for kw, route in KEYWORD_ROUTES.items():
+        if low == kw or low.startswith(kw + " "):
+            if route == "digest":
+                await cmd_digest(update, context); return
+            elif route == "science":
+                await cmd_science(update, context); return
+            elif route == "curriculum":
+                await cmd_curriculum(update, context); return
+            elif route == "catchup":
+                await cmd_catchup(update, context); return
+            elif route == "jobs":
+                await cmd_jobs(update, context); return
+            elif route == "cost":
+                await cmd_cost(update, context); return
 
     await update.message.chat.send_action("typing")
     answer = digest.call_claude_chat(text, max_tokens=1500)

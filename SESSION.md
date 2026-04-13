@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 23:50
+# SESSION — 2026-04-13 23:56
 
 ## Проект
 sam
 
 ## Що зробили
-Фаза 0 завершена: token_logger.py в shared/, log_usage вшитий в agent_base.py (4 місця), команда /cost в main.py показує витрати за 30 днів по агентах
+Фаза 1 завершена: keyword pre-router в handle_text ловить очевидні команди (дайджест/digest/cur/science/catchup/jobs/cost) без API виклику; KEYWORD_ROUTES dict на початку main.py
 
 ## Наступний крок
-Фаза 1: keyword pre-router щоб не витрачати API виклик на очевидні команди (/cur, /digest тощо)
+Фаза 2 по інструкції Опуса: learning_state.json або наступний пріоритет з інструкції
 
 ## Контекст
-token_log.jsonl пишеться в shared/, agent= це class.name, зараз DigestModule логується коректно
+token_log.jsonl має 4 записи, router верифікований — wc -l не зріс після 'дайджест'
