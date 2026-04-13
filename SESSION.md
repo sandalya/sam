@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 20:30
+# SESSION — 2026-04-13 20:43
 
 ## Проект
 sam
 
 ## Що зробили
-Naming rule для NbLM ноутів: CATEGORY — Topic замість AGENT | Topic. category додано в CURRICULUM кожній темі, передається через curriculum_engine -> get_or_create_notebook -> notebooklm_module
+NbLM tracking: json мігрований на {notebook_id, generated:[]}. Картка теми показує NbLM рядок з форматами. Екран форматів показує 🔒 для вже згенерованих. Кнопка Генерувати рахує тільки нові. Заповнили generated для тем 1-8 вручну по скрінах.
 
 ## Наступний крок
-Зробити /nbstatus — звіт які теми мають які формати NbLM контенту
+Додати category до динамічних тем в curriculum_dynamic.json (зараз category береться тільки зі статичного CURRICULUM)
 
 ## Контекст
-notebooklm_notebooks.json має topic 1-8 крім того що вже було
+Теми 6=Context Management, 7=Error Handling, 8=Performance — динамічні з curriculum_dynamic.json
