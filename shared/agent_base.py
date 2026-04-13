@@ -393,7 +393,8 @@ class AgentBase:
             import logging
             logging.getLogger("shared.agent_base").warning(f"Memory extraction failed: {e}")
 
-    def parse_json_response(self, raw: str) -> list:
+    def parse_json_response(self, raw: str):
+        """Parse JSON from Claude response. Returns list or dict depending on content."""
         import re, json as _json
         clean = raw.strip()
         if clean.startswith("```"):
@@ -404,8 +405,16 @@ class AgentBase:
         clean = clean.strip()
         try:
             result = _json.loads(clean)
-            return result if isinstance(result, list) else []
+            return result  # повертаємо як є — list або dict
         except _json.JSONDecodeError:
+            # спробуємо знайти dict
+            match = re.search(r'\{.*\}', clean, re.DOTALL)
+            if match:
+                try:
+                    return _json.loads(match.group())
+                except Exception:
+                    pass
+            # спробуємо знайти list
             match = re.search(r'\[.*\]', clean, re.DOTALL)
             if match:
                 try:
