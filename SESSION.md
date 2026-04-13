@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 18:39
+# SESSION — 2026-04-13 20:30
 
 ## Проект
 sam
 
 ## Що зробили
-Дайджест повністю перероблено: 3 блоки (hot/week/foryou), overview з нумерацією, кнопка Детальніше (edit in place), фікс cite-тегів з web_search, мова українська, фільтр дат у промпті. parse_json_response живе в shared/agent_base.py
+Naming rule для NbLM ноутів: CATEGORY — Topic замість AGENT | Topic. category додано в CURRICULUM кожній темі, передається через curriculum_engine -> get_or_create_notebook -> notebooklm_module
 
 ## Наступний крок
-Далі: перенести зміни digest в Garcia, потім /stage команда для Ксюші
+Зробити /nbstatus — звіт які теми мають які формати NbLM контенту
 
 ## Контекст
-detail_cache в пам'яті — після рестарту старі кнопки Детальніше не працюють, ок
+notebooklm_notebooks.json має topic 1-8 крім того що вже було
