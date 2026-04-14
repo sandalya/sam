@@ -1,5 +1,4 @@
 KEYWORD_ROUTES = {
-    "хаб": "hub", "hub": "hub",
     "дайджест": "digest", "digest": "digest",
     "cur": "curriculum", "курікулум": "curriculum", "curriculum": "curriculum",
     "наука": "science", "science": "science",
@@ -42,7 +41,7 @@ from modules.curriculum import (
     cmd_start_topic, handle_curriculum_callback, cmd_cur_add,
     CURRICULUM,
 )
-from modules.hub import hub_page
+from shared.hub_renderer import hub_page
 from modules.state_manager import touch_activity
 
 import sys as _sys
@@ -65,6 +64,18 @@ jobs = JobsModule(owner_chat_id=OWNER_CHAT_ID)
 # ── Core handlers ──────────────────────────────────────────────────────────────
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Deep link handling: /start gen_1 або /start tts_1
+    args = context.args
+    if args:
+        param = args[0]
+        if param.startswith("gen_") and param[4:].isdigit():
+            context.args = [param[4:]]
+            update.message.text = f"/gen_{param[4:]}"
+            await cmd_gen(update, context)
+            return
+        if param.startswith("tts_") and param[4:].isdigit():
+            await cmd_tts_play(update, context, int(param[4:]))
+            return
     await update.message.reply_text(
         "👋 Привіт, я Sam — твій персональний агент.\n\n"
         "Що вмію зараз:\n"
@@ -92,8 +103,8 @@ async def cmd_hub(update, context):
     _cur_state = _load_cur_state()
     _profile = _cur_inst.load_profile()
     all_topics = _cur_inst.get_full_curriculum(_cur_state, _profile)
-    text, kb = hub_page(all_topics, page=0)
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=kb, disable_web_page_preview=True)
+    text, kb = hub_page(all_topics, page=0, data_dir=_cur_inst.data_dir)
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
 async def handle_hub_callback(update, context):
     query = update.callback_query
@@ -107,8 +118,8 @@ async def handle_hub_callback(update, context):
         _cur_state2 = _load_cur_state2()
         _profile2 = _cur_inst2.load_profile()
         _all_topics2 = _cur_inst2.get_full_curriculum(_cur_state2, _profile2)
-        text, kb = hub_page(_all_topics2, page=page)
-        await query.message.edit_text(text, parse_mode="Markdown", reply_markup=kb, disable_web_page_preview=True)
+        text, kb = hub_page(_all_topics2, page=page, data_dir=_cur_inst2.data_dir)
+        await query.message.edit_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
         return
 
     if data.startswith("hub_podcast|"):
@@ -199,9 +210,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     low = text.lower().strip()
     for kw, route in KEYWORD_ROUTES.items():
         if low == kw or low.startswith(kw + " "):
-            if route == "hub":
-                await cmd_hub(update, context); return
-            elif route == "digest":
+            if route == "digest":
                 await cmd_digest(update, context); return
             elif route == "science":
                 await cmd_science(update, context); return
@@ -272,6 +281,77 @@ async def cmd_getfileid(update, context):
         return
     await update.message.reply_text(f"`{msg.audio.file_id}`", parse_mode="Markdown")
 
+
+async def cmd_gen(update, context):
+    """Генерує відсутні NbLM формати для теми /gen_N."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    import re as _re
+    text = update.message.text or ""
+    m = _re.search(r"/gen_?(\d+)", text)
+    if not m:
+        await update.message.reply_text("Використання: /gen_1")
+        return
+    item_id = int(m.group(1))
+    from modules.curriculum import _get as _get_cur, load_state as _load_state
+    inst = _get_cur(update.effective_user.id)
+    state = _load_state()
+    profile = inst.load_profile()
+    all_topics = inst.get_full_curriculum(state, profile)
+    item = next((t for t in all_topics if t["id"] == item_id), None)
+    if not item:
+        await update.message.reply_text(f"Тема {item_id} не знайдена")
+        return
+    from shared.notebooklm_module import load_nb_state
+    from modules.hub import TRACKED_FORMATS
+    nb_state = load_nb_state(inst.data_dir)
+    entry = nb_state.get(str(item_id), {})
+    generated = [f for f in entry.get("generated", []) if f in TRACKED_FORMATS]
+    missing = [f for f in TRACKED_FORMATS if f not in generated]
+    if not missing:
+        await update.message.reply_text(f"\u2705 Всі формати вже згенеровані для теми {item_id}")
+        return
+    from shared.curriculum_engine import FORMAT_NAMES
+    names = ", ".join(FORMAT_NAMES.get(f, f) for f in missing)
+    await update.message.reply_text(f"\u23f3 Генерую для *{item['title']}*:\n{names}", parse_mode="Markdown")
+    import asyncio
+    asyncio.create_task(inst._run_all_formats_task(
+        bot=update.get_bot(),
+        chat_id=update.effective_chat.id,
+        item=item,
+        selected=missing,
+        data_dir=inst.data_dir,
+    ))
+
+
+async def cmd_tts_play(update, context, item_id: int = None):
+    """Відтворює TTS подкаст для теми."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    if item_id is None:
+        import re as _re
+        m = _re.search(r"tts_?(\d+)", update.message.text or "")
+        if not m:
+            return
+        item_id = int(m.group(1))
+    from modules.curriculum import _get as _get_cur
+    inst = _get_cur(update.effective_user.id)
+    ps = inst._load_podcast_state()
+    entry = ps.get(str(item_id), {})
+    # Беремо deep якщо є, інакше short
+    for fmt in ("deep", "short"):
+        file_id = entry.get(fmt, {}).get("file_id")
+        if file_id:
+            state = inst.load_state()
+            profile = inst.load_profile()
+            all_topics = inst.get_full_curriculum(state, profile)
+            item = next((t for t in all_topics if t["id"] == item_id), None)
+            label = "~15-20 хв" if fmt == "deep" else "~8-12 хв"
+            caption = f"<b>{item['title'] if item else item_id}</b>\n<i>{label} • Curriculum #{item_id}</i>"
+            await update.message.reply_audio(audio=file_id, caption=caption, parse_mode="HTML")
+            return
+    await update.message.reply_text(f"TTS подкаст для теми {item_id} ще не згенеровано")
+
 def main():
     async def post_init(application):
         from telegram import BotCommand
@@ -298,13 +378,14 @@ def main():
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("science", cmd_science))
     app.add_handler(CommandHandler("profile", cmd_profile))
-    app.add_handler(CommandHandler("cur", cmd_curriculum))
+    app.add_handler(CommandHandler("cur", cmd_hub))
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
     app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("notebooks", cmd_notebooks))
     app.add_handler(CommandHandler("getfileid", cmd_getfileid))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
+    app.add_handler(MessageHandler(filters.Regex(r"^/gen_\d+"), cmd_gen))
     app.add_handler(CommandHandler("start_topic", cmd_start_topic))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
     app.add_handler(CommandHandler("jobs", cmd_jobs))

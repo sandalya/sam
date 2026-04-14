@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 19:13
+# SESSION — 2026-04-14 21:45
 
 ## Проект
 sam
 
 ## Що зробили
-Оновлено _item_keyboard: всі 5 NbLM форматів + TTS в одному місці, уніфіковані іконки. Оновлено NOTEBOOKLM_FORMATS/FORMAT_NAMES. podcasts_state.json доповнено 9/12/13. NbLM rate limiting: RETRY_DELAYS [0,1560,3060], пауза 45с між форматами. hub.py оновлено з TTS міткою.
+Рефакторинг /cur → hub стиль: артефакти в тексті меседжу, deep links ✨згенерувати/🔊послухати, спрощений item keyboard (тільки статуси), hub_renderer.py в shared/
 
 ## Наступний крок
-Рефакторинг /cur → об'єднаний cur+hub: список з посиланнями + генерація одним кліком + архівування тем
+NbLM адаптивна черга з backoff без помилок в чат
 
 ## Контекст
-curriculum_engine.py: _curriculum_message потребує переписки на hub-стиль. /hub → аліас /cur після рефакторингу
+hub_renderer.py читає data_dir динамічно; /hub прибрано з routes; sam/modules/hub.py залишається як re-export
