@@ -123,6 +123,10 @@ class TokenTracker:
                 try:
                     e = json.loads(line)
                     if datetime.fromisoformat(e["ts"]) >= cutoff:
+                        if "cost_usd" in e and "cost" not in e:
+                            e["cost"] = e["cost_usd"]
+                        if "cache_write" in e and "cache_created" not in e:
+                            e["cache_created"] = e["cache_write"]
                         entries.append(e)
                 except Exception:
                     continue

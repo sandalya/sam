@@ -8,6 +8,11 @@ import os
 from pathlib import Path
 
 import anthropic
+from .token_tracker import TokenTracker as _TokenTracker
+_shared_tracker = _TokenTracker(
+    log_path=__import__('os').path.expanduser('~/.openclaw/workspace/shared/token_log.jsonl'),
+    agent='shared',
+)
 
 from .memory_store import MemoryStore
 from .conversation_store import ConversationStore
@@ -181,6 +186,7 @@ class AgentBase:
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}],
         )
+        _shared_tracker.agent = self.__class__.__name__; _shared_tracker.track(response.usage, extra={"call_type": "search"})
         return "\n".join(b.text for b in response.content if b.type == "text")
 
     def call_claude(self, prompt: str, max_tokens: int = 1024, smart: bool = False) -> str:
@@ -191,6 +197,7 @@ class AgentBase:
             system=[{"type": "text", "text": self._build_system(), "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         )
+        _shared_tracker.agent = self.__class__.__name__; _shared_tracker.track(response.usage, extra={"call_type": "call_claude"})
         return "\n".join(b.text for b in response.content if b.type == "text")
 
     def _is_personal_question(self, text: str) -> bool:
@@ -223,6 +230,7 @@ class AgentBase:
             if use_search:
                 kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search"}]
             response = client.messages.create(**kwargs)
+            _shared_tracker.agent = self.__class__.__name__; _shared_tracker.track(response.usage, extra={"call_type": "chat"})
             texts = [b.text for b in response.content if b.type == "text"]
             answer = texts[-1] if texts else ""
         except Exception:
@@ -232,6 +240,7 @@ class AgentBase:
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=messages,
             )
+            _shared_tracker.agent = self.__class__.__name__; _shared_tracker.track(response.usage, extra={"call_type": "chat_fallback"})
             answer = "\n".join(b.text for b in response.content if b.type == "text")
 
         if answer:

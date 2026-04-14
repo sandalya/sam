@@ -1,13 +1,13 @@
-# SESSION — 2026-04-13 18:39
+# SESSION — 2026-04-14 23:17
 
 ## Проект
 sam
 
 ## Що зробили
-Дайджест повністю перероблено: 3 блоки (hot/week/foryou), overview з нумерацією, кнопка Детальніше (edit in place), фікс cite-тегів з web_search, мова українська, фільтр дат у промпті. parse_json_response живе в shared/agent_base.py
+Sam v2 повністю завершено: smart router (haiku), proactive engine, atomic write + in_progress tracking + auto-resume генерацій при ребуті, tool use agentic loop (5 tools), prompt caching вже був в agent_base. ECOSYSTEM.md оновлено для Кота
 
 ## Наступний крок
-Далі: перенести зміни digest в Garcia, потім /stage команда для Ксюші
+наступне — Фаза 6 вже готова, можна братись за Garcia або /nbstatus з беклогу
 
 ## Контекст
-detail_cache в пам'яті — після рестарту старі кнопки Детальніше не працюють, ок
+всі файли в /home/sashok/.openclaw/workspace/sam/, core/tools.py, modules/router.py, modules/proactive.py створені

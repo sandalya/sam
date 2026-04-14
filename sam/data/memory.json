@@ -134,6 +134,16 @@
       "fact": "Планує вивчати Graceful Degradation Patterns, State Management Architecture, Multi-Model Strategy як найближчі пріоритети",
       "category": "goals",
       "date": "2026-04-13"
+    },
+    {
+      "fact": "Планує використовувати подкасти через NotebookLM для вивчення Context Management & Memory Patterns, Error Handling & Recovery, Multi-Model Strategy",
+      "category": "goals",
+      "date": "2026-04-14"
+    },
+    {
+      "fact": "Цікавиться agentic loops patterns - конкретно як реалізувати iterative refinement в агентах через NotebookLM та планує розвивати цей pattern в Kit (моніторинг→дія→перевірка) та Maggy",
+      "category": "projects",
+      "date": "2026-04-14"
     }
   ]
 }

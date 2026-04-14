@@ -1,0 +1,19 @@
+{"ts": "2026-04-13T23:46:22", "agent": "DigestModule", "call_type": "chat", "model": "claude-sonnet-4-20250514", "input": 3345, "cache_write": 5382, "cache_read": 0, "output": 213, "cost_usd": 0.033412}
+{"ts": "2026-04-13T23:46:24", "agent": "DigestModule", "call_type": "call_claude", "model": "claude-sonnet-4-20250514", "input": 518, "cache_write": 3493, "cache_read": 0, "output": 9, "cost_usd": 0.014788}
+{"ts": "2026-04-13T23:52:13", "agent": "DigestModule", "call_type": "chat", "model": "claude-sonnet-4-20250514", "input": 3278, "cache_write": 5354, "cache_read": 0, "output": 5, "cost_usd": 0.029986}
+{"ts": "2026-04-13T23:52:14", "agent": "DigestModule", "call_type": "call_claude", "model": "claude-sonnet-4-20250514", "input": 306, "cache_write": 3465, "cache_read": 0, "output": 4, "cost_usd": 0.013972}
+{"ts": "2026-04-13T23:56:50", "agent": "DigestModule", "call_type": "search", "model": "claude-sonnet-4-20250514", "input": 859, "cache_write": 63558, "cache_read": 105094, "output": 3271, "cost_usd": 0.321513}
+{"ts": "2026-04-13T23:56:55", "agent": "DigestModule", "call_type": "call_claude", "model": "claude-haiku-4-5-20251001", "input": 4009, "cache_write": 0, "cache_read": 0, "output": 285, "cost_usd": 0.004347}
+{"ts": "2026-04-14T09:01:43", "agent": "DigestModule", "input": 866, "output": 3303, "cache_read": 158477, "cache_created": 72511, "has_image": false, "cost": 0.371602, "saved": 0.373505, "call_type": "search"}
+{"ts": "2026-04-14T09:01:48", "agent": "DigestModule", "input": 4378, "output": 327, "cache_read": 0, "cache_created": 0, "has_image": false, "cost": 0.018039, "saved": 0.0, "call_type": "call_claude"}
+{"ts": "2026-04-14T12:45:21", "agent": "DigestModule", "input": 3167, "output": 620, "cache_read": 5332, "cache_created": 20088, "has_image": false, "cost": 0.095731, "saved": -0.00067, "call_type": "chat"}
+{"ts": "2026-04-14T12:45:23", "agent": "DigestModule", "input": 537, "output": 55, "cache_read": 0, "cache_created": 3443, "has_image": false, "cost": 0.015347, "saved": -0.002582, "call_type": "call_claude"}
+{"ts": "2026-04-14T22:16:29", "agent": "DigestModule", "input": 870, "output": 2946, "cache_read": 164629, "cache_created": 74966, "has_image": false, "cost": 0.377311, "saved": 0.388274, "call_type": "search"}
+{"ts": "2026-04-14T22:16:33", "agent": "DigestModule", "input": 4401, "output": 241, "cache_read": 0, "cache_created": 0, "has_image": false, "cost": 0.016818, "saved": 0.0, "call_type": "call_claude"}
+{"ts": "2026-04-14T22:19:39", "agent": "ScienceModule", "input": 432, "output": 747, "cache_read": 143433, "cache_created": 63322, "has_image": false, "cost": 0.292988, "saved": 0.339778, "call_type": "search"}
+{"ts": "2026-04-14T22:20:53", "agent": "CatchupModule", "input": 561, "output": 1882, "cache_read": 107605, "cache_created": 57119, "has_image": false, "cost": 0.276391, "saved": 0.247694, "call_type": "search"}
+{"ts": "2026-04-14T22:40:02", "agent": "DigestModule", "input": 2944, "output": 423, "cache_read": 0, "cache_created": 5404, "has_image": false, "cost": 0.035442, "saved": -0.004053, "call_type": "chat"}
+{"ts": "2026-04-14T22:40:03", "agent": "DigestModule", "input": 728, "output": 4, "cache_read": 0, "cache_created": 3515, "has_image": false, "cost": 0.015425, "saved": -0.002636, "call_type": "call_claude"}
+{"ts": "2026-04-14T23:11:25", "agent": "DigestModule", "input": 2979, "output": 560, "cache_read": 5404, "cache_created": 22274, "has_image": false, "cost": 0.102486, "saved": -0.002115, "call_type": "chat"}
+{"ts": "2026-04-14T23:11:28", "agent": "DigestModule", "input": 3800, "output": 150, "cache_read": 0, "cache_created": 0, "has_image": false, "cost": 0.01365, "saved": 0.0, "call_type": "call_claude"}
+{"ts": "2026-04-14T23:11:31", "agent": "DigestModule", "input": 515, "output": 99, "cache_read": 0, "cache_created": 3515, "has_image": false, "cost": 0.016211, "saved": -0.002636, "call_type": "call_claude"}
