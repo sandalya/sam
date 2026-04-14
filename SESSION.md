@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 00:04
+# SESSION — 2026-04-14 12:29
 
 ## Проект
 sam
 
 ## Що зробили
-Сесія завершена. Зроблено: token_logger → TokenTracker міграція, /cost команда, keyword pre-router в handle_text, сумісність старого формату в get_stats()
+Фаза 1+2 завершені: state_manager.py (learning_state.json з artifacts_consumed/streak/days_inactive), hub.py, /hub команда показує dashboard з прогресом і артефактами, touch_activity() в handle_text
 
 ## Наступний крок
-Фаза 2 по Опусу: learning_state.json
+Фаза 3: Smart Router (router.py) або /hub inline кнопки
 
 ## Контекст
-Продовжуємо завтра
+CURRICULUM має 5 статичних тем + dynamic; hub показує topic name з CURRICULUM list

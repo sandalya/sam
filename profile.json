@@ -3,7 +3,12 @@
     "llm_models": 1,
     "mcp_integration": 1,
     "agents_adoption": 1,
-    "agents_usecase": 2
+    "agents_usecase": 2,
+    "developer tooling": 1,
+    "agent frameworks": 1,
+    "enterprise adoption": 1
   },
-  "notes": []
+  "notes": [],
+  "interests": [],
+  "curriculum_hints": []
 }
