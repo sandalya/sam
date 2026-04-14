@@ -70,7 +70,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         param = args[0]
         if param.startswith("gen_") and param[4:].isdigit():
             context.args = [param[4:]]
-            update.message.text = f"/gen_{param[4:]}"
             await cmd_gen(update, context)
             return
         if param.startswith("tts_") and param[4:].isdigit():
@@ -128,6 +127,24 @@ async def handle_hub_callback(update, context):
         from modules.podcast import cmd_podcast
         context.args = [tid]
         await cmd_podcast(update, context)
+        return
+    if data.startswith("hub_gen|"):
+        tid = int(data.split("|")[1])
+        context.args = [str(tid)]
+        await cmd_gen(update, context)
+        return
+    if data.startswith("hub_tts|"):
+        tid = int(data.split("|")[1])
+        await cmd_tts_play(update, context, tid)
+        return
+    if data.startswith("hub_gen|"):
+        tid = int(data.split("|")[1])
+        context.args = [str(tid)]
+        await cmd_gen(update, context)
+        return
+    if data.startswith("hub_tts|"):
+        tid = int(data.split("|")[1])
+        await cmd_tts_play(update, context, tid)
         return
 
 async def cmd_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -287,12 +304,16 @@ async def cmd_gen(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
     import re as _re
-    text = update.message.text or ""
-    m = _re.search(r"/gen_?(\d+)", text)
-    if not m:
-        await update.message.reply_text("Використання: /gen_1")
-        return
-    item_id = int(m.group(1))
+    # Спочатку context.args (deep link або прямий виклик), потім message.text
+    if context.args and context.args[0].isdigit():
+        item_id = int(context.args[0])
+    else:
+        text = update.message.text or ""
+        m = _re.search(r"/gen_?(\d+)", text)
+        if not m:
+            await update.message.reply_text("Використання: /gen_1")
+            return
+        item_id = int(m.group(1))
     from modules.curriculum import _get as _get_cur, load_state as _load_state
     inst = _get_cur(update.effective_user.id)
     state = _load_state()

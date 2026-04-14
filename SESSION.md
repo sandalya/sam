@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 21:45
+# SESSION — 2026-04-14 22:10
 
 ## Проект
 sam
 
 ## Що зробили
-Рефакторинг /cur → hub стиль: артефакти в тексті меседжу, deep links ✨згенерувати/🔊послухати, спрощений item keyboard (тільки статуси), hub_renderer.py в shared/
+Backoff черга: _run_formats_with_backoff (5 спроб 0/15/30/60/120хв), прибрано closure-дублікат, cmd_gen читає context.args, fixed message.text AttributeError, deep link /start gen_N працює
 
 ## Наступний крок
-NbLM адаптивна черга з backoff без помилок в чат
+Дочекатись фінального підсумку генерації теми 16 і перевірити що помилки не летять в чат
 
 ## Контекст
-hub_renderer.py читає data_dir динамічно; /hub прибрано з routes; sam/modules/hub.py залишається як re-export
+notebooklm generate video запущений PID 2593709, notebook c2bcedc5, тема Privacy & Security in AI Systems
