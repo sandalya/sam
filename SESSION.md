@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 23:14
+# SESSION — 2026-04-14 23:17
 
 ## Проект
 sam
 
 ## Що зробили
-Фази 3-5: smart router (haiku), proactive engine, atomic write для nb_state/podcasts_state, startup auto-resume in_progress генерацій, tool use (get_learning_state/update_progress/get_hub/search_notebooks/advance_topic) з agentic loop до 3 ітерацій
+Sam v2 повністю завершено: smart router (haiku), proactive engine, atomic write + in_progress tracking + auto-resume генерацій при ребуті, tool use agentic loop (5 tools), prompt caching вже був в agent_base. ECOSYSTEM.md оновлено для Кота
 
 ## Наступний крок
-Фаза 6: Prompt Caching — core/prompts.py + cache_control в api_client
+наступне — Фаза 6 вже готова, можна братись за Garcia або /nbstatus з беклогу
 
 ## Контекст
-всі модулі в /home/sashok/.openclaw/workspace/sam/, shared в workspace/shared/, router.py+proactive.py+core/tools.py створені, handle_chat_with_tools в main.py
+всі файли в /home/sashok/.openclaw/workspace/sam/, core/tools.py, modules/router.py, modules/proactive.py створені
