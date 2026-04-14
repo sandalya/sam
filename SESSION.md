@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 19:00
+# SESSION — 2026-04-14 19:05
 
 ## Проект
 sam
 
 ## Що зробили
-Оновлено формати NbLM (video/podcast/flashcards/slides/infographic), _item_keyboard показує всі формати + TTS разом, hub оновлено з TTS міткою, podcasts_state.json доповнено темами 9/12/13
+NbLM rate limiting: RETRY_DELAYS повернуто на [0,1560,3060], пауза 45с між форматами, підсумкове повідомлення одне на тему після всіх форматів. Формати оновлено до 5 (video/podcast/flashcards/slides/infographic). TTS іконки уніфіковано з NbLM стилем
 
 ## Наступний крок
-NbLM rate limiting черга (пункт 3), прибрати превью в /cur картках
+Наступне: превью в /cur картках прибрати, або продовжити по Опусу Фаза 3 Smart Router
 
 ## Контекст
-NOTEBOOKLM_FORMATS в shared/curriculum_engine.py, hub.py читає podcasts_state.json для TTS мітки
+curriculum_engine.py: _item_keyboard, _run_all_formats, RETRY_DELAYS
