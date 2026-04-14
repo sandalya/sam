@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 22:10
+# SESSION — 2026-04-14 23:14
 
 ## Проект
 sam
 
 ## Що зробили
-Backoff черга: _run_formats_with_backoff (5 спроб 0/15/30/60/120хв), прибрано closure-дублікат, cmd_gen читає context.args, fixed message.text AttributeError, deep link /start gen_N працює
+Фази 3-5: smart router (haiku), proactive engine, atomic write для nb_state/podcasts_state, startup auto-resume in_progress генерацій, tool use (get_learning_state/update_progress/get_hub/search_notebooks/advance_topic) з agentic loop до 3 ітерацій
 
 ## Наступний крок
-Дочекатись фінального підсумку генерації теми 16 і перевірити що помилки не летять в чат
+Фаза 6: Prompt Caching — core/prompts.py + cache_control в api_client
 
 ## Контекст
-notebooklm generate video запущений PID 2593709, notebook c2bcedc5, тема Privacy & Security in AI Systems
+всі модулі в /home/sashok/.openclaw/workspace/sam/, shared в workspace/shared/, router.py+proactive.py+core/tools.py створені, handle_chat_with_tools в main.py

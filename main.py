@@ -1,12 +1,3 @@
-KEYWORD_ROUTES = {
-    "дайджест": "digest", "digest": "digest",
-    "cur": "curriculum", "курікулум": "curriculum", "curriculum": "curriculum",
-    "наука": "science", "science": "science",
-    "catchup": "catchup", "кетчап": "catchup",
-    "jobs": "jobs", "джобс": "jobs", "вакансії": "jobs",
-    "cost": "cost", "витрати": "cost", "вартість": "cost",
-}
-
 import os
 import logging
 from datetime import time
@@ -216,6 +207,52 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await digest.handle_feedback(update)
 
 
+async def handle_chat_with_tools(update, text: str) -> str:
+    """Agentic loop: chat з SAM_TOOLS, до 3 ітерацій tool use."""
+    from shared.agent_base import client, MODEL_SMART
+    from core.tools import SAM_TOOLS, execute_tool
+    from modules.curriculum import _get as _get_cur
+
+    inst = _get_cur()
+    data_dir = inst.data_dir
+    system = digest._build_system(include_memory=True, include_conversation=False)
+    messages = [{"role": "user", "content": text}]
+
+    for iteration in range(3):
+        response = client.messages.create(
+            model=MODEL_SMART,
+            max_tokens=1500,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            messages=messages,
+            tools=SAM_TOOLS,
+        )
+
+        tool_calls = [b for b in response.content if b.type == "tool_use"]
+
+        if not tool_calls:
+            # Фінальна відповідь
+            texts = [b.text for b in response.content if b.type == "text"]
+            return texts[-1] if texts else ""
+
+        logger.info(f"Tool use iteration {iteration+1}: {[t.name for t in tool_calls]}")
+
+        # Виконуємо tools
+        messages.append({"role": "assistant", "content": response.content})
+        tool_results = []
+        for tc in tool_calls:
+            result = execute_tool(tc.name, tc.input, data_dir)
+            logger.info(f"Tool {tc.name} -> {result[:80]}")
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tc.id,
+                "content": result,
+            })
+        messages.append({"role": "user", "content": tool_results})
+
+    # Якщо loop не завершився — просто звичайний чат
+    return digest.call_claude_chat(text, max_tokens=1500)
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
@@ -223,27 +260,36 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
+    from modules.router import route_message
+    route = route_message(text)
+    intent = route.get("intent", "chat")
+    confidence = route.get("confidence", 0.5)
 
-    low = text.lower().strip()
-    for kw, route in KEYWORD_ROUTES.items():
-        if low == kw or low.startswith(kw + " "):
-            if route == "digest":
-                await cmd_digest(update, context); return
-            elif route == "science":
-                await cmd_science(update, context); return
-            elif route == "curriculum":
-                await cmd_curriculum(update, context); return
-            elif route == "catchup":
-                await cmd_catchup(update, context); return
-            elif route == "jobs":
-                await cmd_jobs(update, context); return
-            elif route == "cost":
-                await cmd_cost(update, context); return
+    logger.info(f"Router: intent={intent} conf={confidence:.2f} text={text[:40]}")
 
     await update.message.chat.send_action("typing")
     touch_activity()
-    answer = digest.call_claude_chat(text, max_tokens=1500)
-    await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
+
+    if confidence >= 0.5:
+        # Важкі генерації — прямі команди
+        if intent == "digest":
+            await cmd_digest(update, context); return
+        elif intent == "science":
+            await cmd_science(update, context); return
+        elif intent == "catchup":
+            await cmd_catchup(update, context); return
+        elif intent == "jobs":
+            await cmd_jobs(update, context); return
+        elif intent == "cost":
+            await cmd_cost(update, context); return
+        # hub, curriculum, notebooks — через agentic loop з tools
+
+    # Fallback — agentic chat з tools
+    answer = await handle_chat_with_tools(update, text)
+    if answer:
+        await update.message.reply_text(answer)
+    else:
+        await update.message.reply_text("Не зміг відповісти, спробуй ще раз.")
 
 
 async def _extract_interests(user_text: str, bot_answer: str):
@@ -274,8 +320,91 @@ async def _extract_interests(user_text: str, bot_answer: str):
 
 # ── Scheduled jobs ─────────────────────────────────────────────────────────────
 
+# Глобальний set активних тасків генерації (topic_id)
+_active_gen_tasks: set = set()
+
+async def startup_check(application):
+    """При старті відновлює перервані генерації."""
+    import json
+    import asyncio
+    from modules.curriculum import _get as _get_cur, load_state as _load_state
+    from shared.notebooklm_module import load_nb_state
+
+    inst = _get_cur()
+    nb_state_path = inst.data_dir / "notebooklm_notebooks.json"
+    if not nb_state_path.exists():
+        return
+    try:
+        nb_state = load_nb_state(inst.data_dir)
+    except Exception as e:
+        logger.warning(f"Startup: could not load nb_state: {e}")
+        return
+
+    # Збираємо in_progress
+    broken = {tid: entry for tid, entry in nb_state.items()
+              if isinstance(entry, dict) and entry.get("status") == "in_progress"}
+    if not broken:
+        return
+
+    logger.warning(f"Startup: found {len(broken)} in_progress tasks, resuming...")
+
+    # Завантажуємо всі теми одноразово
+    try:
+        state = _load_state()
+        profile = inst.load_profile()
+        all_topics = inst.get_full_curriculum(state, profile)
+    except Exception as e:
+        logger.error(f"Startup: could not load curriculum: {e}")
+        return
+
+    resumed = []
+    for tid, entry in broken.items():
+        # Пропускаємо якщо вже є активний таск
+        if tid in _active_gen_tasks:
+            logger.info(f"Startup: topic {tid} already queued, skipping")
+            continue
+
+        pending = entry.get("pending", [])
+        if not pending:
+            continue
+
+        item = next((t for t in all_topics if t["id"] == int(tid)), None)
+        if not item:
+            logger.warning(f"Startup: topic {tid} not found in curriculum")
+            continue
+
+        _active_gen_tasks.add(tid)
+
+        async def _gen_task(item=item, pending=pending, tid=tid):
+            try:
+                await inst._run_formats_with_backoff(
+                    bot=application.bot,
+                    chat_id=OWNER_CHAT_ID,
+                    item=item,
+                    selected=pending,
+                    data_dir=inst.data_dir,
+                )
+            finally:
+                _active_gen_tasks.discard(tid)
+
+        asyncio.create_task(_gen_task())
+        resumed.append(f"  • {item['title']}: {', '.join(pending)}")
+        logger.info(f"Startup: resumed task for topic {tid} ({pending})")
+
+    if resumed:
+        logger.info(f"Startup: resumed {len(resumed)} tasks: {resumed}")
+
+
 async def job_daily_digest(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Running daily digest job")
+    from modules.proactive import generate_proactive_message
+    try:
+        msg = generate_proactive_message()
+        if msg:
+            await context.bot.send_message(chat_id=OWNER_CHAT_ID, text=msg)
+            logger.info("Proactive message sent")
+    except Exception as e:
+        logger.warning(f"Proactive engine error: {e}")
     await digest.send(context.application)
 
 
@@ -376,6 +505,7 @@ async def cmd_tts_play(update, context, item_id: int = None):
 def main():
     async def post_init(application):
         from telegram import BotCommand
+        await startup_check(application)
         await application.bot.set_my_commands([
             BotCommand("start",      "👋 Привіт і список команд"),
             BotCommand("digest",     "🤖 AI дайджест за 24 год"),

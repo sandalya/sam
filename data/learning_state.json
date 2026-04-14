@@ -4,7 +4,20 @@
       "artifacts_consumed": [
         "podcast",
         "briefing",
-        "study_guide"
+        "study_guide",
+        "video",
+        "flashcards"
+      ],
+      "artifacts_available": [
+        "podcast",
+        "briefing",
+        "study_guide",
+        "video"
+      ]
+    },
+    "16": {
+      "artifacts_consumed": [
+        "video"
       ],
       "artifacts_available": [
         "podcast",
@@ -14,6 +27,6 @@
       ]
     }
   },
-  "last_activity": "2026-04-14T12:45:02",
+  "last_activity": "2026-04-14T23:13:09",
   "streak_days": 1
 }

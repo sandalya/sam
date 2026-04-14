@@ -113,10 +113,38 @@
   },
   "14": {
     "notebook_id": "085270bc-0eef-4223-8b8a-c24833b4face",
-    "generated": []
+    "generated": [],
+    "pending": [
+      "video",
+      "podcast",
+      "flashcards",
+      "slides",
+      "infographic"
+    ],
+    "status": "in_progress"
   },
   "16": {
     "notebook_id": "c2bcedc5-3add-428f-b638-23059eece918",
-    "generated": []
+    "generated": [],
+    "pending": [
+      "video",
+      "podcast",
+      "flashcards",
+      "slides",
+      "infographic"
+    ],
+    "status": "in_progress"
+  },
+  "15": {
+    "notebook_id": null,
+    "generated": [],
+    "pending": [
+      "video",
+      "podcast",
+      "flashcards",
+      "slides",
+      "infographic"
+    ],
+    "status": "in_progress"
   }
 }
