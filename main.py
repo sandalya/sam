@@ -42,7 +42,7 @@ from modules.curriculum import (
     cmd_start_topic, handle_curriculum_callback, cmd_cur_add,
     CURRICULUM,
 )
-from modules.hub import generate_hub_message
+from modules.hub import hub_page
 from modules.state_manager import touch_activity
 
 import sys as _sys
@@ -87,8 +87,37 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_hub(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
-    text = generate_hub_message(CURRICULUM, len(CURRICULUM))
-    await update.message.reply_text(text, parse_mode="Markdown")
+    from modules.curriculum import _get as _get_cur, load_state as _load_cur_state
+    _cur_inst = _get_cur()
+    _cur_state = _load_cur_state()
+    _profile = _cur_inst.load_profile()
+    all_topics = _cur_inst.get_full_curriculum(_cur_state, _profile)
+    text, kb = hub_page(all_topics, page=0)
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=kb, disable_web_page_preview=True)
+
+async def handle_hub_callback(update, context):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("hub_page|"):
+        page = int(data.split("|")[1])
+        from modules.curriculum import _get as _get_cur2, load_state as _load_cur_state2
+        _cur_inst2 = _get_cur2()
+        _cur_state2 = _load_cur_state2()
+        _profile2 = _cur_inst2.load_profile()
+        _all_topics2 = _cur_inst2.get_full_curriculum(_cur_state2, _profile2)
+        text, kb = hub_page(_all_topics2, page=page)
+        await query.message.edit_text(text, parse_mode="Markdown", reply_markup=kb, disable_web_page_preview=True)
+        return
+
+    if data.startswith("hub_podcast|"):
+        tid = data.split("|")[1]
+        await query.message.reply_text(f"\U0001f399 Запускаю подкаст для теми {tid}...")
+        from modules.podcast import cmd_podcast
+        context.args = [tid]
+        await cmd_podcast(update, context)
+        return
 
 async def cmd_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
@@ -264,6 +293,7 @@ def main():
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("hub", cmd_hub))
+    app.add_handler(CallbackQueryHandler(handle_hub_callback, pattern=r"^hub_"))
     app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("science", cmd_science))

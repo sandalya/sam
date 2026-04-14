@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 12:29
+# SESSION — 2026-04-14 16:28
 
 ## Проект
 sam
 
 ## Що зробили
-Фаза 1+2 завершені: state_manager.py (learning_state.json з artifacts_consumed/streak/days_inactive), hub.py, /hub команда показує dashboard з прогресом і артефактами, touch_activity() в handle_text
+Hub v2 готовий: компактний список з текстовими гіперпосиланнями на NB і артефакти, 8 тем/сторінка, навігація кнопками, без превью, 16 тем (5 статичних + 11 dynamic)
 
 ## Наступний крок
-Фаза 3: Smart Router (router.py) або /hub inline кнопки
+Фаза 3 по Опусу: Smart Router або proactive engine
 
 ## Контекст
-CURRICULUM має 5 статичних тем + dynamic; hub показує topic name з CURRICULUM list
+hub_page в modules/hub.py, cmd_hub і handle_hub_callback в main.py, disable_web_page_preview=True
