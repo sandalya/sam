@@ -12,20 +12,30 @@ CUR_FILE = Path(__file__).parent.parent / "data" / "curriculum.json"
 PAGE_SIZE = 8
 
 ARTIFACT_LABEL = {
-    "podcast":     "\U0001f399 Pod",
+    "podcast":     "\U0001f399 NbLM Pod",
+    "video":       "\U0001f3a5 Video",
+    "flashcards":  "\U0001f0cf Flash",
+    "slides":      "\U0001f4d1 Slides",
+    "infographic": "\U0001f4ca Info",
+    "tts":         "\U0001f50a TTS Pod",
     "briefing":    "\U0001f4cb Brief",
     "study":       "\U0001f4d8 Study",
     "study_guide": "\U0001f4d8 Study",
-    "video":       "\U0001f3a5 Video",
-    "flashcards":  "\U0001f0cf Flash",
-    "infographic": "\U0001f4ca Info",
-    "slides":      "\U0001f4d1 Slides",
 }
+
+POD_FILE = Path(__file__).parent.parent / "data" / "podcasts_state.json"
 
 def _load_notebooks() -> dict:
     if NB_FILE.exists():
         return json.loads(NB_FILE.read_text(encoding="utf-8"))
     return {}
+
+def _load_tts_podcasts() -> set:
+    """Повертає set topic_id для яких є TTS подкаст."""
+    if not POD_FILE.exists():
+        return set()
+    data = json.loads(POD_FILE.read_text(encoding="utf-8"))
+    return {int(k) for k, v in data.items() if v.get("short") or v.get("deep")}
 
 def _load_cur_state() -> dict:
     if CUR_FILE.exists():
@@ -55,6 +65,8 @@ def hub_page(all_topics: list, page: int = 0) -> tuple:
         "",
     ]
 
+    tts_pods = _load_tts_podcasts()
+
     for t in chunk:
         tid = t["id"]
         icon = _status_icon(tid, state)
@@ -71,6 +83,8 @@ def hub_page(all_topics: list, page: int = 0) -> tuple:
             label = ARTIFACT_LABEL.get(art, art)
             if nb_id:
                 links.append(f"[{label}]({NB_BASE}{nb_id})")
+        if tid in tts_pods:
+            links.append(f"[\U0001f50a TTS](/podcast_{tid})")
         if links:
             lines.append("    " + "      ".join(links))
         lines.append("")

@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 16:28
+# SESSION — 2026-04-14 19:00
 
 ## Проект
 sam
 
 ## Що зробили
-Hub v2 готовий: компактний список з текстовими гіперпосиланнями на NB і артефакти, 8 тем/сторінка, навігація кнопками, без превью, 16 тем (5 статичних + 11 dynamic)
+Оновлено формати NbLM (video/podcast/flashcards/slides/infographic), _item_keyboard показує всі формати + TTS разом, hub оновлено з TTS міткою, podcasts_state.json доповнено темами 9/12/13
 
 ## Наступний крок
-Фаза 3 по Опусу: Smart Router або proactive engine
+NbLM rate limiting черга (пункт 3), прибрати превью в /cur картках
 
 ## Контекст
-hub_page в modules/hub.py, cmd_hub і handle_hub_callback в main.py, disable_web_page_preview=True
+NOTEBOOKLM_FORMATS в shared/curriculum_engine.py, hub.py читає podcasts_state.json для TTS мітки
