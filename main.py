@@ -40,7 +40,10 @@ from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_curriculum, cmd_curriculum_item, cmd_done,
     cmd_start_topic, handle_curriculum_callback, cmd_cur_add,
+    CURRICULUM,
 )
+from modules.hub import generate_hub_message
+from modules.state_manager import touch_activity
 
 import sys as _sys
 _sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace"))
@@ -80,6 +83,12 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await digest.send_profile(update)
 
 
+
+async def cmd_hub(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    text = generate_hub_message(CURRICULUM, len(CURRICULUM))
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 async def cmd_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != OWNER_CHAT_ID:
@@ -161,7 +170,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     low = text.lower().strip()
     for kw, route in KEYWORD_ROUTES.items():
         if low == kw or low.startswith(kw + " "):
-            if route == "digest":
+            if route == "hub":
+                await cmd_hub(update, context); return
+            elif route == "digest":
                 await cmd_digest(update, context); return
             elif route == "science":
                 await cmd_science(update, context); return
@@ -175,6 +186,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await cmd_cost(update, context); return
 
     await update.message.chat.send_action("typing")
+    touch_activity()
     answer = digest.call_claude_chat(text, max_tokens=1500)
     await update.message.reply_text(answer or "Не зміг відповісти, спробуй ще раз.")
 
@@ -251,6 +263,7 @@ def main():
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("hub", cmd_hub))
     app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("science", cmd_science))
