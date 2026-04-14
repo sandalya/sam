@@ -134,6 +134,11 @@
       "fact": "Планує вивчати Graceful Degradation Patterns, State Management Architecture, Multi-Model Strategy як найближчі пріоритети",
       "category": "goals",
       "date": "2026-04-13"
+    },
+    {
+      "fact": "Планує використовувати подкасти через NotebookLM для вивчення Context Management & Memory Patterns, Error Handling & Recovery, Multi-Model Strategy",
+      "category": "goals",
+      "date": "2026-04-14"
     }
   ]
 }

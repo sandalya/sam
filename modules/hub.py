@@ -1,56 +1,91 @@
 """
-sam/modules/hub.py — dashboard повідомлення з поточним прогресом.
+sam/modules/hub.py — навігаційний центр.
 """
-from modules.state_manager import get_current_progress
+import json
+from pathlib import Path
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-ARTIFACT_ICONS = {
-    "podcast":     "🎙",
-    "briefing":    "📋",
-    "study_guide": "📘",
-    "flashcards":  "🃏",
-    "video":       "🎥",
-    "infographic": "📊",
-    "slides":      "📑",
+NB_BASE = "https://notebooklm.google.com/notebook/"
+NB_FILE = Path(__file__).parent.parent / "data" / "notebooklm_notebooks.json"
+CUR_FILE = Path(__file__).parent.parent / "data" / "curriculum.json"
+
+PAGE_SIZE = 8
+
+ARTIFACT_LABEL = {
+    "podcast":     "\U0001f399 Pod",
+    "briefing":    "\U0001f4cb Brief",
+    "study":       "\U0001f4d8 Study",
+    "study_guide": "\U0001f4d8 Study",
+    "video":       "\U0001f3a5 Video",
+    "flashcards":  "\U0001f0cf Flash",
+    "infographic": "\U0001f4ca Info",
+    "slides":      "\U0001f4d1 Slides",
 }
 
-def _topic_name(topic_id, curriculum_list: list) -> str:
-    if not topic_id:
-        return "—"
-    t = next((t for t in curriculum_list if t["id"] == topic_id), None)
-    return t["title"] if t else str(topic_id)
+def _load_notebooks() -> dict:
+    if NB_FILE.exists():
+        return json.loads(NB_FILE.read_text(encoding="utf-8"))
+    return {}
 
-def generate_hub_message(curriculum_list: list, total_topics: int) -> str:
-    progress = get_current_progress()
-    completed = progress["completed_count"]
-    bar_filled = int((completed / max(total_topics, 1)) * 10)
-    bar = "▓" * bar_filled + "░" * (10 - bar_filled)
-    topic_name = _topic_name(progress["current_topic_id"], curriculum_list)
+def _load_cur_state() -> dict:
+    if CUR_FILE.exists():
+        return json.loads(CUR_FILE.read_text(encoding="utf-8"))
+    return {"completed": [], "started": [], "notes": {}}
+
+def _status_icon(topic_id: int, state: dict) -> str:
+    if topic_id in state["completed"]: return "\u2705"
+    if topic_id in state["started"]: return "\U0001f504"
+    return "\u2b1c"
+
+def hub_page(all_topics: list, page: int = 0) -> tuple:
+    notebooks = _load_notebooks()
+    state = _load_cur_state()
+
+    total_pages = max(1, (len(all_topics) + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = max(0, min(page, total_pages - 1))
+    chunk = all_topics[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
+
+    completed = len(state["completed"])
+    total = len(all_topics)
+    bar_filled = int((completed / max(total, 1)) * 10)
+    bar = "\u2593" * bar_filled + "\u2591" * (10 - bar_filled)
 
     lines = [
-        "📊 *Sam Hub*",
-        f"[{bar}] {completed}/{total_topics}",
+        f"\U0001f4ca [{bar}] {completed}/{total}",
         "",
-        f"📍 *Зараз:* {topic_name}",
     ]
 
-    consumed = progress["artifacts_consumed"]
-    remaining = progress["artifacts_remaining"]
-    inactive = progress["days_inactive"]
-    streak = progress["streak_days"]
+    for t in chunk:
+        tid = t["id"]
+        icon = _status_icon(tid, state)
+        nb = notebooks.get(str(tid), {})
+        nb_id = nb.get("notebook_id")
+        generated = nb.get("generated", [])
 
-    if consumed:
-        icons = " ".join(ARTIFACT_ICONS.get(a, "✅") for a in consumed)
-        lines.append(f"  ✅ Переглянуто: {icons}")
+        lines.append(f"{icon} {tid}. {t['title']}")
 
-    if remaining:
-        icons = " ".join(ARTIFACT_ICONS.get(a, "⬜") for a in remaining)
-        lines.append(f"  ⬜ Залишилось: {icons}")
-
-    if inactive >= 2:
+        links = []
+        if nb_id:
+            links.append(f"[\U0001f4d3 NB]({NB_BASE}{nb_id})")
+        for art in generated:
+            label = ARTIFACT_LABEL.get(art, art)
+            if nb_id:
+                links.append(f"[{label}]({NB_BASE}{nb_id})")
+        if links:
+            lines.append("    " + "      ".join(links))
         lines.append("")
-        lines.append(f"⏰ Не працював {inactive} дн.")
 
-    if streak > 1:
-        lines.append(f"🔥 Streak: {streak} дн.")
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton(
+            f"\u2190 {page}/{total_pages}",
+            callback_data=f"hub_page|{page-1}"
+        ))
+    if page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton(
+            f"{page+2}/{total_pages} \u2192",
+            callback_data=f"hub_page|{page+1}"
+        ))
 
-    return "\n".join(lines)
+    kb = InlineKeyboardMarkup([nav_buttons]) if nav_buttons else None
+    return "\n".join(lines), kb

@@ -2,16 +2,6 @@
   "messages": [
     {
       "role": "user",
-      "text": "Згенеруй промт для нблм для подскаста на тему який одноплаиний пк краще для моїх проектів з агентами: разпбері пай або макміні?",
-      "time": "2026-04-13 00:14"
-    },
-    {
-      "role": "assistant",
-      "text": "Ось промпт для NotebookLM:\n\n---\n\n**Тема подкасту:** \"Raspberry Pi 5 vs Mac Mini M4 для розробки AI агентів - що краще для production екосистеми?\"\n\n**Контекст спікерів:** Два AI research engineers обговорюють вибір single-board комп'ютера для запуску множинних AI агентів в домашній/малій production системі.\n\n**Ключові точки для обговорення:**\n\n• **Performance comparison:** ARM64 Pi5 4-8GB vs Mac Mini M4 16-32GB для одночасної роботи 5+ Python AI агентів\n• **Cost efficiency:** $80-120 Pi5 vs $600-1200 Mac Mini для 24/7 operation\n• **Power consumption:** 15W Pi5 vs 39W Mac Mini при постійній роботі\n• **Thermal management:** passive vs active cooling для AI workloads\n• **OS ecosystem:** Linux ARM64 compatibility vs macOS для AI libraries (transformers, torch)\n• **Systemd vs launchd:** управління сервісами в production\n• **Memory limitations:** swap strategies, memory optimization для множинних агентів\n• **API rate limiting:** як hardware впливає на concurrent API calls до Claude/OpenAI\n• **Maintenance overhead:** remote SSH management vs local GUI access\n• **Scalability path:** додавання другого Pi5 vs upgrade Mac Mini specs\n• **Community support:** документація та troubleshooting для AI deployments\n\n**Стиль:** Практичний, з конкретними прикладами, цифрами споживання ресурсів та real-world досвідом.\n\n---\n\nЗапускати генерацію?",
-      "time": "2026-04-13 00:14"
-    },
-    {
-      "role": "user",
       "text": "Англійською",
       "time": "2026-04-13 00:15"
     },
@@ -99,6 +89,16 @@
       "role": "assistant",
       "text": "/digest",
       "time": "2026-04-13 23:52"
+    },
+    {
+      "role": "user",
+      "text": "у тебе є знання які теми є у якому форматі (нблм, подкаст)?",
+      "time": "2026-04-14 12:45"
+    },
+    {
+      "role": "assistant",
+      "text": " (але це свіжа інфо)\n\n## **Твій curriculum:**\nЗ того що я знаю з контексту:\n- **Tool Use / Function Calling** — зараз вивчаєш (теоретично можна подкаст)\n- **Context Management & Memory Patterns** — добре для подкасту  \n- **Error Handling & Recovery** — добре для подкасту\n- **Performance & Cost Optimization** — теоретичне, краще текст\n\n**Пропозиція:** Спробуй подкаст для \"Multi-Model Strategy\" — там багато практичних прикладів з твоєї екосистеми (Claude+GPT+Gemini), буде цікавий контент для AI ведучих.\n\nХочеш згенерувати щось конкретне?",
+      "time": "2026-04-14 12:45"
     }
   ]
 }

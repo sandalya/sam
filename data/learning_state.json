@@ -1,0 +1,19 @@
+{
+  "topics": {
+    "1": {
+      "artifacts_consumed": [
+        "podcast",
+        "briefing",
+        "study_guide"
+      ],
+      "artifacts_available": [
+        "podcast",
+        "briefing",
+        "study_guide",
+        "video"
+      ]
+    }
+  },
+  "last_activity": "2026-04-14T12:45:02",
+  "streak_days": 1
+}
