@@ -1,13 +1,13 @@
-# SESSION — 2026-04-14 23:17
+# SESSION — 2026-04-15 12:50
 
 ## Проект
 sam
 
 ## Що зробили
-Sam v2 повністю завершено: smart router (haiku), proactive engine, atomic write + in_progress tracking + auto-resume генерацій при ребуті, tool use agentic loop (5 tools), prompt caching вже був в agent_base. ECOSYSTEM.md оновлено для Кота
+виявлено проблеми з генерацією: спам звітів в чат, TTS не встигає бо стоїть в черзі за NbLM, rate limit на відео блокує всю чергу
 
 ## Наступний крок
-наступне — Фаза 6 вже готова, можна братись за Garcia або /nbstatus з беклогу
+зробити shared/gen_queue.py — глобальна черга з фазами: 1)TTS паралельно 2)NbLM podcast паралельно(семафор) 3)NbLM інші формати 4)NbLM відео. Один фінальний звіт без URL. Прибрати спам з чату
 
 ## Контекст
-всі файли в /home/sashok/.openclaw/workspace/sam/, core/tools.py, modules/router.py, modules/proactive.py створені
+точки входу: _run_all_formats_task в curriculum_engine.py + startup_check в sam/main.py — обидва мають переключитись на gen_queue
