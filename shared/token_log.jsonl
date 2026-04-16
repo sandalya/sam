@@ -17,3 +17,6 @@
 {"ts": "2026-04-14T23:11:25", "agent": "DigestModule", "input": 2979, "output": 560, "cache_read": 5404, "cache_created": 22274, "has_image": false, "cost": 0.102486, "saved": -0.002115, "call_type": "chat"}
 {"ts": "2026-04-14T23:11:28", "agent": "DigestModule", "input": 3800, "output": 150, "cache_read": 0, "cache_created": 0, "has_image": false, "cost": 0.01365, "saved": 0.0, "call_type": "call_claude"}
 {"ts": "2026-04-14T23:11:31", "agent": "DigestModule", "input": 515, "output": 99, "cache_read": 0, "cache_created": 3515, "has_image": false, "cost": 0.016211, "saved": -0.002636, "call_type": "call_claude"}
+{"ts": "2026-04-15T09:01:41", "agent": "DigestModule", "input": 870, "output": 3328, "cache_read": 165310, "cache_created": 75277, "has_image": false, "cost": 0.384412, "saved": 0.389879, "call_type": "search"}
+{"ts": "2026-04-15T13:35:46", "agent": "JobsModule", "input": 596, "output": 1548, "cache_read": 54911, "cache_created": 44163, "has_image": false, "cost": 0.207093, "saved": 0.115137, "call_type": "search"}
+{"ts": "2026-04-16T09:01:40", "agent": "DigestModule", "input": 870, "output": 3326, "cache_read": 164118, "cache_created": 75273, "has_image": false, "cost": 0.384009, "saved": 0.386664, "call_type": "search"}

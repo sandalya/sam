@@ -7,7 +7,8 @@
       "study",
       "video",
       "flashcards",
-      "slides"
+      "slides",
+      "infographic"
     ]
   },
   "3": {
@@ -16,7 +17,9 @@
       "podcast",
       "briefing",
       "study",
-      "video"
+      "video",
+      "flashcards",
+      "infographic"
     ]
   },
   "4": {
@@ -86,7 +89,9 @@
       "flashcards",
       "slides",
       "infographic"
-    ]
+    ],
+    "pending": [],
+    "status": "done"
   },
   "11": {
     "notebook_id": "6fb780e3-b7b2-4e99-a246-796594e9c916",
@@ -94,8 +99,11 @@
       "study",
       "briefing",
       "flashcards",
-      "infographic"
-    ]
+      "infographic",
+      "slides"
+    ],
+    "pending": [],
+    "status": "done"
   },
   "12": {
     "notebook_id": "1d06040e-57d0-4e99-853c-35219e3be74b",
@@ -113,27 +121,22 @@
   },
   "14": {
     "notebook_id": "085270bc-0eef-4223-8b8a-c24833b4face",
-    "generated": [],
-    "pending": [
-      "video",
-      "podcast",
+    "generated": [
       "flashcards",
       "slides",
       "infographic"
     ],
-    "status": "in_progress"
+    "pending": [],
+    "status": "done"
   },
   "16": {
     "notebook_id": "c2bcedc5-3add-428f-b638-23059eece918",
-    "generated": [],
-    "pending": [
-      "video",
-      "podcast",
+    "generated": [
       "flashcards",
-      "slides",
       "infographic"
     ],
-    "status": "in_progress"
+    "pending": [],
+    "status": "done"
   },
   "15": {
     "notebook_id": null,

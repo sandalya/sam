@@ -357,9 +357,8 @@ async def startup_check(application):
         logger.error(f"Startup: could not load curriculum: {e}")
         return
 
-    resumed = []
+    tasks = []
     for tid, entry in broken.items():
-        # Пропускаємо якщо вже є активний таск
         if tid in _active_gen_tasks:
             logger.info(f"Startup: topic {tid} already queued, skipping")
             continue
@@ -374,25 +373,26 @@ async def startup_check(application):
             continue
 
         _active_gen_tasks.add(tid)
-
-        async def _gen_task(item=item, pending=pending, tid=tid):
+        tasks.append({
+            "item": item,
+            "selected": pending,
+            "data_dir": inst.data_dir,
+            "engine": inst,
+            "bot_send_audio": lambda _b=application.bot, **kw: _b.send_audio(chat_id=OWNER_CHAT_ID, **kw),
+        })
+        logger.info(f"Startup: queued topic {tid} ({pending})")
+    if tasks:
+        logger.info(f"Startup: launching gen_queue for {len(tasks)} topics")
+        async def _queue_task(tasks=tasks):
             try:
-                await inst._run_formats_with_backoff(
-                    bot=application.bot,
-                    chat_id=OWNER_CHAT_ID,
-                    item=item,
-                    selected=pending,
-                    data_dir=inst.data_dir,
-                )
+                from shared.gen_queue import run_global_gen
+                await run_global_gen(application.bot, OWNER_CHAT_ID, tasks)
             finally:
-                _active_gen_tasks.discard(tid)
+                for t in tasks:
+                    _active_gen_tasks.discard(str(t["item"]["id"]))
+        asyncio.create_task(_queue_task())
 
-        asyncio.create_task(_gen_task())
-        resumed.append(f"  • {item['title']}: {', '.join(pending)}")
-        logger.info(f"Startup: resumed task for topic {tid} ({pending})")
 
-    if resumed:
-        logger.info(f"Startup: resumed {len(resumed)} tasks: {resumed}")
 
 
 async def job_daily_digest(context: ContextTypes.DEFAULT_TYPE):
@@ -461,17 +461,18 @@ async def cmd_gen(update, context):
     if not missing:
         await update.message.reply_text(f"\u2705 Всі формати вже згенеровані для теми {item_id}")
         return
-    from shared.curriculum_engine import FORMAT_NAMES
-    names = ", ".join(FORMAT_NAMES.get(f, f) for f in missing)
-    await update.message.reply_text(f"\u23f3 Генерую для *{item['title']}*:\n{names}", parse_mode="Markdown")
     import asyncio
-    asyncio.create_task(inst._run_all_formats_task(
-        bot=update.get_bot(),
-        chat_id=update.effective_chat.id,
-        item=item,
-        selected=missing,
-        data_dir=inst.data_dir,
-    ))
+    from shared.gen_queue import run_global_gen
+    _chat_id = update.effective_chat.id
+    _bot = update.get_bot()
+    _task = {
+        "item": item,
+        "selected": missing,
+        "data_dir": inst.data_dir,
+        "engine": inst,
+        "bot_send_audio": lambda b=_bot, c=_chat_id, **kw: b.send_audio(chat_id=c, **kw),
+    }
+    asyncio.create_task(run_global_gen(_bot, _chat_id, [_task]))
 
 
 async def cmd_tts_play(update, context, item_id: int = None):

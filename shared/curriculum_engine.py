@@ -450,19 +450,7 @@ class CurriculumEngine(AgentBase):
             save_nb_state(_nb_st2, data_dir)
         log.info(f"[NbLM] topic {item['id']} marked done")
 
-        lines_out = [f"\U0001f4d3 Тема: *{item['title']}*\n"]
-        for fmt, status in results.items():
-            name = FN.get(fmt, fmt)
-            if status == "ok":
-                lines_out.append(f"\u2705 {name}")
-            elif status == "rate_limit":
-                lines_out.append(f"\u23f3 {name} — rate limit вичерпано, спробуй пізніше")
-            elif status == "timeout":
-                lines_out.append(f"\u23f0 {name} — надто довго")
-            else:
-                lines_out.append(f"\u274c {name} — помилка")
-        lines_out.append(f"\n{nb_url}")
-        await bot.send_message(chat_id, "\n".join(lines_out), parse_mode="Markdown")
+        log.info(f"[NbLM] topic {item['id']} results: {results}")
 
     async def _run_all_formats_task(self, bot, chat_id, item, selected, data_dir):
         """Публічний wrapper — делегує в _run_formats_with_backoff."""
