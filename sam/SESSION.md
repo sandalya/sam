@@ -1,13 +1,13 @@
-# SESSION — 2026-04-15 12:50
+# SESSION — 2026-04-16 16:05
 
 ## Проект
 sam
 
 ## Що зробили
-виявлено проблеми з генерацією: спам звітів в чат, TTS не встигає бо стоїть в черзі за NbLM, rate limit на відео блокує всю чергу
+TTS fix: додано в TRACKED через podcast_state check; null notebook_id fix в notebooklm_module; звіт мовчить при rate_limit/timeout
 
 ## Наступний крок
-зробити shared/gen_queue.py — глобальна черга з фазами: 1)TTS паралельно 2)NbLM podcast паралельно(семафор) 3)NbLM інші формати 4)NbLM відео. Один фінальний звіт без URL. Прибрати спам з чату
+дочекатись NbLM rate_limit; перевірити чи TTS правильно прив'язується до топіка при паралельних gen_N
 
 ## Контекст
-точки входу: _run_all_formats_task в curriculum_engine.py + startup_check в sam/main.py — обидва мають переключитись на gen_queue
+gen_queue.py: results[tid][fmt]; _send_final_report пропускає retry-only теми; notebooklm_module.py: nb_id is None → recreate

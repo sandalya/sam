@@ -458,6 +458,9 @@ async def cmd_gen(update, context):
     entry = nb_state.get(str(item_id), {})
     generated = [f for f in entry.get("generated", []) if f in TRACKED_FORMATS]
     missing = [f for f in TRACKED_FORMATS if f not in generated]
+    tts_state = inst._load_podcast_state()
+    if str(item_id) not in tts_state:
+        missing = ["tts"] + missing
     if not missing:
         await update.message.reply_text(f"\u2705 Всі формати вже згенеровані для теми {item_id}")
         return

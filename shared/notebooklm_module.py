@@ -59,8 +59,10 @@ async def get_or_create_notebook(topic_id: int, topic_title: str, data_dir: Path
     key = str(topic_id)
     if key in state:
         nb_id = state[key]["notebook_id"] if isinstance(state[key], dict) else state[key]
-        log.info(f"Reusing notebook {nb_id} for topic {topic_id}")
-        return nb_id
+        if nb_id is not None:
+            log.info(f"Reusing notebook {nb_id} for topic {topic_id}")
+            return nb_id
+        log.warning(f"notebook_id is None for topic {topic_id}, will recreate")
     notebook_name = f"{category} — {topic_title}"
     rc, stdout, stderr = await _run(["create", notebook_name])
     if rc != 0:

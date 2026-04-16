@@ -174,17 +174,26 @@ async def _send_final_report(bot, chat_id: int, tasks: list, results: dict):
             continue
 
         ok_fmts = [f for f, s in topic_results.items() if s == "ok"]
-        fail_fmts = [f for f, s in topic_results.items() if s != "ok"]
+        hard_fail_fmts = [f for f, s in topic_results.items() if s == "error"]
+        retry_fmts = [f for f, s in topic_results.items() if s in ("rate_limit", "timeout")]
 
-        status = "✅" if not fail_fmts else ("⚠️" if ok_fmts else "❌")
+        if not ok_fmts and not hard_fail_fmts and retry_fmts:
+            continue  # все в черзі на retry — мовчимо
+
+        status = "✅" if not hard_fail_fmts else ("⚠️" if ok_fmts else "❌")
         line = f"{status} <b>{item['title']}</b>"
-        if fail_fmts:
+        if hard_fail_fmts:
             has_problems = True
-            names = ", ".join(FORMAT_NAMES.get(f, f) for f in fail_fmts)
-            line += f"\n   ⏳ Не вдалось: {names}"
+            names = ", ".join(FORMAT_NAMES.get(f, f) for f in hard_fail_fmts)
+            line += f"\n   ❌ Помилка: {names}"
+        if retry_fmts:
+            names = ", ".join(FORMAT_NAMES.get(f, f) for f in retry_fmts)
+            line += f"\n   🔄 В черзі: {names}"
         lines.append(line)
 
     if has_problems:
-        lines.append("\nДеякі формати не згенерувались — спробуй /gen_N пізніше.")
+        lines.append("\nДеякі формати не вдались — перевір конфігурацію.")
 
+    if len(lines) <= 1:
+        return
     await bot.send_message(chat_id, "\n".join(lines), parse_mode="HTML")
