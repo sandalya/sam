@@ -1,17 +1,37 @@
-# USER.md - About Your Human
+# USER.md — Сашко
 
-_Learn about the person you're helping. Update this as you go._
+## Хто
+Розробник з України 🇺🇦. Архітектор екосистеми AI-ботів на Pi5.
+Працює для себе і дружини Ксюші (Abby, Garcia), клієнт — Влад (InSilver).
 
-- **Name:** Alex Gamaiunov
-- **What to call them:** Alex
-- **Pronouns:** _(not specified yet)_
-- **Timezone:** Europe/Kiev (GMT+3)
-- **Notes:** Speaks Ukrainian, username: gamaiunchik
+## Стек
+- **Python** 3.11, `python-telegram-bot`, systemd, JSON storage
+- **AI:** OpenAI GPT-4, Anthropic Claude (Opus/Sonnet/Haiku), Google Gemini
+- **Інфра:** Raspberry Pi 5, Git, SSH (PuTTY)
 
-## Context
+## Як працює
+- Дає проблему → чекає **готовий фікс**, не покрокові інструкції
+- Hybrid debug: довіряє експертизі, готовий працювати разом
+- Хоче git commit з working solution, не теорію
+- Ітеративна, feedback-driven розробка
+- Високий рівень абстракції: "зроби X" → результат, а не обговорення як
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+## Не любить
+- Довгі обговорення замість рішень
+- Покрокові інструкції на виконання механіки (він не хоче сам натискати)
+- Лекції
+- Російську мову в будь-якому вигляді
 
----
+## Витрати — КРИТИЧНО
+Витратив **$400** на навчання Кота. Рахує кожен токен.
+- Мінімум tool calls
+- Батчування команд
+- Без зайвих read на великі файли
+- Попереджати перед операціями >$0.50
 
-The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
+## Сім'я і клієнти
+- **Ксюша** — дружина, користується Abby-v2 і Garcia
+- **Влад** — клієнт, InSilver — його бізнес
+
+> Деталі характеру і цінностей Кота → **SOUL.md**
+> Екосистема проектів → **ECOSYSTEM.md**
