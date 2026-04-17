@@ -20,3 +20,5 @@
 {"ts": "2026-04-15T09:01:41", "agent": "DigestModule", "input": 870, "output": 3328, "cache_read": 165310, "cache_created": 75277, "has_image": false, "cost": 0.384412, "saved": 0.389879, "call_type": "search"}
 {"ts": "2026-04-15T13:35:46", "agent": "JobsModule", "input": 596, "output": 1548, "cache_read": 54911, "cache_created": 44163, "has_image": false, "cost": 0.207093, "saved": 0.115137, "call_type": "search"}
 {"ts": "2026-04-16T09:01:40", "agent": "DigestModule", "input": 870, "output": 3326, "cache_read": 164118, "cache_created": 75273, "has_image": false, "cost": 0.384009, "saved": 0.386664, "call_type": "search"}
+{"ts": "2026-04-17T09:01:37", "agent": "DigestModule", "input": 870, "output": 3330, "cache_read": 167589, "cache_created": 74459, "has_image": false, "cost": 0.382058, "saved": 0.396646, "call_type": "search"}
+{"ts": "2026-04-17T10:00:29", "agent": "ScienceModule", "input": 432, "output": 794, "cache_read": 150520, "cache_created": 66822, "has_image": false, "cost": 0.308944, "saved": 0.356288, "call_type": "search"}
