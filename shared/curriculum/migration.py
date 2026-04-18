@@ -611,14 +611,14 @@ def apply_migration(
     Args:
         draft: результат plan_migration() або відредагований вручну
         data_dir: директорія зі старими файлами
-        curriculum_path: куди писати новий курікулом. Default: {data_dir}/curriculum.json
+        curriculum_path: куди писати новий курікулом. Default: {data_dir}/curriculum_v2.json
 
     Returns:
         MigrationResult з деталями.
     """
     data_dir = Path(data_dir)
     if curriculum_path is None:
-        curriculum_path = data_dir / "curriculum.json"
+        curriculum_path = data_dir / "curriculum_v2.json"
     curriculum_path = Path(curriculum_path)
 
     # Якщо вже є curriculum.json — це повторна міграція, зробимо його бекап
