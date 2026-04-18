@@ -1,13 +1,13 @@
-# SESSION — 2026-04-18 20:20
+# SESSION — 2026-04-18 22:02
 
 ## Проект
-sam
+sam-v2
 
 ## Що зробили
-Session 1: Curriculum redesign manifest
+Phase 1: models.py + storage.py + islands.py written and committed to shared repo
 
 ## Наступний крок
-Read 3 docs, feedback, then Session 2 — Phase 1 code (data model + migration)
+Write migration.py and run it on real 16 topics
 
 ## Контекст
-16 existing topics will migrate to islands structure. Bug with NBLM landing-URLs fixed via prompt patch in curriculum_engine.py. All architectural decisions frozen in /docs: 3 states, audio/visual-first via LLM, sequential IDs per island, single curriculum.json, deferred subtopics, deferred Depth Mode as Phase 6.
+curriculum-v2 branch pushed to GitHub. shared/curriculum/ contains 3 modules. sam-v2 worktree ready. Next: migration.py with two-pass design (plan/apply), then /cur migrate on real data.
