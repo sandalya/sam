@@ -1,13 +1,13 @@
-# SESSION — 2026-04-16 16:05
+# SESSION — 2026-04-18 20:20
 
 ## Проект
 sam
 
 ## Що зробили
-TTS fix: додано в TRACKED через podcast_state check; null notebook_id fix в notebooklm_module; звіт мовчить при rate_limit/timeout
+Session 1: Curriculum redesign manifest
 
 ## Наступний крок
-дочекатись NbLM rate_limit; перевірити чи TTS правильно прив'язується до топіка при паралельних gen_N
+Read 3 docs, feedback, then Session 2 — Phase 1 code (data model + migration)
 
 ## Контекст
-gen_queue.py: results[tid][fmt]; _send_final_report пропускає retry-only теми; notebooklm_module.py: nb_id is None → recreate
+16 existing topics will migrate to islands structure. Bug with NBLM landing-URLs fixed via prompt patch in curriculum_engine.py. All architectural decisions frozen in /docs: 3 states, audio/visual-first via LLM, sequential IDs per island, single curriculum.json, deferred subtopics, deferred Depth Mode as Phase 6.
