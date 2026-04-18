@@ -88,7 +88,13 @@ class CurriculumEngine(AgentBase):
             f"Completed topics: {completed}\n"
             f"All seed topics: {all_titles}\n"
             f"Interests: {interests}\nScores: {scores}\n\n"
-            "Return ONLY JSON array: id (start 100), title, estimate, why, read (URL), do."
+            "Return ONLY JSON array: id (start 100), title, estimate, why, read, do.\n\n"
+            "CRITICAL for the read field:\n"
+            "- Must be a SPECIFIC article, blog post, paper, or single documentation page\n"
+            "- NOT a landing page, hub, or index (e.g. NOT https://privacy.anthropic.com/, NOT https://docs.anthropic.com/)\n"
+            "- NOT a homepage or category page with many sub-links\n"
+            "- Prefer: Anthropic research posts, specific docs sections like /docs/build-with-claude/tool-use, arxiv papers, engineering blog posts\n"
+            "- Rule of thumb: if URL ends with / or /home or /center, it is probably a hub and wrong choice\n"
         )
         try:
             response = client.messages.create(
