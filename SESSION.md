@@ -1,13 +1,13 @@
-# SESSION — 2026-04-18 22:42
+# SESSION — 2026-04-18 23:05
 
 ## Проект
 sam-v2
 
 ## Що зробили
-Phase 1 complete: shared/curriculum/ (models+storage+islands+migration) + sam-v2/modules/curriculum_v2.py + scripts. Real migration done: 16 topics to 7 islands (6 populated + LLM Foundations gap). 16 NBLM keys remapped. Legacy backed up. curriculum_v2.json validates and renders correctly via render_curriculum().
+Phase 1 FULLY RUNNING: /cur2 works in @sam_dev_sasha_bot on Pi5. Real migration done, curriculum_v2.json rendered correctly in Telegram, all 16 topics across 7 islands visible to user. Production sam untouched and running.
 
 ## Наступний крок
-DEBT від 18.04: 1) Register /cur2 in sam-v2/main.py. 2) Create separate test bot token via BotFather. 3) Point sam-v2 .env to test token. 4) Run sam-v2 manually and test /cur2 in Telegram. 5) Then start Phase 2: pinned panel with checkboxes per topic. PLUS: LLM marked almost all topics as visual-first during migration (too aggressive) — review and manually flip some to audio when Phase 2 adds toggle button.
+NEXT SESSION: 1) Fix markdown rendering in /cur2 (fallback-to-plain kicked in — either use MARKDOWN_V2 with strict escaping, HTML, or just live with plain). 2) Start Phase 2: pinned editable panel with checkboxes per format, inline-keyboard expand/collapse per topic, 'start consuming'/'test' buttons. 3) Review aggressive visual-first classification from migration — flip some to audio when style-toggle button appears in Phase 2.
 
 ## Контекст
-Branches: curriculum-v2 (sam-v2 repo), master (shared repo) — both pushed to GitHub. Files: shared/curriculum/{models,storage,islands,migration}.py, sam-v2/modules/curriculum_v2.py, sam-v2/scripts/run_plan_migration.py + edit_migration_draft.py + run_apply_migration.py. sam-v2/data/ ignored by git now (runtime state). Backups: data/_legacy_*_20260418_191912.json. Production sam untouched.
+sam-v2 running in background via nohup, PID tracked in /tmp/sam_v2.log. When need to restart: ps aux | grep sam-v2, kill, relaunch same way. @sam_dev_sasha_bot uses separate token in sam-v2/.env. Main sam on production token unchanged. Branches: curriculum-v2 (sam-v2) and master (shared) pushed to GitHub. Files to review on start: sam-v2/modules/curriculum_v2.py, shared/curriculum/{models,storage,islands,migration}.py. Backups in data/_legacy_*_20260418_191912.json.

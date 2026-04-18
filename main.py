@@ -34,6 +34,7 @@ from modules.curriculum import (
 )
 from shared.hub_renderer import hub_page
 from modules.state_manager import touch_activity
+from modules.curriculum_v2 import cmd_curriculum_v2
 
 import sys as _sys
 _sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace"))
@@ -534,6 +535,7 @@ def main():
     app.add_handler(CommandHandler("science", cmd_science))
     app.add_handler(CommandHandler("profile", cmd_profile))
     app.add_handler(CommandHandler("cur", cmd_hub))
+    app.add_handler(CommandHandler("cur2", cmd_curriculum_v2))
     app.add_handler(CommandHandler("cur_item", cmd_curriculum_item))
     app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("notebooks", cmd_notebooks))
