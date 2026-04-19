@@ -96,6 +96,32 @@ async def cmd_hub(update, context):
     text, kb = hub_page(all_topics, page=0, data_dir=_cur_inst.data_dir)
     await update.message.reply_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
+async def cmd_pin(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned import refresh_pinned
+    inst = _get_cur()
+    msg_id = await refresh_pinned(context.bot, update.effective_chat.id, inst.data_dir)
+    if msg_id:
+        await update.message.reply_text("📌 Закріплено. Тепер /hub буде автооновлюватися вгорі чату.")
+    else:
+        await update.message.reply_text("❌ Не вдалося закріпити. Перевір логи.")
+
+
+async def cmd_unpin(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned import unpin
+    inst = _get_cur()
+    ok = await unpin(context.bot, update.effective_chat.id, inst.data_dir)
+    if ok:
+        await update.message.reply_text("📌 Знято.")
+    else:
+        await update.message.reply_text("📌 Нічого не було закріплено.")
+
+
 async def handle_hub_callback(update, context):
     query = update.callback_query
     await query.answer()
@@ -528,6 +554,8 @@ def main():
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("hub", cmd_hub))
+    app.add_handler(CommandHandler("pin", cmd_pin))
+    app.add_handler(CommandHandler("unpin", cmd_unpin))
     app.add_handler(CallbackQueryHandler(handle_hub_callback, pattern=r"^hub_"))
     app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))

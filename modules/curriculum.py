@@ -52,6 +52,15 @@ class SamCurriculum(CurriculumEngine):
         )
         self.CURRICULUM = CURRICULUM
 
+    async def _after_state_change(self, chat_id: int, bot) -> None:
+        """Оновлює pinned повідомлення якщо воно існує. Silent — не ламає flow."""
+        from .pinned import refresh_pinned, load_state as load_pin_state
+        # Тільки якщо pinned вже налаштований — не чіпаємо якщо user не робив /pin
+        pin_state = load_pin_state(self.data_dir)
+        if not pin_state.get("message_id"):
+            return
+        await refresh_pinned(bot, chat_id, self.data_dir)
+
 
 # ── Backward-compat функції для main.py ───────────────────────────────────────
 

@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 13:45
+# SESSION — 2026-04-19 14:18
 
 ## Проект
 sam
 
 ## Що зробили
-Curriculum markdown hotfix + URL update + Ed QA integration (7/7 pass)
+Phase 2 pinned /hub + flock migration 5 ботів
 
 ## Наступний крок
-Фаза 2 curriculum — pinned панель з кнопками
+Ed блок 03_pinned.json для автотесту оновлення pinned при /done
 
 ## Контекст
-Ed готовий до регресійного тестування всіх curriculum фіч; наступна зміна — pinned панель, скоуп уточнити
+Pinned повідомлення створюється по /pin, автооновлюється через hook _after_state_change у curriculum engine. Flock через /run/user/1000/bot-locks/ замість bot.pid — PID reuse як клас знищено.
