@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 19:14
+# SESSION — 2026-04-19 19:38
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 2.3: notebooklm_module переписано на v2, nblm_notebook_id в Topic, /notebooks працює
+Phase 2.4: podcast_module на v2, file_id в Topic.formats.podcast_tts.url, 3/3 тести PASS
 
 ## Наступний крок
-Phase 2.4: переписати shared/podcast_module.py на v2 (topic_id:str, podcasts_state.json → Topic.formats.podcast_tts)
+Phase 2.5 cleanup: видалити startup_check/load_nb_state shim, оновити hub_renderer на v2, перейменувати curriculum_v2.json→curriculum.json, видалити legacy файли
 
 ## Контекст
-Topic.nblm_notebook_id поле + set_nblm_notebook_id мутація. Merged 16/17 notebook_id в curriculum_v2.json (17-а — щойно додана multi_model_orchestration-2 без NBLM). shared/notebooklm_module.py повністю v2-нативний, NBLM_FORMATS={slides,podcast_nblm,video,infographic,flashcards}, generate_and_notify пише status→generating→ready/failed через set_format_status. Compat shim load_nb_state() повертає {} для main.py::startup_check — 2.5 cleanup видалить startup_check або перепише на v2. Бекапи: *.bak-phase23-20260419-*. notebooklm_notebooks_v2.json лишаємо до 2.5.
+Merged 16 file_id з podcasts_state.json в Topic.formats.podcast_tts (generated_at=2026-04-13). Smart resend працює миттєво (0 LLM/TTS викликів якщо file_id збережений). Новий cmd_podcast приймає v2 id (agent_architecture-1) або legacy int (1). Fallback при resend fail — регенерація. /podcast multi_model_orchestration-2 (тема без TTS) успішно запустила generation flow: status→generating→ready з file_id persist. Бекапи: *.bak-phase24-20260419-*. podcasts_state.json лишаємо до 2.5.
