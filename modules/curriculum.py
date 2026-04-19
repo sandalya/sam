@@ -20,7 +20,7 @@ CURRICULUM = [
      "do": "Додати в Sam модуль що сам вирішує — одного пошуку достатньо чи треба ще."},
     {"id": 3, "title": "Evals", "category": "AGENT", "estimate": "1-2 дні",
      "why": "Без evals не знаєш чи агент став кращим або гіршим після змін.",
-     "read": "https://docs.anthropic.com/en/docs/build-with-claude/evals",
+     "read": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
      "do": "Написати 10 тест-кейсів для InSilver з очікуваною відповіддю і score функцією."},
     {"id": 4, "title": "RAG — Retrieval Augmented Generation", "category": "AGENT", "estimate": "3-4 дні",
      "why": "Векторний пошук замість grep — агент знаходить релевантне навіть при неточному запиті.",
@@ -28,7 +28,7 @@ CURRICULUM = [
      "do": "Додати chromadb в InSilver knowledge.py. Локально, безкоштовно."},
     {"id": 5, "title": "Multi-agent координація", "category": "AGENT", "estimate": "3-5 днів",
      "why": "Оркестратор + субагенти — архітектура складних продуктів.",
-     "read": "https://docs.anthropic.com/en/docs/build-with-claude/multiagent-network",
+     "read": "https://www.anthropic.com/engineering/multi-agent-research-system",
      "do": "Sam делегує дизайн-питання Abby і повертає відповідь."},
 ]
 
