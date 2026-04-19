@@ -1,8 +1,4 @@
-"""Sam notebooklm — re-export shared з Sam data_dir.
-
-Phase 2.3: notebook_id мігровано в Topic.nblm_notebook_id всередині curriculum_v2.json.
-Окремого nb_state файлу більше не існує. load_nb_state/save_nb_state прибрані.
-"""
+"""Sam notebooklm — re-export shared з Sam data_dir."""
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -12,14 +8,15 @@ from shared.notebooklm_module import (  # noqa: F401
     get_or_create_notebook as _get_or_create_notebook,
     cmd_notebooks as _cmd_notebooks,
     _run,
+    load_nb_state,
+    save_nb_state,
     notebook_url,
-    FORMAT_NAMES,
-    NBLM_FORMATS,
 )
 from .base import DATA_DIR
+from .curriculum import CURRICULUM
 
 
-async def get_or_create_notebook(topic_id: str, topic_title: str) -> str | None:
+async def get_or_create_notebook(topic_id: int, topic_title: str) -> str | None:
     return await _get_or_create_notebook(topic_id, topic_title, DATA_DIR)
 
 
@@ -33,4 +30,4 @@ async def generate_and_notify(bot, chat_id, topic_id, topic_title, source_url,
 
 
 async def cmd_notebooks(update, context):
-    return await _cmd_notebooks(update, context, DATA_DIR)
+    return await _cmd_notebooks(update, context, DATA_DIR, CURRICULUM)
