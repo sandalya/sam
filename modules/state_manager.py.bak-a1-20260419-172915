@@ -28,21 +28,10 @@ def _save(state: dict):
     STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def _cur_state() -> dict:
-    """Читає curriculum_v2.json і повертає в legacy shape (completed/started/notes).
-    Legacy споживачі (get_hub tool) працюють без змін.
-    Fallback на legacy curriculum.json якщо v2 відсутній.
-    """
-    data_dir = Path(__file__).parent.parent / "data"
-    v2 = data_dir / "curriculum_v2.json"
-    if v2.exists():
-        d = json.loads(v2.read_text(encoding="utf-8"))
-        topics = d.get("topics", [])
-        completed = [t["id"] for t in topics if t.get("state") == "mastered"]
-        started   = [t["id"] for t in topics if t.get("state") == "active"]
-        return {"completed": completed, "started": started, "notes": {}, "not_started": []}
-    legacy = data_dir / "curriculum.json"
-    if legacy.exists():
-        return json.loads(legacy.read_text(encoding="utf-8"))
+    """Читає curriculum.json напряму."""
+    p = Path(__file__).parent.parent / "data" / "curriculum.json"
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
     return {"completed": [], "started": [], "notes": {}}
 
 def get_current_progress() -> dict:

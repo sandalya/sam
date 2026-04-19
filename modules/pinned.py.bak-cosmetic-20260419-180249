@@ -19,10 +19,10 @@ _WORKSPACE = Path(__file__).resolve().parents[2]
 if str(_WORKSPACE) not in sys.path:
     sys.path.insert(0, str(_WORKSPACE))
 
-from shared.curriculum.storage import load as load_curriculum
-from shared.curriculum.renderer import render as render_curriculum
+from shared.curriculum.storage import load as load_curriculum_v2
+from shared.curriculum.renderer import render as render_v2
 
-log = logging.getLogger("sam.pinned")
+log = logging.getLogger("sam.pinned_v2")
 
 BOT_USERNAME = "sashoks_assistant1_sam_bot"
 
@@ -53,8 +53,8 @@ def save_state(data_dir: Path, state: dict) -> None:
 
 
 def _render_current(data_dir: Path) -> str:
-    cur_state = load_curriculum(_curriculum_path(data_dir))
-    return render_curriculum(cur_state, bot_username=BOT_USERNAME)
+    cur_state = load_curriculum_v2(_curriculum_path(data_dir))
+    return render_v2(cur_state, bot_username=BOT_USERNAME)
 
 
 async def refresh_pinned(bot, chat_id: int, data_dir: Path) -> int | None:
@@ -75,13 +75,13 @@ async def refresh_pinned(bot, chat_id: int, data_dir: Path) -> int | None:
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
-            log.info(f"Pinned refreshed (edit) msg_id={msg_id}")
+            log.info(f"Pinned-v2 refreshed (edit) msg_id={msg_id}")
             return msg_id
         except BadRequest as e:
             if "not modified" in str(e).lower():
-                log.info(f"Pinned unchanged msg_id={msg_id}")
+                log.info(f"Pinned-v2 unchanged msg_id={msg_id}")
                 return msg_id
-            log.warning(f"Pinned edit failed ({e}), creating new")
+            log.warning(f"Pinned-v2 edit failed ({e}), creating new")
             save_state(data_dir, {})
             msg_id = None
 
@@ -98,10 +98,10 @@ async def refresh_pinned(bot, chat_id: int, data_dir: Path) -> int | None:
             disable_notification=True,
         )
         save_state(data_dir, {"message_id": sent.message_id})
-        log.info(f"Pinned created msg_id={sent.message_id}")
+        log.info(f"Pinned-v2 created msg_id={sent.message_id}")
         return sent.message_id
     except Exception as e:
-        log.error(f"pin_chat_message failed: {e}")
+        log.error(f"pin_chat_message (v2) failed: {e}")
         return None
 
 
@@ -113,8 +113,8 @@ async def unpin(bot, chat_id: int, data_dir: Path) -> bool:
         return False
     try:
         await bot.unpin_chat_message(chat_id=chat_id, message_id=msg_id)
-        log.info(f"Pinned unpinned msg_id={msg_id}")
+        log.info(f"Pinned-v2 unpinned msg_id={msg_id}")
         return True
     except Exception as e:
-        log.warning(f"unpin failed: {e}")
+        log.warning(f"unpin-v2 failed: {e}")
         return False

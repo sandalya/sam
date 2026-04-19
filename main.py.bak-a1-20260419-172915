@@ -85,14 +85,57 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-async def cmd_hub(update, context):
+async def cmd_hub2(update, context):
+    """/cur2 — новий рендер курікулома (schema v2, острови)."""
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
     from modules.curriculum import _get as _get_cur
-    from modules.pinned import _render_current
+    from modules.pinned_v2 import _render_current
     inst = _get_cur()
     text = _render_current(inst.data_dir)
-    await update.message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
+    await update.message.reply_text(
+        text, parse_mode="HTML", disable_web_page_preview=True
+    )
+
+
+async def cmd_pin2(update, context):
+    """/pin2 — закріпити /cur2 панель."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned_v2 import refresh_pinned_v2
+    inst = _get_cur()
+    msg_id = await refresh_pinned_v2(context.bot, update.effective_chat.id, inst.data_dir)
+    if msg_id:
+        await update.message.reply_text("📌 Закріплено v2.")
+    else:
+        await update.message.reply_text("❌ Не вдалося закріпити v2. Перевір логи.")
+
+
+async def cmd_unpin2(update, context):
+    """/unpin2 — зняти закріплення /cur2 панелі."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned_v2 import unpin_v2
+    inst = _get_cur()
+    ok = await unpin_v2(context.bot, update.effective_chat.id, inst.data_dir)
+    if ok:
+        await update.message.reply_text("📌 Знято v2.")
+    else:
+        await update.message.reply_text("Немає закріпленого v2.")
+
+
+async def cmd_hub(update, context):
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur, load_state as _load_cur_state
+    _cur_inst = _get_cur()
+    _cur_state = _load_cur_state()
+    _profile = _cur_inst.load_profile()
+    all_topics = _cur_inst.get_full_curriculum(_cur_state, _profile)
+    text, kb = hub_page(all_topics, page=0, data_dir=_cur_inst.data_dir)
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
 async def cmd_pin(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
@@ -477,7 +520,7 @@ async def cmd_gen(update, context):
         await update.message.reply_text(f"Тема {item_id} не знайдена")
         return
     from shared.notebooklm_module import load_nb_state
-    from shared.formats import TRACKED_FORMATS
+    from modules.hub import TRACKED_FORMATS
     nb_state = load_nb_state(inst.data_dir)
     entry = nb_state.get(str(item_id), {})
     generated = [f for f in entry.get("generated", []) if f in TRACKED_FORMATS]
@@ -551,8 +594,12 @@ def main():
 
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("hub", cmd_hub))
     app.add_handler(CommandHandler("pin", cmd_pin))
     app.add_handler(CommandHandler("unpin", cmd_unpin))
+    app.add_handler(CommandHandler("cur2", cmd_hub2))
+    app.add_handler(CommandHandler("pin2", cmd_pin2))
+    app.add_handler(CommandHandler("unpin2", cmd_unpin2))
     app.add_handler(CallbackQueryHandler(handle_hub_callback, pattern=r"^hub_"))
     app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))
