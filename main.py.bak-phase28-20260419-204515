@@ -30,6 +30,7 @@ from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_done,
     cmd_cur_add,
+    CURRICULUM,
 )
 from modules.state_manager import touch_activity
 
@@ -75,17 +76,19 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_hub(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
-    from modules.base import DATA_DIR
+    from modules.curriculum import _get as _get_cur
     from modules.pinned import _render_current
-    text = _render_current(DATA_DIR)
+    inst = _get_cur()
+    text = _render_current(inst.data_dir)
     await update.message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
 
 async def cmd_pin(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
-    from modules.base import DATA_DIR
+    from modules.curriculum import _get as _get_cur
     from modules.pinned import refresh_pinned
-    msg_id = await refresh_pinned(context.bot, update.effective_chat.id, DATA_DIR)
+    inst = _get_cur()
+    msg_id = await refresh_pinned(context.bot, update.effective_chat.id, inst.data_dir)
     if msg_id:
         await update.message.reply_text("📌 Закріплено. Тепер /hub буде автооновлюватися вгорі чату.")
     else:
@@ -95,9 +98,10 @@ async def cmd_pin(update, context):
 async def cmd_unpin(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
-    from modules.base import DATA_DIR
+    from modules.curriculum import _get as _get_cur
     from modules.pinned import unpin
-    ok = await unpin(context.bot, update.effective_chat.id, DATA_DIR)
+    inst = _get_cur()
+    ok = await unpin(context.bot, update.effective_chat.id, inst.data_dir)
     if ok:
         await update.message.reply_text("📌 Знято.")
     else:
@@ -177,9 +181,10 @@ async def handle_chat_with_tools(update, text: str) -> str:
     """Agentic loop: chat з SAM_TOOLS, до 3 ітерацій tool use."""
     from shared.agent_base import client, MODEL_SMART
     from core.tools import SAM_TOOLS, execute_tool
-    from modules.base import DATA_DIR
+    from modules.curriculum import _get as _get_cur
 
-    data_dir = DATA_DIR
+    inst = _get_cur()
+    data_dir = inst.data_dir
     system = digest._build_system(include_memory=True, include_conversation=False)
     messages = [{"role": "user", "content": text}]
 

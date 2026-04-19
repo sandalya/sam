@@ -1,11 +1,11 @@
-"""Sam curriculum — Phase 2.8: чистий v2.
+"""Sam curriculum — Phase 2.2: /cur_add і /done на v2 через shared.curriculum.
 
-Лишилися тільки дві команди, обидві нативні на shared.curriculum:
-  /cur_add — додати тему (LLM визначає острів + метадані)
-  /done    — позначити тему як mastered
+Інші команди (/cur, /cur_item, /start_topic, handle_curriculum_callback) лишаються
+як shim-делегація до SamCurriculum (legacy CurriculumEngine), щоб main.py і
+notebooklm.py / podcast.py продовжували працювати до Phase 2.3+.
 
-SamCurriculum / CurriculumEngine / CURRICULUM seed / load_state / 4 legacy-shim
-команди видалені як мертвий код (Phase 2.8 audit, 0 callsites).
+CURRICULUM — legacy-константа, ще потрібна для shared.notebooklm_module і
+shared.podcast_module (Phase 2.3 / 2.4 приберуть їх залежність).
 """
 import json
 import logging
@@ -21,12 +21,79 @@ from shared.curriculum import (
     add_topic, add_island, set_topic_state,
     CurriculumState,
 )
+from shared.curriculum_engine import CurriculumEngine
+from shared.curriculum_engine import FORMAT_NAMES, NOTEBOOKLM_FORMATS  # noqa: F401 — re-export для main.py
 
-from .base import DATA_DIR
+from .base import SAM_PERSONA, DATA_DIR, PROFILE_PATH
 
 log = logging.getLogger("sam.curriculum")
 
 CURRICULUM_V2_PATH = DATA_DIR / "curriculum.json"
+
+# ── Legacy CURRICULUM (ще юзається notebooklm.py та podcast.py) ──────────────
+CURRICULUM = [
+    {"id": 1, "title": "Tool Use / Function Calling", "category": "CLAUDE", "estimate": "1-2 дні",
+     "why": "Ти вже робиш це вручну через JSON. Нативний tool use — інший рівень контролю.",
+     "read": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use",
+     "do": "Переписати один action з Meggy (add_to_shopping) на нативний tool use."},
+    {"id": 2, "title": "Agentic Loops", "category": "AGENT", "estimate": "2-3 дні",
+     "why": "Агент що сам вирішує скільки кроків зробити — це якісний стрибок від бота.",
+     "read": "https://www.anthropic.com/research/building-effective-agents",
+     "do": "Додати в Sam модуль що сам вирішує — одного пошуку достатньо чи треба ще."},
+    {"id": 3, "title": "Evals", "category": "AGENT", "estimate": "1-2 дні",
+     "why": "Без evals не знаєш чи агент став кращим або гіршим після змін.",
+     "read": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+     "do": "Написати 10 тест-кейсів для InSilver з очікуваною відповіддю і score функцією."},
+    {"id": 4, "title": "RAG — Retrieval Augmented Generation", "category": "AGENT", "estimate": "3-4 дні",
+     "why": "Векторний пошук замість grep — агент знаходить релевантне навіть при неточному запиті.",
+     "read": "https://docs.anthropic.com/en/docs/build-with-claude/embeddings",
+     "do": "Додати chromadb в InSilver knowledge.py. Локально, безкоштовно."},
+    {"id": 5, "title": "Multi-agent координація", "category": "AGENT", "estimate": "3-5 днів",
+     "why": "Оркестратор + субагенти — архітектура складних продуктів.",
+     "read": "https://www.anthropic.com/engineering/multi-agent-research-system",
+     "do": "Sam делегує дизайн-питання Abby і повертає відповідь."},
+]
+
+
+# ── SamCurriculum (legacy shim для /cur_item, /start_topic, callback) ─────────
+class SamCurriculum(CurriculumEngine):
+    notebooklm_context = (
+        "Python developer building AI agents and Telegram bots with Anthropic API. "
+        "Already in production, wants deeper theory and architecture."
+    )
+    dynamic_curriculum_prompt = (
+        "You are a personalized AI curriculum designer. "
+        "The learner is a Python developer building AI agents and Telegram bots with Anthropic API."
+    )
+
+    def __init__(self, owner_chat_id: int):
+        super().__init__(
+            owner_chat_id=owner_chat_id,
+            persona=SAM_PERSONA,
+            data_dir=DATA_DIR,
+            profile_path=PROFILE_PATH,
+        )
+        self.CURRICULUM = CURRICULUM
+
+    async def _after_state_change(self, chat_id: int, bot) -> None:
+        from .pinned import refresh_pinned, load_state as load_pin_state
+        pin_state = load_pin_state(self.data_dir)
+        if not pin_state.get("message_id"):
+            return
+        await refresh_pinned(bot, chat_id, self.data_dir)
+
+
+_instance_cache: dict[int, SamCurriculum] = {}
+
+def _get(owner_chat_id: int = 0) -> SamCurriculum:
+    if owner_chat_id not in _instance_cache:
+        _instance_cache[owner_chat_id] = SamCurriculum(owner_chat_id)
+    return _instance_cache[owner_chat_id]
+
+
+def load_state():
+    """Legacy state-loader для notebooklm/podcast модулів що ще на legacy engine."""
+    return _get().load_state()
 
 
 # ── Allowed content styles ───────────────────────────────────────────────────
@@ -153,7 +220,7 @@ def _enrich_topic_via_llm(state: CurriculumState, title: str) -> dict:
 # ── cmd_cur_add (v2) ─────────────────────────────────────────────────────────
 
 async def cmd_cur_add(update, context):
-    """Додає нову тему в curriculum.json. LLM визначає острів і метадані."""
+    """Додає нову тему в curriculum_v2.json. LLM визначає острів і метадані."""
     args = context.args
     if not args:
         await update.message.reply_text(
@@ -277,7 +344,7 @@ async def cmd_done(update, context):
     state = load(CURRICULUM_V2_PATH)
     tid = _resolve_topic_id(state, args[0])
     if not tid:
-        await update.message.reply_text(f"Тема {args[0]!r} не існує в curriculum.json.")
+        await update.message.reply_text(f"Тема {args[0]!r} не існує в curriculum_v2.json.")
         return
 
     topic = state.get_topic(tid)
@@ -306,3 +373,23 @@ async def cmd_done(update, context):
             await refresh_pinned(update.get_bot(), update.effective_chat.id, DATA_DIR)
     except Exception as e:
         log.warning(f"pinned refresh after done failed: {e}")
+
+
+# ── Legacy shims (делегують в SamCurriculum) ─────────────────────────────────
+
+async def cmd_curriculum(update, context):
+    """Не зареєстрований у main.py, залишаємо shim на всяк."""
+    inst = _get(update.effective_user.id)
+    await inst.cmd_curriculum(update, context)
+
+async def cmd_curriculum_item(update, context):
+    inst = _get(update.effective_user.id)
+    await inst.cmd_curriculum(update, context)
+
+async def cmd_start_topic(update, context):
+    pass  # legacy, не використовується
+
+async def handle_curriculum_callback(update, context):
+    """Legacy callback (cur_|...). У main.py не зареєстрований, залишаємо shim."""
+    inst = _get(update.effective_user.id)
+    await inst.handle_curriculum_callback(update, context)
