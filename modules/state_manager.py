@@ -33,7 +33,7 @@ def _cur_state() -> dict:
     Fallback на legacy curriculum.json якщо v2 відсутній.
     """
     data_dir = Path(__file__).parent.parent / "data"
-    v2 = data_dir / "curriculum_v2.json"
+    v2 = data_dir / "curriculum.json"
     if v2.exists():
         d = json.loads(v2.read_text(encoding="utf-8"))
         topics = d.get("topics", [])

@@ -28,7 +28,7 @@ from .base import SAM_PERSONA, DATA_DIR, PROFILE_PATH
 
 log = logging.getLogger("sam.curriculum")
 
-CURRICULUM_V2_PATH = DATA_DIR / "curriculum_v2.json"
+CURRICULUM_V2_PATH = DATA_DIR / "curriculum.json"
 
 # ── Legacy CURRICULUM (ще юзається notebooklm.py та podcast.py) ──────────────
 CURRICULUM = [

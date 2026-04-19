@@ -28,11 +28,11 @@ BOT_USERNAME = "sashoks_assistant1_sam_bot"
 
 
 def _state_path(data_dir: Path) -> Path:
-    return data_dir / "pinned_state_v2.json"
+    return data_dir / "pinned_state.json"
 
 
 def _curriculum_path(data_dir: Path) -> Path:
-    return data_dir / "curriculum_v2.json"
+    return data_dir / "curriculum.json"
 
 
 def load_state(data_dir: Path) -> dict:
