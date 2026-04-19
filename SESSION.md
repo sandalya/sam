@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 14:27
+# SESSION — 2026-04-19 17:01
 
 ## Проект
 sam
 
 ## Що зробили
-Ed тести pinned 4/4 pass, auto-refresh перевіряється автоматично через Telethon get_pinned_message
+Phase 1 data-layer migration done: curriculum_v2.json + notebooklm_notebooks_v2.json created via safe apply; 8 islands, 16 topics, schema_v1; content_style redone with stricter prompt (14 audio / 2 visual)
 
 ## Наступний крок
-cleanup learning_state.json (6/5 completed) + перейменування сервісів abby-v2 → abby, household_agent → meggy (окрема сесія)
+Refactor /cur and CurriculumEngine to read curriculum_v2.json and render islands structure
 
 ## Контекст
-Повний Ed-покрив Sam curriculum: 01_smoke 2/2, 02_curriculum 5/5, 03_pinned 4/4 = 11/11 pass. Flock на всіх 5 ботах, зомбі як клас знищено.
+Active: curriculum_v2.json, notebooklm_notebooks_v2.json. Legacy untouched: curriculum.json, notebooklm_notebooks.json. Draft kept: migration_draft.json. Modules ready: shared/curriculum/{models,storage,islands,migration}.py
