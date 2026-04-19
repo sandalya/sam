@@ -53,24 +53,12 @@ class BaseModule(AgentBase):
         )
 
 
-# Патчимо snapshot щоб знав назви тем curriculum (v2 — читаємо curriculum.json через shared.curriculum)
+# Патчимо snapshot щоб знав назви тем curriculum
 def _get_curriculum_list():
     try:
-        from shared.curriculum import load as _cur_load
-        state = _cur_load(DATA_DIR / "curriculum.json")
-        return [
-            {
-                "id": t.id,
-                "title": t.title,
-                "state": t.state,
-                "island_id": t.island_id,
-                "why": t.why,
-            }
-            for t in state.topics
-        ]
-    except Exception as e:
-        import logging
-        logging.getLogger("sam").warning(f"_get_curriculum_list v2 read failed: {e}")
+        from modules.curriculum import CURRICULUM
+        return CURRICULUM
+    except Exception:
         return []
 
 _orig_snapshot = BaseModule._build_context_snapshot

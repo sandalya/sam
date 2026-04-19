@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 20:08
+# SESSION — 2026-04-19 20:26
 
 ## Проект
 sam
 
 ## Що зробили
-phase 2.5 final + recon for 2.6
+Phase 2.6 DONE: tools.py + base.py snapshot на v2, Ed 3/3 PASS
 
 ## Наступний крок
-переписати tools.py на v2
+Phase 2.7: де-легасізація proactive.py + можливо видалення state_manager.py
 
 ## Контекст
-5 tools замість 3, shared.curriculum.load/mark_format_consumed API підтверджено
+tools.py: 5 tools на shared.curriculum API (load/save/mark_format_consumed). base.py._get_curriculum_list читає curriculum.json → 18 тем. Ed block 05_tools_v2 створено. load_nb_state shim зберігається (Garcia юзає через curriculum_engine.py). state_manager живий у main.py і proactive.py — не чіпали.
