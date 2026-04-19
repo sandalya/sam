@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 17:01
+# SESSION — 2026-04-19 17:19
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 1 data-layer migration done: curriculum_v2.json + notebooklm_notebooks_v2.json created via safe apply; 8 islands, 16 topics, schema_v1; content_style redone with stricter prompt (14 audio / 2 visual)
+Phase 1 complete: /cur2 працює з островами у Telegram (shared/curriculum/renderer.py + sam/modules/pinned_v2.py, HTML посилання замість inline кнопок, 2686 chars)
 
 ## Наступний крок
-Refactor /cur and CurriculumEngine to read curriculum_v2.json and render islands structure
+Decide: migrate /cur→/cur2 (drop legacy hub_page) OR start Phase 2 (new topic via chat + pipeline)
 
 ## Контекст
-Active: curriculum_v2.json, notebooklm_notebooks_v2.json. Legacy untouched: curriculum.json, notebooklm_notebooks.json. Draft kept: migration_draft.json. Modules ready: shared/curriculum/{models,storage,islands,migration}.py
+New: shared/curriculum/renderer.py, sam/modules/pinned_v2.py, /cur2 /pin2 /unpin2 commands. Active files: curriculum_v2.json, notebooklm_notebooks_v2.json, pinned_state_v2.json. Legacy /cur /hub /pin /unpin still work via hub_page unchanged. Two pins in chat (old+new) is expected Telegram UX.

@@ -1,0 +1,120 @@
+"""
+sam/modules/pinned_v2.py — pinned /cur2 з новою моделлю курікулома.
+
+Читає curriculum_v2.json через shared.curriculum.storage і рендерить
+через shared.curriculum.renderer.render(). Стан закріпленого повідомлення
+зберігається у pinned_state_v2.json (окремо від старого pinned_state.json),
+щоб старий /cur і новий /cur2 могли жити у чаті паралельно.
+"""
+import json
+import logging
+import sys
+from pathlib import Path
+
+from telegram.error import BadRequest
+
+# Додаємо workspace root у path щоб імпорти shared працювали при прямому запуску.
+# У проді Sam так само імпортує shared, шлях вже у sys.path.
+_WORKSPACE = Path(__file__).resolve().parents[2]
+if str(_WORKSPACE) not in sys.path:
+    sys.path.insert(0, str(_WORKSPACE))
+
+from shared.curriculum.storage import load as load_curriculum_v2
+from shared.curriculum.renderer import render as render_v2
+
+log = logging.getLogger("sam.pinned_v2")
+
+BOT_USERNAME = "sashoks_assistant1_sam_bot"
+
+
+def _state_path(data_dir: Path) -> Path:
+    return data_dir / "pinned_state_v2.json"
+
+
+def _curriculum_path(data_dir: Path) -> Path:
+    return data_dir / "curriculum_v2.json"
+
+
+def load_state(data_dir: Path) -> dict:
+    p = _state_path(data_dir)
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_state(data_dir: Path, state: dict) -> None:
+    p = _state_path(data_dir)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.rename(p)
+
+
+def _render_current(data_dir: Path) -> str:
+    cur_state = load_curriculum_v2(_curriculum_path(data_dir))
+    return render_v2(cur_state, bot_username=BOT_USERNAME)
+
+
+async def refresh_pinned_v2(bot, chat_id: int, data_dir: Path) -> int | None:
+    """
+    Оновлює закріплене /cur2 повідомлення або створює нове.
+    Returns: message_id або None якщо не вдалося.
+    """
+    state = load_state(data_dir)
+    msg_id = state.get("message_id")
+    text = _render_current(data_dir)
+
+    if msg_id:
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=text,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+            log.info(f"Pinned-v2 refreshed (edit) msg_id={msg_id}")
+            return msg_id
+        except BadRequest as e:
+            if "not modified" in str(e).lower():
+                log.info(f"Pinned-v2 unchanged msg_id={msg_id}")
+                return msg_id
+            log.warning(f"Pinned-v2 edit failed ({e}), creating new")
+            save_state(data_dir, {})
+            msg_id = None
+
+    sent = await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+    try:
+        await bot.pin_chat_message(
+            chat_id=chat_id,
+            message_id=sent.message_id,
+            disable_notification=True,
+        )
+        save_state(data_dir, {"message_id": sent.message_id})
+        log.info(f"Pinned-v2 created msg_id={sent.message_id}")
+        return sent.message_id
+    except Exception as e:
+        log.error(f"pin_chat_message (v2) failed: {e}")
+        return None
+
+
+async def unpin_v2(bot, chat_id: int, data_dir: Path) -> bool:
+    state = load_state(data_dir)
+    msg_id = state.get("message_id")
+    save_state(data_dir, {})
+    if not msg_id:
+        return False
+    try:
+        await bot.unpin_chat_message(chat_id=chat_id, message_id=msg_id)
+        log.info(f"Pinned-v2 unpinned msg_id={msg_id}")
+        return True
+    except Exception as e:
+        log.warning(f"unpin-v2 failed: {e}")
+        return False

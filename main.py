@@ -85,6 +85,47 @@ async def cmd_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+async def cmd_hub2(update, context):
+    """/cur2 — новий рендер курікулома (schema v2, острови)."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned_v2 import _render_current
+    inst = _get_cur()
+    text = _render_current(inst.data_dir)
+    await update.message.reply_text(
+        text, parse_mode="HTML", disable_web_page_preview=True
+    )
+
+
+async def cmd_pin2(update, context):
+    """/pin2 — закріпити /cur2 панель."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned_v2 import refresh_pinned_v2
+    inst = _get_cur()
+    msg_id = await refresh_pinned_v2(context.bot, update.effective_chat.id, inst.data_dir)
+    if msg_id:
+        await update.message.reply_text("📌 Закріплено v2.")
+    else:
+        await update.message.reply_text("❌ Не вдалося закріпити v2. Перевір логи.")
+
+
+async def cmd_unpin2(update, context):
+    """/unpin2 — зняти закріплення /cur2 панелі."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.curriculum import _get as _get_cur
+    from modules.pinned_v2 import unpin_v2
+    inst = _get_cur()
+    ok = await unpin_v2(context.bot, update.effective_chat.id, inst.data_dir)
+    if ok:
+        await update.message.reply_text("📌 Знято v2.")
+    else:
+        await update.message.reply_text("Немає закріпленого v2.")
+
+
 async def cmd_hub(update, context):
     if update.effective_chat.id != OWNER_CHAT_ID:
         return
@@ -556,6 +597,9 @@ def main():
     app.add_handler(CommandHandler("hub", cmd_hub))
     app.add_handler(CommandHandler("pin", cmd_pin))
     app.add_handler(CommandHandler("unpin", cmd_unpin))
+    app.add_handler(CommandHandler("cur2", cmd_hub2))
+    app.add_handler(CommandHandler("pin2", cmd_pin2))
+    app.add_handler(CommandHandler("unpin2", cmd_unpin2))
     app.add_handler(CallbackQueryHandler(handle_hub_callback, pattern=r"^hub_"))
     app.add_handler(CommandHandler("cost", cmd_cost))
     app.add_handler(CommandHandler("digest", cmd_digest))
