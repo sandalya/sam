@@ -827,17 +827,17 @@
       "parent_topic_id": null,
       "crosslinks": [],
       "created_at": "2026-04-19T15:38:14+00:00",
-      "updated_at": "2026-04-19T16:37:20+00:00",
+      "updated_at": "2026-04-19T16:41:16+00:00",
       "mastered_at": "2026-04-19T15:39:12+00:00",
       "legacy_id": null,
       "nblm_notebook_id": null,
       "formats": {
         "podcast_tts": {
-          "status": "generating",
+          "status": "pending",
           "consumed": false,
-          "generated_at": null,
+          "generated_at": "2026-04-19T16:40:21+00:00",
           "consumed_at": null,
-          "url": null,
+          "url": "CQACAgIAAxkDAAIErGnlBXVKVWJWBub6UxWlyMQT852XAAJrlgACSc4pS1bvRqvl4R08OwQ",
           "error": null
         }
       }
