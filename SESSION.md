@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 18:05
+# SESSION — 2026-04-19 18:14
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 1 міграція завершена: /cur /pin /unpin → v2 UI з островами; видалено /hub /cur2 /pin2 /unpin2 + modules/hub.py + pinned_v2.py; state_manager shim читає v2; shared/formats.py для TRACKED_FORMATS; Ed блок 04_v2_migration 3/3 PASS
+Phase 2.1: shared/curriculum/ mutations.py + __init__.py, 6/6 smoke-tests PASS
 
 ## Наступний крок
-Phase 2 — gen pipeline на v2 (cur_add, start_topic, done, podcast, notebooks → v2 data model)
+Phase 2.2: переписати cur_add + done + cmd_curriculum на v2 через shared.curriculum API
 
 ## Контекст
-Soft drop A1 виконано. Legacy gen pipeline живий і працює на legacy файлах (curriculum.json 53b, learning_state.json, notebooklm_notebooks.json числові ключі). V2 файли: curriculum_v2.json (26KB, 16 тем, 6 островів), notebooklm_notebooks_v2.json, pinned_state_v2.json — зберігаються з суфіксом до Phase 2. Бекапи .bak-a1-20260419-172915. Known issue: /done оновлює legacy curriculum.json, a /cur читає v2 — розходження станів до Phase 2. Ed блоки 01/02/03 застаріли, переписати після Phase 2.
+mutations.py має add_island/add_topic/set_topic_state/update_topic_fields/remove_topic/set_format_status/set_format_url/mark_format_consumed. __init__.py експонує публічне API. Острови в v2: tool_use_integration, agent_architecture, production_reliability, multi_model_orchestration, system_operations, rag_retrieval, evaluation_testing, llm_foundations (gap). 16 тем у 8 островах. Наступна задача — переписати shared/curriculum_engine.py::cmd_cur_add/cmd_done або Sam-специфічні обгортки щоб писали в curriculum_v2.json через mutations. Legacy curriculum_dynamic.json + learning_state.json залишаються до 2.5 cleanup.
