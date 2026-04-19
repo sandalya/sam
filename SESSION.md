@@ -1,13 +1,13 @@
-# SESSION — 2026-04-18 20:20
+# SESSION — 2026-04-19 13:45
 
 ## Проект
 sam
 
 ## Що зробили
-Session 1: Curriculum redesign manifest
+Curriculum markdown hotfix + URL update + Ed QA integration (7/7 pass)
 
 ## Наступний крок
-Read 3 docs, feedback, then Session 2 — Phase 1 code (data model + migration)
+Фаза 2 curriculum — pinned панель з кнопками
 
 ## Контекст
-16 existing topics will migrate to islands structure. Bug with NBLM landing-URLs fixed via prompt patch in curriculum_engine.py. All architectural decisions frozen in /docs: 3 states, audio/visual-first via LLM, sequential IDs per island, single curriculum.json, deferred subtopics, deferred Depth Mode as Phase 6.
+Ed готовий до регресійного тестування всіх curriculum фіч; наступна зміна — pinned панель, скоуп уточнити
