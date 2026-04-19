@@ -668,6 +668,24 @@
           "error": null
         }
       }
+    },
+    {
+      "id": "multi_model_orchestration-2",
+      "island_id": "multi_model_orchestration",
+      "title": "Context Caching & Prompt Optimization",
+      "why": "Оптимізація промптів і кешування контексту критично важливі для зниження витрат та покращення швидкості відгуку AI-агентів у продакшні.",
+      "read": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
+      "do": "Реалізувати кешування контексту для Telegram-бота з великими системними промптами та виміряти зниження витрат",
+      "estimate": "2-3 дні",
+      "state": "mastered",
+      "content_style": "audio",
+      "parent_topic_id": null,
+      "crosslinks": [],
+      "created_at": "2026-04-19T15:38:14+00:00",
+      "updated_at": "2026-04-19T15:39:12+00:00",
+      "mastered_at": "2026-04-19T15:39:12+00:00",
+      "legacy_id": null,
+      "formats": {}
     }
   ]
 }

@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 18:14
+# SESSION — 2026-04-19 18:40
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 2.1: shared/curriculum/ mutations.py + __init__.py, 6/6 smoke-tests PASS
+Phase 2.2: cmd_cur_add + cmd_done переписані на v2 через shared.curriculum, 4/4 тести PASS
 
 ## Наступний крок
-Phase 2.2: переписати cur_add + done + cmd_curriculum на v2 через shared.curriculum API
+Phase 2.3: notebooks pipeline на v2 + merge nblm_notebook_id в curriculum_v2.json
 
 ## Контекст
-mutations.py має add_island/add_topic/set_topic_state/update_topic_fields/remove_topic/set_format_status/set_format_url/mark_format_consumed. __init__.py експонує публічне API. Острови в v2: tool_use_integration, agent_architecture, production_reliability, multi_model_orchestration, system_operations, rag_retrieval, evaluation_testing, llm_foundations (gap). 16 тем у 8 островах. Наступна задача — переписати shared/curriculum_engine.py::cmd_cur_add/cmd_done або Sam-специфічні обгортки щоб писали в curriculum_v2.json через mutations. Legacy curriculum_dynamic.json + learning_state.json залишаються до 2.5 cleanup.
+cur_add робить LLM-enrich (ai визначає острів з існуючих або створює новий, заповнює why/read/do/estimate/content_style), додає тему одразу active. done приймає str id (agent_architecture-3) або legacy int (через legacy_id). Обидві команди викликають refresh_pinned silent. /cur показує 1/17 mastered, renderer v2 працює. Legacy CURRICULUM константа + _get/load_state shim лишаються — notebooklm.py і podcast.py ще на legacy. handle_curriculum_callback mертвий (не зареєстрований у main.py). Backup: curriculum.py.bak-phase22-20260419-*.
