@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 20:26
+# SESSION — 2026-04-19 20:41
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 2.6 DONE: tools.py + base.py snapshot на v2, Ed 3/3 PASS
+Phase 2.7: state_manager мігрований на shared.curriculum v2; видалено _cur_state і мертвий mark_artifact_consumed; ARTIFACT_ICONS розширено v2-ключами; proactive.py не чіпали — dict-контракт збережено; smoke PASS, sam.service restart clean
 
 ## Наступний крок
-Phase 2.7: де-легасізація proactive.py + можливо видалення state_manager.py
+Phase 2.8: дерефакторити modules/curriculum.py — прибрати legacy CurriculumEngine import (перевірити спершу grep чи живий); розглянути winddown legacy-іконок з ARTIFACT_ICONS після аудиту learning_state.json
 
 ## Контекст
-tools.py: 5 tools на shared.curriculum API (load/save/mark_format_consumed). base.py._get_curriculum_list читає curriculum.json → 18 тем. Ed block 05_tools_v2 створено. load_nb_state shim зберігається (Garcia юзає через curriculum_engine.py). state_manager живий у main.py і proactive.py — не чіпали.
+Бекапи phase27 у modules/; одна помилка API знайдена і виправлена — load() хоче файл а не директорію, тому DATA_DIR/curriculum.json; 17 active + 1 mastered тем на момент міграції; тест 'є що переглянути' відпрацював на реальних flashcards+podcast_tts першої active теми
