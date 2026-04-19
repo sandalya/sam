@@ -1,13 +1,13 @@
-# SESSION — 2026-04-19 14:18
+# SESSION — 2026-04-19 14:27
 
 ## Проект
 sam
 
 ## Що зробили
-Phase 2 pinned /hub + flock migration 5 ботів
+Ed тести pinned 4/4 pass, auto-refresh перевіряється автоматично через Telethon get_pinned_message
 
 ## Наступний крок
-Ed блок 03_pinned.json для автотесту оновлення pinned при /done
+cleanup learning_state.json (6/5 completed) + перейменування сервісів abby-v2 → abby, household_agent → meggy (окрема сесія)
 
 ## Контекст
-Pinned повідомлення створюється по /pin, автооновлюється через hook _after_state_change у curriculum engine. Flock через /run/user/1000/bot-locks/ замість bot.pid — PID reuse як клас знищено.
+Повний Ed-покрив Sam curriculum: 01_smoke 2/2, 02_curriculum 5/5, 03_pinned 4/4 = 11/11 pass. Flock на всіх 5 ботах, зомбі як клас знищено.
