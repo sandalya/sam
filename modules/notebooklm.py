@@ -3,11 +3,8 @@
 Phase 2.3: notebook_id мігровано в Topic.nblm_notebook_id всередині curriculum_v2.json.
 Окремого nb_state файлу більше не існує. load_nb_state/save_nb_state прибрані.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared.notebooklm_module import (  # noqa: F401
+from core.notebooklm_module import (  # noqa: F401
     generate_and_notify as _generate_and_notify,
     get_or_create_notebook as _get_or_create_notebook,
     cmd_notebooks as _cmd_notebooks,

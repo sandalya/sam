@@ -53,10 +53,10 @@ class BaseModule(AgentBase):
         )
 
 
-# Патчимо snapshot щоб знав назви тем curriculum (v2 — читаємо curriculum.json через shared.curriculum)
+# Патчимо snapshot щоб знав назви тем curriculum (v2 — читаємо curriculum.json через curriculum)
 def _get_curriculum_list():
     try:
-        from shared.curriculum import load as _cur_load
+        from curriculum import load as _cur_load
         state = _cur_load(DATA_DIR / "curriculum.json")
         return [
             {

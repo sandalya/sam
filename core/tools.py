@@ -1,7 +1,7 @@
 """
 sam/core/tools.py — SAM_TOOLS definitions + execute_tool handler.
 
-Phase 2.6: переписано на shared.curriculum v2 API.
+Phase 2.6: переписано на curriculum v2 API.
 - curriculum.json як єдине джерело правди
 - NBLM notebook_id зберігається в topic.nblm_notebook_id
 - Формати: slides, podcast_nblm, podcast_tts, video, infographic, flashcards, exam
@@ -15,7 +15,7 @@ logger = logging.getLogger("sam")
 
 CURRICULUM_FILENAME = "curriculum.json"
 
-# Канонічний список форматів v2 (синхронізовано з shared.curriculum.ALLOWED_FORMATS)
+# Канонічний список форматів v2 (синхронізовано з curriculum.ALLOWED_FORMATS)
 _V2_FORMAT_KEYS = ["slides", "podcast_nblm", "podcast_tts", "video", "infographic", "flashcards", "exam"]
 
 SAM_TOOLS = [
@@ -68,8 +68,8 @@ SAM_TOOLS = [
 
 
 def _load_state(data_dir: Path):
-    """Завантажує curriculum.json через shared.curriculum.load. Повертає CurriculumState або None якщо файлу немає."""
-    from shared.curriculum import load
+    """Завантажує curriculum.json через curriculum.load. Повертає CurriculumState або None якщо файлу немає."""
+    from curriculum import load
     path = data_dir / CURRICULUM_FILENAME
     if not path.exists():
         return None
@@ -122,7 +122,7 @@ def _h_get_learning_state(state) -> str:
 
 
 def _h_update_progress(state, data_dir: Path, input_data: dict) -> str:
-    from shared.curriculum import save, mark_format_consumed, ALLOWED_FORMATS
+    from curriculum import save, mark_format_consumed, ALLOWED_FORMATS
 
     topic_id_raw = input_data.get("topic_id")
     format_key = input_data.get("format_key")

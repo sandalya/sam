@@ -5,9 +5,9 @@ sam/modules/state_manager.py — activity & streak tracking + зручний ф�
 Після Phase 2.7:
   - Activity (last_activity, streak_days) живе у data/learning_state.json.
   - Curriculum-стан (active topics, formats, consumed) читається з
-    shared.curriculum (єдине джерело правди).
+    curriculum (єдине джерело правди).
   - Legacy `mark_artifact_consumed` видалений — його роль виконує
-    shared.curriculum.mark_format_consumed, який викликають tools.
+    curriculum.mark_format_consumed, який викликають tools.
   - Legacy `_cur_state` видалений — прямо читаємо v2 state.
 """
 import json
@@ -21,7 +21,7 @@ STATE_FILE = Path(__file__).parent.parent / "data" / "learning_state.json"
 DATA_DIR   = Path(__file__).parent.parent / "data"
 
 # ── Іконки форматів ────────────────────────────────────────────────────────────
-# v2-ключі — канонічні (ALLOWED_FORMATS з shared.curriculum).
+# v2-ключі — канонічні (ALLOWED_FORMATS з curriculum).
 # legacy-ключі лишаються як fallback: старі записи у learning_state.json
 # (якщо які і дотягнули) та proactive.ARTIFACT_ICONS.get(a, ...) не впаде.
 ARTIFACT_ICONS = {
@@ -112,7 +112,7 @@ def get_current_progress() -> dict:
     artifacts_remaining: list[str] = []
     completed_count = 0
     try:
-        from shared.curriculum import load as load_curriculum
+        from curriculum import load as load_curriculum
         cur = load_curriculum(DATA_DIR / "curriculum.json")
         active_topics = cur.topics_by_state("active")
         if active_topics:

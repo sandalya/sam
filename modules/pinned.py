@@ -1,8 +1,8 @@
 """
 sam/modules/pinned.py — pinned /cur2 з новою моделлю курікулома.
 
-Читає curriculum_v2.json через shared.curriculum.storage і рендерить
-через shared.curriculum.renderer.render(). Стан закріпленого повідомлення
+Читає curriculum_v2.json через curriculum.storage і рендерить
+через curriculum.renderer.render(). Стан закріпленого повідомлення
 зберігається у pinned_state_v2.json (окремо від старого pinned_state.json),
 щоб старий /cur і новий /cur2 могли жити у чаті паралельно.
 """
@@ -19,8 +19,8 @@ _WORKSPACE = Path(__file__).resolve().parents[2]
 if str(_WORKSPACE) not in sys.path:
     sys.path.insert(0, str(_WORKSPACE))
 
-from shared.curriculum.storage import load as load_curriculum
-from shared.curriculum.renderer import render as render_curriculum
+from curriculum.storage import load as load_curriculum
+from curriculum.renderer import render as render_curriculum
 
 log = logging.getLogger("sam.pinned")
 

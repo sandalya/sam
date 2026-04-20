@@ -1,9 +1,6 @@
 """Sam podcast — AI-тематика (Phase 2.4: v2 curriculum nativ)."""
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared.podcast_module import PodcastModule as _PodcastModule
+from core.podcast_module import PodcastModule as _PodcastModule
 from .base import SAM_PERSONA, DATA_DIR, PROFILE_PATH
 
 

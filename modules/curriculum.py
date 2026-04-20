@@ -1,6 +1,6 @@
 """Sam curriculum — Phase 2.8: чистий v2.
 
-Лишилися тільки дві команди, обидві нативні на shared.curriculum:
+Лишилися тільки дві команди, обидві нативні на curriculum:
   /cur_add — додати тему (LLM визначає острів + метадані)
   /done    — позначити тему як mastered
 
@@ -16,7 +16,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared.agent_base import client, MODEL_SMART
-from shared.curriculum import (
+from curriculum import (
     load, save,
     add_topic, add_island, set_topic_state,
     CurriculumState,
