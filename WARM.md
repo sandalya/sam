@@ -53,7 +53,7 @@ tags: [ui, pinned, incomplete]
 status: active
 ```
 
-`modules/pinned.py` (120 рядків) + `shared/curriculum/renderer.py` (175 рядків). Рендерить HTML-текст з групуванням по островах, показує тільки active-теми, порожні острови → секція "Прогалини". Клікабельні `📓 NB` (NotebookLM URL) і `🔊 TTS` (deep-link). **Жодних InlineKeyboard, акордеону, кнопок `[🆕]`/`[🗺]`** — все це треба додати у Фазі 2 маніфесту.
+`modules/pinned.py` (120 рядків) + `shared/curriculum/renderer.py` (175 рядків). Рендерить HTML-текст з групуванням по островах, показує тільки active-теми, порожні острови → секція "Прогалини". Клікабельні `📓 NB` (NotebookLM URL) і `🔊 TTS` (deep-link). **Стара `render()` — read-only** (досі використовується `modules/pinned.py`). **Нова `render_pinned()` + `build_keyboard()`** додані 20.04 і готові до використання, але `modules/pinned.py` на них ще не переключено — зробимо у пункті (2) Phase 2 разом з callback-handlers.
 
 ## Pipeline — single-format only
 
@@ -83,7 +83,7 @@ tags: [phase-2, plan]
 status: active
 ```
 
-(1) Renderer v2 — групування по станах 🟢/🟡/✅, лічильники "3/7 ✓✓✓○○○○", окрема `build_keyboard()` ~1.5-2 год. (2) Callback handlers — `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}`, persistent `pinned_expanded.json` ~2 год. (3) Pipeline orchestrator — новий `shared/curriculum/pipeline.py::run_pipeline()` за content_style порядком, оновлення status, рефреш pinned ~2-3 год. (4) Smoke + integration ~1 год. Усього ~6-8 год, 2 сесії.
+(1) ✅ **Renderer v2 — done** (коміт `d204a47` у workspace-репо + `1ac7b01` у sam-репо, 20.04). `render_pinned()` + `_render_topic_v2()` + лічильники `N/7 ✓●○` + `build_keyboard()` заглушка. (2) Callback handlers — `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}`, persistent `pinned_expanded.json` ~2 год. (3) Pipeline orchestrator — новий `shared/curriculum/pipeline.py::run_pipeline()` за content_style порядком, оновлення status, рефреш pinned ~2-3 год. (4) Smoke + integration ~1 год. Залишилось ~4-7 год. Перед пунктом (2) — окрема сесія: catch-up workspace-репо + перенос `shared/curriculum` + `notebooklm_module` + `podcast_module` у `sam/` (див. HOT).
 
 ## Ключові архітектурні рішення
 
