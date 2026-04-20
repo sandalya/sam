@@ -1,54 +1,67 @@
 """
-sam/modules/proactive.py — проактивні повідомлення на основі стану учня.
-Викликається з auto-digest scheduler перед digest.
+sam/modules/proactive.py — проактивні повідомлення на основі curriculum v2.
+Викликається з job_daily_digest scheduler.
 """
 import logging
-from modules.state_manager import get_current_progress, _load as load_state
+from pathlib import Path
+from modules.base import DATA_DIR
+from curriculum import load
 
 logger = logging.getLogger("sam")
 
 def generate_proactive_message() -> str | None:
     """
-    Перевіряє стан учня і генерує проактивне повідомлення якщо доречно.
-    Повертає None якщо нема приводу для повідомлення.
+    Перевіряє стан курікулома і генерує проактивне повідомлення.
+    Повертає None якщо нема приводу.
     """
     try:
-        progress = get_current_progress()
+        cur_path = DATA_DIR / "curriculum.json"
+        state = load(cur_path)
     except Exception as e:
-        logger.warning(f"Proactive: get_current_progress failed: {e}")
+        logger.warning(f"Proactive: load curriculum failed: {e}")
         return None
 
-    tid = progress.get("current_topic_id")
-    days_inactive = progress.get("days_inactive", 0)
-    remaining = progress.get("artifacts_remaining", [])
-    consumed = progress.get("artifacts_consumed", [])
-    streak = progress.get("streak_days", 0)
+    active = state.topics_by_state("active")
+    if not active:
+        return None
 
-    # 1. Давно не працював
-    if days_inactive >= 3:
-        return (
-            f"👋 Привіт! Ти вже {days_inactive} дні не заходив до навчання.\n"
-            f"Хочеш коротке повторення поточної теми чи продовжуємо далі?\n"
-            f"Напиши /hub щоб побачити де зупинився."
-        )
+    # 1. Є теми з ready форматами які не consumed
+    for t in active:
+        ready_not_consumed = [
+            k for k, f in t.formats.items()
+            if f.status == "ready" and not f.consumed
+        ]
+        if ready_not_consumed:
+            fmt_list = ", ".join(ready_not_consumed)
+            return (
+                f"📚 По темі <b>{t.title}</b> є непереглянутий контент:\n"
+                f"  {fmt_list}\n"
+                f"Відкрий /cur щоб подивитись."
+            )
 
-    # 2. Є непереглянуті артефакти
-    if remaining and tid:
-        from modules.state_manager import ARTIFACT_ICONS
-        consumed_str = " ".join(ARTIFACT_ICONS.get(a, "✅") for a in consumed) or "—"
-        remaining_str = " ".join(ARTIFACT_ICONS.get(a, "⬜") for a in remaining)
-        return (
-            f"📚 По поточній темі є що переглянути:\n"
-            f"  ✅ Переглянуто: {consumed_str}\n"
-            f"  ⬜ Залишилось: {remaining_str}\n"
-            f"Напиши /hub щоб відкрити."
+    # 2. Всі формати consumed у якоїсь теми — пропозиція екзамену
+    for t in active:
+        if not t.formats:
+            continue
+        all_consumed = all(
+            f.consumed for f in t.formats.values()
+            if f.status == "ready"
         )
+        ready_count = sum(1 for f in t.formats.values() if f.status == "ready")
+        if all_consumed and ready_count >= 3:
+            return (
+                f"🎉 Весь контент по <b>{t.title}</b> переглянуто!\n"
+                f"Готовий до екзамену? Натисни 🧠 Exam у /cur"
+            )
 
-    # 3. Всі артефакти переглянуті — пропозиція наступної теми
-    if not remaining and tid and consumed:
-        return (
-            f"🎉 Поточну тему закрито! Всі матеріали переглянуто.\n"
-            f"Готовий до наступної? Напиши /hub."
-        )
+    # 3. Є теми без жодного ready формату — може pipeline впав
+    for t in active:
+        has_ready = any(f.status == "ready" for f in t.formats.values())
+        has_failed = any(f.status == "failed" for f in t.formats.values())
+        if not has_ready and has_failed:
+            return (
+                f"⚠️ Тема <b>{t.title}</b> має failed формати.\n"
+                f"Спробуй /regen щоб перезапустити генерацію."
+            )
 
     return None

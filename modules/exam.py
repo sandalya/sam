@@ -124,6 +124,22 @@ Return ONLY a JSON object:
     return json.loads(text)
 
 
+def _generate_subtopic_title(parent_title: str) -> str:
+    """Генерує назву підтеми на основі слабких місць екзамену."""
+    prompt = f"""A developer just failed or partially failed an exam on "{parent_title}".
+Based on the topic, suggest ONE focused subtopic title that would help fill knowledge gaps.
+The subtopic should be specific and actionable, not just a repeat of the parent topic.
+Return ONLY the subtopic title as a plain string, no quotes, no explanation.
+Example: if parent is "RAG — Retrieval Augmented Generation", subtopic might be "Chunking Strategies & Overlap Tuning"."""
+
+    response = client.messages.create(
+        model=MODEL_SMART,
+        max_tokens=100,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 # ── Start exam ───────────────────────────────────────────────────────────────
 
 async def start_exam(bot, chat_id: int, topic_id: str, data_dir: Path):
@@ -280,10 +296,21 @@ async def _finish_exam(bot, chat_id: int, session: dict, data_dir: Path):
         icon = "✅" if ev.get("correct") else "❌"
         lines.append(f"{icon} Q{i+1}: {ev.get('score', 0)}/10")
 
+    # Знаходимо слабкі теми для підтем
+    weak_questions = [
+        session["questions"][i]
+        for i, ev in enumerate(evaluations)
+        if not ev.get("correct")
+    ]
+
     if passed:
         lines.append(f"\n🎉 <b>Пройдено!</b>")
+        if weak_questions:
+            lines.append(f"\n💡 Але є прогалини — можеш додати підтему для поглиблення.")
     else:
         lines.append(f"\n😔 Не пройдено. Спробуй ще раз після повторення матеріалу.")
+        if weak_questions:
+            lines.append(f"\n💡 Рекомендую додати підтему по слабких місцях.")
 
     # Keyboard
     keyboard = []
@@ -291,6 +318,11 @@ async def _finish_exam(bot, chat_id: int, session: dict, data_dir: Path):
         keyboard.append([InlineKeyboardButton(
             "✅ Mastered",
             callback_data=f"exam_mastered_{topic_id}",
+        )])
+    if weak_questions:
+        keyboard.append([InlineKeyboardButton(
+            "➕ Додати підтему по прогалині",
+            callback_data=f"exam_subtopic_{topic_id}",
         )])
     keyboard.append([InlineKeyboardButton(
         "🔄 Повторити екзамен",
@@ -356,6 +388,27 @@ async def handle_exam_callback(update, context):
             await refresh_pinned(context.bot, chat_id, DATA_DIR)
         except Exception as e:
             log.error(f"exam_mastered failed: {e}", exc_info=True)
+            await query.message.reply_text(f"❌ Помилка: {e}")
+
+    elif data.startswith("exam_subtopic_"):
+        topic_id = data[len("exam_subtopic_"):]
+        cur_path = DATA_DIR / "curriculum.json"
+        state = load(cur_path)
+        topic = state.get_topic(topic_id)
+        if not topic:
+            await query.message.reply_text(f"❌ Тема {topic_id} не знайдена.")
+            return
+
+        # Генеруємо назву підтеми через LLM на основі слабких місць
+        try:
+            subtopic_title = _generate_subtopic_title(topic.title)
+            await query.message.reply_text(
+                f"➕ Додаю підтему: <b>{subtopic_title}</b>\n"
+                f"Використай /cur_add {subtopic_title}",
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            log.error(f"Subtopic generation failed: {e}", exc_info=True)
             await query.message.reply_text(f"❌ Помилка: {e}")
 
     elif data.startswith("exam_retry_"):
