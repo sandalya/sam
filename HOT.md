@@ -7,59 +7,65 @@ updated: 2026-04-20
 
 ## Now
 
-Phase 2 пункт (1) Renderer v2 **закрито**. Наступне — перенос `shared/curriculum/` + `shared/notebooklm_module.py` + `shared/podcast_module.py` у `sam/` (структура: `sam/curriculum/` + `sam/core/notebooklm_module.py` + `sam/core/podcast_module.py`). Це передумова перед пунктом (2) Phase 2 (callback handlers), щоб не плодити нових імпортів `shared.curriculum` по коду.
-
-**Перенос буде окремою "великою" сесією разом з catch-up workspace-репо** — див. BACKLOG Infrastructure.
+Phase 2 пункт (2) — **callback handlers для pinned акордеону**. Рендерер готовий з минулої сесії (`render_pinned()` + `build_keyboard()` заглушка), перенос `shared/curriculum/` + `shared/{notebooklm,podcast}_module.py` у `sam/` виконано цією сесією. Імпорти чисті, `sys.path.insert` хаки прибрані, sam бігає на новому layout-і.
 
 ## Last done
 
-- **Renderer v2 готовий** у `shared/curriculum/renderer.py` (~390 рядків). Додано:
-  - `render_pinned(state, bot_username, now_hhmm, expanded_mastered)` — групування 🟢/🟡/✅ + `🗺 Острови: ...` + прогалини.
-  - `_render_topic_v2()` з лічильником `N/7 ✓●○` (exam = 7-й формат).
-  - `build_keyboard()` — заглушка з `[🆕 Нова тема] [🗺 Карта]`, без per-topic кнопок (це пункт (2)).
-  - Стара `render()` і `_render_topic()` не чіпані — `modules/pinned.py` працює без змін.
-- Smoke-тест на реальних даних пройшов. Mastered колапсить до `✅ Засвоєні (N) ▸`.
-- Фікс навздогін: renderer.py було незакомічено у workspace-репо (chkp2 не дійшов), зафіксовано у коміті `d204a47 (master)`, тег `pre-relocate-20260420-130709`.
+**Phase 3 (relocate) + catch-up workspace-репо — виконано за одну сесію.**
+
+### Catch-up workspace-репо (5 комітів, -10000+ рядків):
+- Видалено 45 backup-файлів: 19 у `sam/data/*.{bak,deprecated,old,stub,merged}-*`, 17 у `sam/{main,modules/*,core/tools}.py.bak-phase22..29-*`, 9 у `shared/*.{bak-phase23..29,deprecated-phase25}-*`.
+- **Фундаментальний фікс:** `git rm --cached -r sam/` + `echo "sam/" >> .gitignore` у workspace-репо. Причина: sam/ історично був доданий як звичайна папка ДО появи `sam/.git/`, і workspace-репо тримав 45 blob-файлів паралельно з sam-репо. Це була першопричина `chkp2` "бага з shared/" — більше немає.
+- Untracked `health_monitor.log` (356KB runtime noise) + додано у `.gitignore`.
+- BACKLOG.md додано у workspace-репо.
+- Submodule-like pointer bumps для abby-v2, ed, insilver-v3. Skipped insilver-v2, kit (локальний runtime шум, не наша сесія).
+
+### Phase 3 relocate (2 коміти):
+- `shared/curriculum/` (7 файлів) → `sam/curriculum/`
+- `shared/notebooklm_module.py` → `sam/core/notebooklm_module.py`
+- `shared/podcast_module.py` → `sam/core/podcast_module.py`
+- Rewrite imports у 7 sam-файлах: `core/tools.py`, `modules/{base,curriculum,pinned,state_manager,notebooklm,podcast}.py`.
+- Прибрано `sys.path.insert(parent.parent.parent)` хаки у `modules/notebooklm.py` і `modules/podcast.py`.
+- Fixed relative imports у `core/podcast_module.py`: `from .agent_base` → `from shared.agent_base`, `from .curriculum` → `from curriculum`.
+- 35 replacements у docstrings/comments/log-names у 12 файлах для ментальної гігієни.
+- `.gitignore` у sam-репо: + `__pycache__/`, `*.pyc` (були tracked раніше).
+- **Live-tested:** `/pin` → `msg_id=1222` OK, "як справи" → `Router: intent=chat conf=0.95` → `Tool use iteration 1: ['get_hub']` → відповідь згенерована. Найгарячіший шлях (agentic loop з читанням курікулома) — зелений.
 
 ## Next
 
-**Окрема сесія — "Великий рефакторинг shared":**
-
-1. **Catch-up workspace-репо:** зафіксувати Phase 29 deletes + модифікації у `shared/curriculum/` + прибрати зайві backup-файли у sam/data/. ~30-40 хв.
-2. **Перенос:** `shared/curriculum/` → `sam/curriculum/`, `shared/notebooklm_module.py` → `sam/core/notebooklm_module.py`, `shared/podcast_module.py` → `sam/core/podcast_module.py`. ~1 год.
-3. Оновити ~15 імпортів по файлах: `core/tools.py` (×2), `modules/{state_manager,pinned,base,curriculum,notebooklm,podcast}.py`. Прибрати `sys.path.insert(...)` хаки в обгортках `modules/notebooklm.py` + `modules/podcast.py`.
-4. Restart `sam.service` + smoke. Якщо ок → `chkp2`.
-
-**Потім — Phase 2 пункт (2) callback handlers:**
+**Phase 2 пункт (2) — callback handlers:**
 
 - `cur_toggle_{id}` / `cur_pipeline_{id}` / `fmt_check_{id}_{fmt}` + `cur_new` / `cur_map` реалізація.
-- Акордеон: expand-in-place через `editMessageText`, persistent state у `data/pinned_expanded.json`.
+- Акордеон: expand-in-place через `editMessageText`, persistent state у `data/pinned_expanded.json` (або поле у `pinned_state.json` — відкрите питання у WARM).
 - Розширити `build_keyboard()` щоб генерувала per-topic кнопки для expanded тем.
+- Переключити `modules/pinned.py` з старої `render()` на нову `render_pinned()` + `build_keyboard()`.
+- Smoke + integration.
+
+**Час:** ~2 год.
 
 ## Blockers
 
-Жодних технічних. Workspace-репо брудний (багато Phase 29 deletes не зафіксовано), але це не блокує наступну сесію — просто треба її почати з catch-up.
+Жодних.
 
-## Active branch
+## Active branches
 
-sam-репо: `main` (чистий, все на origin/main). Workspace-репо: `master` (d204a47, 3 коміти попереду origin/master — не пушені навмисно, пушнемо разом з catch-up).
+- **sam-репо** (`main`): `2d5e265` (Phase 3 relocate). Запушено у origin/main.
+- **workspace-репо** (`master`): `513f608` (remove shared curriculum+notebooklm+podcast). Запушено у origin/master.
 
 ## Open questions at the moment
 
-- **Жодних — план ясний.** Перелік що переносити і куди: закрито минулою сесією.
+- `pinned_expanded.json` як окремий файл чи поле у `pinned_state.json`? (не вирішено, низький пріоритет).
+- Після Фази 2 — чи потрібен `/pipeline` як окрема команда, чи достатньо кнопки `cur_pipeline_{id}` у pinned?
 
 ## Reminders
 
 - Перед тестуванням — запустити `journalctl -u sam -f` **до** надсилання повідомлення боту.
 - Використовувати `/home/sashok/.openclaw/workspace/sam/` (ніяких `~/sam/`).
 - API keys маскувати до останніх 4 символів.
-- **`chkp2` баг** — не комітить зміни у `shared/`. Якщо наступна сесія чіпатиме shared/ — після `chkp2 sam ...` треба ще вручну `cd workspace; git add -A; git commit -m "..."`. Фікс у BACKLOG.
-- **Гіркий урок:** workspace-репо має submodule-архітектуру. `sam/` це submodule. Зміни в `shared/` — у workspace-репо. Зміни в `sam/` — у sam-репо. `chkp2` про це не знає.
+- **`chkp2` НЕ оновлює 3 яруси сам** — це робота Claude ПЕРЕД викликом chkp2. `chkp2` тільки комітить+пушить + guard `read -p "Ready?"`.
+- **`chkp2` баг з shared/ — ліквідовано структурно.** Workspace-репо тепер не трекає `sam/`, тож конфлікту "sam modifications vs shared modifications у одному git status" більше немає. Workspace-репо комітиться вручну (там живе shared/, BACKLOG, infra).
+- **SSH: no base64, no scp, no nano .md.** Точкові правки — sed. Великі блоки — `cat > /tmp/patch.py << 'PYEOF' ... PYEOF && python3 /tmp/patch.py`. Threshold для WinSCP — >200 рядків.
 
-## Garcia — статус на момент переносу
+## Remotes nuance (не баг, артефакт)
 
-Garcia запущена і працює, але **podcast не використовує** (`garcia/modules/podcast.py` — мертвий файл, не імпортований `garcia/main.py`). Тому перенос `shared/podcast_module.py` у sam/ його не зламає. Імпорт у мертвому файлі стане "поламаним", це ок — додати у BACKLOG позначити deprecated або видалити.
-
-## Sam-v2 — також ігнорується
-
-`sam-v2/` це неактуальна паралельна гілка проекту (ти підтвердив: "якийсь момент робили паралельно, перестрибнули на 1 версію"). Імпорти `shared.curriculum*` у ньому перестануть працювати після переносу — не переживаємо, проект мертвий.
+Обидва репо (sam і workspace) пушаться у `github.com/sandalya/sam.git`, sam → `main`, workspace → `master`. Це historical naming-артефакт, функціонально працює. Низький пріоритет переносу у окремий repo.
