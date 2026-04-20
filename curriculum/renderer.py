@@ -54,12 +54,15 @@ def _tts_link(t: Topic, bot_username: Optional[str]) -> str:
     return "\u2014"
 
 
-def _exam_label(t: Topic) -> str:
-    """EXAM — просто текст, Phase 3."""
+def _exam_label(t: Topic, bot_username: str = None) -> str:
+    """EXAM deep-link — Phase 3."""
     f = t.formats.get("exam")
     if f and f.status == "ready":
-        return "\u2705 \U0001f9e0 EXAM"
-    return "\U0001f9e0 EXAM"
+        return "\u2705 \U0001f9e0 Exam"
+    if bot_username:
+        url = _deep_link(bot_username, f"exam_{t.id}")
+        return f'<a href="{url}">\U0001f9e0 Exam</a>'
+    return "\U0001f9e0 Exam"
 
 
 def _render_topic_line(t: Topic, bot_username: Optional[str]) -> list[str]:
@@ -72,7 +75,7 @@ def _render_topic_line(t: Topic, bot_username: Optional[str]) -> list[str]:
     title = _escape_html(t.title)
     nb = _nb_link(t)
     tts = _tts_link(t, bot_username)
-    exam = _exam_label(t)
+    exam = _exam_label(t, bot_username)
     suffix = f" {style_icon}" if style_icon else ""
     line1 = f"  \u25b8 {title}{suffix}"
     line2 = f"     {nb}  \u00b7  {tts}  \u00b7  {exam}"

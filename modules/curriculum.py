@@ -375,3 +375,67 @@ async def cmd_done(update, context):
             await refresh_pinned(update.get_bot(), update.effective_chat.id, DATA_DIR)
     except Exception as e:
         log.warning(f"pinned refresh after done failed: {e}")
+
+
+# ── cmd_regen (mass regeneration) ────────────────────────────────────────────
+
+async def cmd_regen(update, context):
+    """Запускає pipeline для всіх тем де є MISSING або failed формати."""
+    import asyncio
+    from curriculum.pipeline import run_pipeline
+
+    state = load(CURRICULUM_V2_PATH)
+    fmt_keys = ["slides", "podcast_nblm", "podcast_tts", "video", "infographic", "flashcards"]
+
+    topics_to_regen = []
+    for t in state.topics:
+        needs_regen = False
+        for fk in fmt_keys:
+            f = t.formats.get(fk)
+            if not f or f.status in ("pending", "failed"):
+                needs_regen = True
+                break
+        if needs_regen:
+            topics_to_regen.append(t)
+
+    if not topics_to_regen:
+        await update.message.reply_text("✅ Всі формати вже ready або generating.")
+        return
+
+    # Reset failed → pending перед запуском
+    from curriculum import set_format_status
+    changed = 0
+    for t in topics_to_regen:
+        for fk in fmt_keys:
+            f = t.formats.get(fk)
+            if f and f.status == "failed":
+                set_format_status(state, t.id, fk, "pending")
+                changed += 1
+    if changed:
+        save(state, CURRICULUM_V2_PATH)
+
+    titles = "\n".join(f"  • {t.title}" for t in topics_to_regen)
+    await update.message.reply_text(
+        f"🔄 Regen: {len(topics_to_regen)} тем\n{titles}\n\n"
+        f"Запускаю послідовно (retry до 72 год на rate limit)...",
+        parse_mode="HTML",
+    )
+
+    bot = update.get_bot()
+    chat_id = update.effective_chat.id
+
+    asyncio.create_task(_run_regen(bot, chat_id, topics_to_regen))
+
+
+async def _run_regen(bot, chat_id, topics):
+    """Background regen — не блокує бот."""
+    from curriculum.pipeline import run_pipeline
+
+    for t in topics:
+        try:
+            await run_pipeline(bot, chat_id, t.id, DATA_DIR)
+        except Exception as e:
+            log.error(f"Regen pipeline failed for {t.id}: {e}", exc_info=True)
+            await bot.send_message(chat_id, f"⚠️ {t.title}: {e}")
+
+    await bot.send_message(chat_id, "🏁 Regen завершено.")

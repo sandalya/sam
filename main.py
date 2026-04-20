@@ -31,8 +31,10 @@ from modules.curriculum import (
     cmd_done,
     cmd_cur_add,
     cmd_status,
+    cmd_regen,
 )
 from modules.state_manager import touch_activity
+from modules.exam import start_exam, handle_exam_answer, is_exam_active, cancel_exam, handle_exam_callback
 
 import sys as _sys
 _sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace"))
@@ -230,6 +232,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
+    # Exam intercept — якщо активний екзамен, всі текстові повідомлення йдуть туди
+    from modules.base import DATA_DIR as _data_dir
+    if is_exam_active(_data_dir):
+        await handle_exam_answer(update.get_bot(), update.effective_chat.id, text, _data_dir)
+        return
     from modules.router import route_message
     route = route_message(text)
     intent = route.get("intent", "chat")
@@ -356,6 +363,9 @@ def main():
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("regen", cmd_regen))
+    app.add_handler(CommandHandler("exam_cancel", lambda u, c: cancel_exam(u.get_bot(), u.effective_chat.id, DATA_DIR)))
+    app.add_handler(CallbackQueryHandler(handle_exam_callback, pattern=r"^exam_"))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
     app.add_handler(CommandHandler("jobs", cmd_jobs))
     app.add_handler(CommandHandler("onboarding", cmd_onboarding))
@@ -435,6 +445,12 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         asyncio.create_task(run_pipeline(context.bot, chat_id, topic_id, DATA_DIR))
         handled = True
 
+    elif payload.startswith("exam_"):
+        topic_id = payload[len("exam_"):]
+        logger.info(f"exam deep-link: {topic_id}")
+        from modules.base import DATA_DIR
+        await start_exam(context.bot, chat_id, topic_id, DATA_DIR)
+        handled = True
     elif payload == "map":
         logger.info("map stub")
         try:

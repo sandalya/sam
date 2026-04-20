@@ -235,7 +235,7 @@ async def generate_and_notify(
     save(state, cur_path)
 
     # Step 4: generate with rate-limit backoff
-    RETRY_DELAYS = [0, 15 * 60, 30 * 60]
+    RETRY_DELAYS = [0] + [3600] * 71  # retry hourly, up to 72h
     ok, err = False, "error"
     for delay in RETRY_DELAYS:
         if delay:
