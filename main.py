@@ -334,16 +334,11 @@ def main():
     async def post_init(application):
         from telegram import BotCommand
         await application.bot.set_my_commands([
-            BotCommand("start",      "👋 Привіт і список команд"),
-            BotCommand("digest",     "🤖 AI дайджест за 24 год"),
-            BotCommand("science",    "🔬 Науковий дайджест тижня"),
             BotCommand("cur",        "📚 План навчання AI"),
-            BotCommand("catchup",    "📊 Catchup за період"),
             BotCommand("jobs",       "💼 Ринок праці"),
-            BotCommand("onboarding", "🗺️ Онбординг"),
-            BotCommand("profile",    "👤 Профіль інтересів"),
-            BotCommand("podcast",    "🎙️ Подкаст по curriculum"),
-            BotCommand("notebooks",  "📓 Мої NotebookLM notebooks"),
+            BotCommand("notebooks",  "📓 NotebookLM notebooks"),
+            BotCommand("status",     "📊 Стан генерації"),
+            BotCommand("regen",      "🔄 Дорегенерація форматів"),
         ])
 
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
