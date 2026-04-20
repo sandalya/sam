@@ -281,7 +281,7 @@ def _h_add_topic(state, data_dir: Path, input_data: dict) -> str:
 
 # ── Диспетчер ────────────────────────────────────────────────────────────────
 
-def execute_tool(name: str, input_data: dict, data_dir: Path) -> str:
+def execute_tool(name: str, input_data: dict, data_dir: Path, *, bot=None, chat_id: int = 0) -> str:
     """Виконує tool call і повертає результат як string."""
     try:
         state = _load_state(data_dir)
@@ -299,7 +299,20 @@ def execute_tool(name: str, input_data: dict, data_dir: Path) -> str:
         elif name == "get_hub":
             return _h_get_hub(state)
         elif name == "add_topic":
-            return _h_add_topic(state, data_dir, input_data)
+            result = _h_add_topic(state, data_dir, input_data)
+            # Auto-pipeline: запускаємо генерацію у фоні
+            if bot and chat_id and "Додано тему" in result:
+                try:
+                    import asyncio
+                    from curriculum.pipeline import run_pipeline
+                    # Витягуємо topic_id з результату "[topic_id]"
+                    tid = result.split("[")[1].split("]")[0] if "[" in result else None
+                    if tid:
+                        asyncio.create_task(run_pipeline(bot, chat_id, tid, data_dir))
+                        logger.info(f"Auto-pipeline started for {tid} via tool")
+                except Exception as e:
+                    logger.warning(f"Auto-pipeline from tool failed: {e}")
+            return result
         else:
             return f"Unknown tool: {name}"
 

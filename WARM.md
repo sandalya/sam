@@ -86,7 +86,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | **Фаза 2 (пайплайн + interactive pinned) 🟡 — пункт (1) ✅, пункт (2) наступний** | Фаза 3 (діалоговий тест) ⬜ | Фаза 4 (проактивні тригери 3.5) ⬜ | Фаза 5 (велика карта островів) ⬜ | Фаза 6 (Depth Mode, відкладена) ⬜.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | **Фаза 2 (пайплайн + interactive pinned) ✅ — пункт (1) ✅, пункт (2) наступний** | Фаза 3 (діалоговий тест) ⬜ | Фаза 4 (проактивні тригери 3.5) ⬜ | Фаза 5 (велика карта островів) ⬜ | Фаза 6 (Depth Mode, відкладена) ⬜.
 
 ## Phase 2 декомпозиція
 
@@ -96,7 +96,7 @@ tags: [phase-2, plan]
 status: active
 ```
 
-(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) ✅ **Callback handlers + deep-links (done 20.04).** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) ✅ Pipeline orchestrator — `curriculum/pipeline.py::run_pipeline()` done 20.04. (4) Smoke + integration ~1 год. Залишилось ~1-2 год.
+(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) ✅ **Callback handlers + deep-links (done 20.04).** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) ✅ Pipeline orchestrator — done 20.04. (4) ✅ Auto-pipeline + /status + smoke — done 20.04. Phase 2 завершено.
 
 ## Tool add_topic в agentic loop
 
@@ -106,7 +106,7 @@ tags: [tools, agentic]
 status: active
 ```
 
-`core/tools.py`: schema `add_topic` (6-й tool у SAM_TOOLS), handler `_h_add_topic`. Sem додає теми через розмову ("додай тему X"). Handler викликає `_enrich_topic_via_llm` з `modules/curriculum.py` (LLM визначає острів, why/read/do/content_style), потім `curriculum.mutations.add_topic()` + save. Не тестовано у live — потребує smoke test через розмову з Sem.
+`core/tools.py`: schema `add_topic` (6-й tool у SAM_TOOLS), handler `_h_add_topic`. Sem додає теми через розмову ("додай тему X"). Handler викликає `_enrich_topic_via_llm` з `modules/curriculum.py` (LLM визначає острів, why/read/do/content_style), потім `curriculum.mutations.add_topic()` + save. Live-tested через `/cur_add`. Auto-pipeline запускається після add_topic (і cmd_cur_add, і tool в agentic loop).
 
 ## Ключові архітектурні рішення
 

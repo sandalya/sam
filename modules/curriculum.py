@@ -242,6 +242,75 @@ async def cmd_cur_add(update, context):
     except Exception as e:
         log.warning(f"pinned refresh after cur_add failed: {e}")
 
+    # Auto-pipeline: запускаємо генерацію всіх форматів у фоні
+    try:
+        import asyncio
+        from curriculum.pipeline import run_pipeline
+        asyncio.create_task(run_pipeline(
+            update.get_bot(), update.effective_chat.id, topic.id, DATA_DIR,
+        ))
+        log.info(f"Auto-pipeline started for {topic.id}")
+    except Exception as e:
+        log.warning(f"Auto-pipeline launch failed for {topic.id}: {e}")
+
+
+
+
+# ── cmd_status (pipeline queue) ──────────────────────────────────────────────
+
+async def cmd_status(update, context):
+    """Показує стан генерації форматів по всіх темах."""
+    state = load(CURRICULUM_V2_PATH)
+
+    generating = []
+    failed = []
+    pending_fmts = []
+    ready_count = 0
+    total_fmts = 0
+
+    fmt_keys = ["slides", "podcast_nblm", "podcast_tts", "video", "infographic", "flashcards"]
+
+    for t in state.topics:
+        for fk in fmt_keys:
+            f = t.formats.get(fk)
+            if not f or f.status == "pending":
+                pending_fmts.append(f"{t.title} / {fk}")
+                total_fmts += 1
+            elif f.status == "generating":
+                generating.append(f"{t.title} / {fk}")
+                total_fmts += 1
+            elif f.status == "ready":
+                ready_count += 1
+                total_fmts += 1
+            elif f.status == "failed":
+                err = f.error or "unknown"
+                failed.append(f"{t.title} / {fk}: {err[:50]}")
+                total_fmts += 1
+            elif f.status == "skipped":
+                total_fmts += 1
+
+    lines = [f"\U0001f4ca <b>Pipeline Status</b>\n"]
+    lines.append(f"\u2705 Ready: {ready_count}")
+    lines.append(f"\u23f3 Generating: {len(generating)}")
+    lines.append(f"\u274c Failed: {len(failed)}")
+    lines.append(f"\u23f8 Pending: {len(pending_fmts)}")
+    lines.append(f"\U0001f4e6 Total: {total_fmts}\n")
+
+    if generating:
+        lines.append("<b>Generating now:</b>")
+        for item in generating[:10]:
+            lines.append(f"  \u25b8 {item}")
+        lines.append("")
+
+    if failed:
+        lines.append("<b>Failed:</b>")
+        for item in failed[:10]:
+            lines.append(f"  \u25b8 {item}")
+        lines.append("")
+
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML",
+    )
 
 # ── cmd_done (v2) ────────────────────────────────────────────────────────────
 

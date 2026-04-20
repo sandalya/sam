@@ -30,6 +30,7 @@ from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_done,
     cmd_cur_add,
+    cmd_status,
 )
 from modules.state_manager import touch_activity
 
@@ -209,7 +210,7 @@ async def handle_chat_with_tools(update, text: str) -> str:
         messages.append({"role": "assistant", "content": response.content})
         tool_results = []
         for tc in tool_calls:
-            result = execute_tool(tc.name, tc.input, data_dir)
+            result = execute_tool(tc.name, tc.input, data_dir, bot=update.get_bot(), chat_id=update.effective_chat.id)
             logger.info(f"Tool {tc.name} -> {result[:80]}")
             tool_results.append({
                 "type": "tool_result",
@@ -354,6 +355,7 @@ def main():
     app.add_handler(CommandHandler("getfileid", cmd_getfileid))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
+    app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
     app.add_handler(CommandHandler("jobs", cmd_jobs))
     app.add_handler(CommandHandler("onboarding", cmd_onboarding))

@@ -7,41 +7,35 @@ updated: 2026-04-20
 
 ## Now
 
-Phase 2 пункт (3) — **Pipeline orchestrator** готовий. Масова перегенерація NBLM подкастів запущена (6/16 started, 8 rate-limited на завтра, 2 broken notebooks).
+Phase 2 завершено. Наступний крок — дочистити NBLM podcast regen + Phase 3 (діалоговий тест).
 
 ## Last done
 
-**Phase 2 — renderer rewrite + pipeline (сесія 20.04, друга)**
+**Phase 2(4) — auto-pipeline + /status + smoke (сесія 20.04, друга, продовження)**
 
-- `curriculum/renderer.py`: повний rewrite — компактний UI без акордеону. Per-topic рядок: `▸ Title` + `📓 NB · 🎙 TTS · 🧠 EXAM` на другому рядку. Прибрано: expand/collapse deep-links, `_render_topic_expanded`, `_format_counter`, `build_keyboard`, `pinned_expanded.json`. Тільки active теми в pinned (pending/mastered сховані). "Курікулом"→"Курікулум".
-- `curriculum/pipeline.py`: новий файл — orchestrator `run_pipeline()`. Послідовна генерація за content_style порядком (audio-first/visual-first), skip ready/generating/skipped, refresh pinned між кроками, фінальне повідомлення.
-- `core/podcast_module.py`: додано `generate_tts_for_pipeline()` — standalone функція для pipeline без залежності від Update/AgentBase.
-- `main.py`: pipeline stub замінено на `asyncio.create_task(run_pipeline(...))`. Прибрано expand/collapse handlers і toggle imports.
-- `modules/pinned.py`: `_render_current()` спрощено — прибрано expanded params.
-- Стан тем: 4 active (tool_use_integration-1, agent_architecture-1/2/3), 12 pending, 1 mastered. `evaluation_testing-2` (Test Topic For Cleanup) видалено.
-- NBLM podcast regen: 6 started (2 completed, 2 pending), 8 rate-limited, 2 broken notebooks (agent_architecture-2, rag_retrieval-1).
+- `core/tools.py`: `execute_tool()` отримав `bot`/`chat_id` params. Після `add_topic` tool — auto `run_pipeline()` через `asyncio.create_task`.
+- `main.py`: `handle_chat_with_tools()` прокидає `bot`/`chat_id` в `execute_tool`.
+- `modules/curriculum.py`: `cmd_cur_add()` — auto-pipeline після створення теми. Новий `cmd_status()` — показує ready/generating/failed/pending по всіх форматах.
+- Smoke test: `/cur_add Test Pipeline Smoke` → LLM enrich → тема створена → notebook created → pipeline started → slides generating. Тестову тему видалено.
 
 ## Next
 
-1. Перезапустити rate-limited NBLM podcast генерацію (10 тем).
-2. Розібратись з 2 broken notebooks (multi-agent координація, RAG).
-3. Автозапуск pipeline при `add_topic`.
-4. `/status` або `/queue` команда.
-5. Phase 2 пункт (4) — smoke + integration.
+1. Дорегенерити rate-limited NBLM подкасти (10 тем).
+2. Broken notebooks (agent_architecture-2, rag_retrieval-1).
+3. Phase 3 — діалоговий тест (EXAM).
+4. Case study doc agentic loop.
 
 ## Blockers
 
-- Google NBLM rate limit — ~6 audio генерацій на день.
-- 2 broken notebooks (RPC failed).
+- Google NBLM rate limit ~6/день.
 
 ## Active branches
 
-- **sam-репо** (`main`): Phase 2 — pipeline + renderer rewrite. НЕ запушено.
+- **sam-репо** (`main`): Phase 2 done. НЕ запушено.
 
 ## Open questions
 
-- Автозапуск pipeline при add_topic — чи робити в цій фазі чи відкласти?
-- `/pin` в меню бота біля скрепочки — додати.
+- `/pin` в меню бота біля скрепочки.
 
 ## Reminders
 
