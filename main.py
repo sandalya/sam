@@ -447,14 +447,20 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await start_exam(context.bot, chat_id, topic_id, DATA_DIR)
         handled = True
     elif payload == "map":
-        logger.info("map stub")
+        logger.info("map deep-link")
         try:
+            from modules.island_map import render_island_map
+            from modules.base import DATA_DIR
+            map_text = render_island_map(DATA_DIR)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="\U0001f5fa Карта островів — TODO big island map",
+                text=map_text,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"map render failed: {e}", exc_info=True)
+            await context.bot.send_message(chat_id=chat_id, text=f"❌ {e}")
         handled = True
 
     elif payload.startswith("tts_"):

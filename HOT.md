@@ -7,35 +7,40 @@ updated: 2026-04-20
 
 ## Now
 
-Phase 2 завершено. Наступний крок — дочистити NBLM podcast regen + Phase 3 (діалоговий тест).
+Phase 2-5 завершено. Regen молотить у фоні (16 тем, retry 72h). Наступне — Phase 6 (Depth Mode) після 1-2 тижнів використання.
 
 ## Last done
 
-**Phase 2(4) — auto-pipeline + /status + smoke (сесія 20.04, друга, продовження)**
+**Сесія 20.04, третя — Phase 3-5 + /regen + retry 72h**
 
-- `core/tools.py`: `execute_tool()` отримав `bot`/`chat_id` params. Після `add_topic` tool — auto `run_pipeline()` через `asyncio.create_task`.
-- `main.py`: `handle_chat_with_tools()` прокидає `bot`/`chat_id` в `execute_tool`.
-- `modules/curriculum.py`: `cmd_cur_add()` — auto-pipeline після створення теми. Новий `cmd_status()` — показує ready/generating/failed/pending по всіх форматах.
-- Smoke test: `/cur_add Test Pipeline Smoke` → LLM enrich → тема створена → notebook created → pipeline started → slides generating. Тестову тему видалено.
+- **NBLM retry 72h**: `RETRY_DELAYS = [0] + [3600] * 71` замість 3 спроб за 45 хв.
+- **`/regen`**: масова дорегенерація всіх MISSING/failed форматів, працює у фоні через `asyncio.create_task`. Reset failed→pending перед запуском.
+- **Reset stuck**: `tool_use_integration-1` slides скинуто з generating → pending.
+- **Phase 3 — EXAM**: `modules/exam.py` — stateful 5-question dialog test. LLM генерує питання, LLM оцінює відповіді. Deep-link `exam_{id}` з pinned. Inline кнопки: ✅ Mastered, 🔄 Retry. `/exam_cancel` команда. Exam intercept в `handle_text` — якщо активний екзамен, всі повідомлення йдуть туди.
+- **Phase 4 — Proactive triggers**: exam subtopic suggestion (кнопка "➕ Додати підтему по прогалині" з LLM-generated назвою). `proactive.py` переписано на curriculum v2 (3 тригери: unconsumed content, ready for exam, failed formats).
+- **Phase 5 — Island map**: `modules/island_map.py` — повна карта островів з progress bars, per-topic status, gap detection vs AI-ландшафт. Deep-link `map` в pinned footer. Прогалини фільтруються по existing islands.
+- **BotCommand list**: cur, jobs, notebooks, status, regen (прибрано start/digest/science/catchup/onboarding/profile/podcast/cur_add).
+- **Case study doc**: `docs/AGENTIC_LOOP_CASESTUDY.md` — розбір agentic loop архітектури.
+- **f-string fix**: Python 3.11 `\n` in f-string → винесено в змінні.
 
 ## Next
 
-1. Дорегенерити rate-limited NBLM подкасти (10 тем).
-2. Broken notebooks (agent_architecture-2, rag_retrieval-1).
-3. Phase 3 — діалоговий тест (EXAM).
-4. Case study doc agentic loop.
+1. Тема "Agentic Loop & Tool Use" в курікулумі (case study як source material) — коли Саша готовий.
+2. Phase 6 — Depth Mode (після 1-2 тижнів використання).
+3. Міграція consumed — закрита, legacy даних немає.
+4. `/nbstatus` — закрита, covered by `/status` + `/notebooks`.
 
 ## Blockers
 
-- Google NBLM rate limit ~6/день.
+- Google NBLM rate limit ~6/день. Regen ретраїть кожну годину.
 
 ## Active branches
 
-- **sam-репо** (`main`): Phase 2 done. НЕ запушено.
+- **sam-репо** (`main`): Phase 3-5 done. НЕ запушено (4 коміти ahead).
 
 ## Open questions
 
-- `/pin` в меню бота біля скрепочки.
+- Немає.
 
 ## Reminders
 
@@ -44,3 +49,4 @@ Phase 2 завершено. Наступний крок — дочистити N
 - API keys маскувати до останніх 4 символів.
 - **`chkp2` НЕ оновлює 3 яруси сам** — це робота Claude ПЕРЕД викликом chkp2.
 - Workspace-репо комітиться вручну (не через chkp2).
+- **Не робити git commit перед chkp2** — chkp2 сам комітить.

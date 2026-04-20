@@ -151,6 +151,11 @@ def render_pinned(
         lines.append(f"  {titles}")
         lines.append("")
 
+    if bot_username:
+        map_url = _deep_link(bot_username, "map")
+        lines.append(f'<a href="{map_url}">🗺 Карта островів</a>')
+        lines.append("")
+
     stamp = now_hhmm or datetime.now().strftime("%H:%M")
     lines.append(f"<i>Оновлено: {stamp}</i>")
 

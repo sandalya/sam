@@ -415,11 +415,8 @@ async def cmd_regen(update, context):
         save(state, CURRICULUM_V2_PATH)
 
     titles = "\n".join(f"  • {t.title}" for t in topics_to_regen)
-    await update.message.reply_text(
-        f"🔄 Regen: {len(topics_to_regen)} тем\n{titles}\n\n"
-        f"Запускаю послідовно (retry до 72 год на rate limit)...",
-        parse_mode="HTML",
-    )
+    msg = f"🔄 Regen: {len(topics_to_regen)} тем\n" + titles + "\n\nЗапускаю послідовно (retry до 72 год на rate limit)..."
+    await update.message.reply_text(msg, parse_mode="HTML")
 
     bot = update.get_bot()
     chat_id = update.effective_chat.id
@@ -439,3 +436,58 @@ async def _run_regen(bot, chat_id, topics):
             await bot.send_message(chat_id, f"⚠️ {t.title}: {e}")
 
     await bot.send_message(chat_id, "🏁 Regen завершено.")
+
+
+# ── cmd_map (Phase 5) ────────────────────────────────────────────────────────
+
+async def cmd_map(update, context):
+    """Карта островів з прогресом."""
+    state = load(CURRICULUM_V2_PATH)
+    ordered = sorted(state.islands, key=lambda i: i.order)
+
+    lines = ["🗺 <b>Карта островів</b>\n"]
+
+    for island in ordered:
+        topics = [t for t in state.topics if t.island_id == island.id]
+        if not topics:
+            lines.append(f"🏝 <b>{island.title}</b> — <i>порожній</i>")
+            lines.append(f"  <i>{island.description[:80]}</i>")
+            lines.append("")
+            continue
+
+        active = sum(1 for t in topics if t.state == "active")
+        mastered = sum(1 for t in topics if t.state == "mastered")
+        pending = sum(1 for t in topics if t.state == "pending")
+        total = len(topics)
+
+        # Progress bar
+        filled = mastered
+        bar = "█" * filled + "░" * (total - filled)
+
+        lines.append(f"🏝 <b>{island.title}</b>  [{bar}] {mastered}/{total}")
+
+        for t in topics:
+            if t.state == "mastered":
+                icon = "✅"
+            elif t.state == "active":
+                ready = sum(1 for f in t.formats.values() if f.status == "ready")
+                consumed = sum(1 for f in t.formats.values() if f.consumed)
+                icon = f"📖 {consumed}/{ready}"
+            else:
+                icon = "⏸"
+            lines.append(f"  {icon} {t.title}")
+
+        lines.append("")
+
+    counts = state.counts()
+    total = counts['total']
+    mast = counts['mastered']
+    act = counts['active']
+    pend = counts['pending']
+    lines.append(f"📊 Всього: {total} тем · {mast} mastered · {act} active · {pend} pending")
+
+    await update.message.reply_text(
+        "\n".join(lines),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
