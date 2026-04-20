@@ -7,44 +7,46 @@ updated: 2026-04-20
 
 ## Now
 
-Phase 2 пункт (3) — **Pipeline orchestrator**. Рендер і callback handlers готові. Deep-links у pinned працюють (expand/collapse, fmtcheck, pipeline stub, map stub). Tool `add_topic` додано в agentic loop.
+Phase 2 пункт (3) — **Pipeline orchestrator** готовий. Масова перегенерація NBLM подкастів запущена (6/16 started, 8 rate-limited на завтра, 2 broken notebooks).
 
 ## Last done
 
-**Phase 2 пункт (2) — callback handlers + deep-links (сесія 20.04).**
+**Phase 2 — renderer rewrite + pipeline (сесія 20.04, друга)**
 
-- `curriculum/renderer.py`: `render_pinned()` розширено — `expanded_topic_ids`, per-topic `_render_topic_expanded()` з deep-links (`fmtcheck_{id}_{fmt}`, `expand_{id}`, `collapse_{id}`, `pipeline_{id}`, `map`, `expand_mastered`). Footer з `/cur_add` підказкою + `[🗺 Карта]`.
-- `modules/pinned.py`: переключено з `render()` на `render_pinned()`. Expanded state у `data/pinned_expanded.json` (load/save/toggle).
-- `main.py`: `cmd_start` розширено deep-link dispatch (`_handle_deep_link`). Парсить payload → expand/collapse/fmtcheck/pipeline/map. Silent delete `/start` команди.
-- `core/tools.py`: tool `add_topic` (schema + `_h_add_topic` handler) — Sem додає теми через розмову, використовує `_enrich_topic_via_llm` з `modules/curriculum.py`.
-- Live-tested: `/pin` → expand → fmtcheck slides+podcast_nblm → counter 2/7 ✓ → collapse ✓. Pipeline + map — stubs.
+- `curriculum/renderer.py`: повний rewrite — компактний UI без акордеону. Per-topic рядок: `▸ Title` + `📓 NB · 🎙 TTS · 🧠 EXAM` на другому рядку. Прибрано: expand/collapse deep-links, `_render_topic_expanded`, `_format_counter`, `build_keyboard`, `pinned_expanded.json`. Тільки active теми в pinned (pending/mastered сховані). "Курікулом"→"Курікулум".
+- `curriculum/pipeline.py`: новий файл — orchestrator `run_pipeline()`. Послідовна генерація за content_style порядком (audio-first/visual-first), skip ready/generating/skipped, refresh pinned між кроками, фінальне повідомлення.
+- `core/podcast_module.py`: додано `generate_tts_for_pipeline()` — standalone функція для pipeline без залежності від Update/AgentBase.
+- `main.py`: pipeline stub замінено на `asyncio.create_task(run_pipeline(...))`. Прибрано expand/collapse handlers і toggle imports.
+- `modules/pinned.py`: `_render_current()` спрощено — прибрано expanded params.
+- Стан тем: 4 active (tool_use_integration-1, agent_architecture-1/2/3), 12 pending, 1 mastered. `evaluation_testing-2` (Test Topic For Cleanup) видалено.
+- NBLM podcast regen: 6 started (2 completed, 2 pending), 8 rate-limited, 2 broken notebooks (agent_architecture-2, rag_retrieval-1).
 
 ## Next
 
-**Phase 2 пункт (3) — Pipeline orchestrator** (`curriculum/pipeline.py`). `cur_pipeline_{id}` → запускає генерацію всіх 7 форматів за content_style порядком (audio-first або visual-first). ~2-3 год.
+1. Перезапустити rate-limited NBLM podcast генерацію (10 тем).
+2. Розібратись з 2 broken notebooks (multi-agent координація, RAG).
+3. Автозапуск pipeline при `add_topic`.
+4. `/status` або `/queue` команда.
+5. Phase 2 пункт (4) — smoke + integration.
 
 ## Blockers
 
-Жодних.
+- Google NBLM rate limit — ~6 audio генерацій на день.
+- 2 broken notebooks (RPC failed).
 
 ## Active branches
 
-- **sam-репо** (`main`): Phase 2 пункт (2). Запушено у origin/main.
-- **workspace-репо** (`master`): BACKLOG оновлений вручну.
+- **sam-репо** (`main`): Phase 2 — pipeline + renderer rewrite. НЕ запушено.
 
-## Open questions at the moment
+## Open questions
 
-- Після Фази 2 — чи потрібен `/pipeline` як окрема команда, чи достатньо deep-link `pipeline_{id}` у pinned? (Зараз є тільки deep-link.)
+- Автозапуск pipeline при add_topic — чи робити в цій фазі чи відкласти?
+- `/pin` в меню бота біля скрепочки — додати.
 
 ## Reminders
 
 - Перед тестуванням — запустити `journalctl -u sam -f` **до** надсилання повідомлення боту.
-- Використовувати `/home/sashok/.openclaw/workspace/sam/` (ніяких `~/sam/`).
+- Використовувати `/home/sashok/.openclaw/workspace/sam/`.
 - API keys маскувати до останніх 4 символів.
 - **`chkp2` НЕ оновлює 3 яруси сам** — це робота Claude ПЕРЕД викликом chkp2.
-- **SSH: no base64, no scp, no nano .md.** Точкові правки — sed. Великі блоки — PYEOF. Threshold для WinSCP — >200 рядків.
 - Workspace-репо комітиться вручну (не через chkp2).
-
-## Remotes nuance (не баг, артефакт)
-
-Обидва репо (sam і workspace) пушаться у `github.com/sandalya/sam.git`, sam → `main`, workspace → `master`. Historical artifact.

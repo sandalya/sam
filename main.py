@@ -386,7 +386,7 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """
     from modules.base import DATA_DIR
     from modules.pinned import (
-        refresh_pinned, toggle_topic_expanded, toggle_mastered_expanded,
+        refresh_pinned,
     )
     from curriculum.storage import load as load_curriculum
     from curriculum.mutations import mark_format_consumed
@@ -398,21 +398,7 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     handled = False
 
-    if payload in ("expand_mastered", "collapse_mastered"):
-        toggle_mastered_expanded(DATA_DIR)
-        handled = True
-
-    elif payload.startswith("expand_"):
-        topic_id = payload[len("expand_"):]
-        toggle_topic_expanded(DATA_DIR, topic_id)
-        handled = True
-
-    elif payload.startswith("collapse_"):
-        topic_id = payload[len("collapse_"):]
-        toggle_topic_expanded(DATA_DIR, topic_id)
-        handled = True
-
-    elif payload.startswith("fmtcheck_"):
+    if payload.startswith("fmtcheck_"):
         # fmtcheck_{topic_id}_{format_key}
         # format_key може містити _ (podcast_nblm, podcast_tts)
         rest = payload[len("fmtcheck_"):]
@@ -441,15 +427,10 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     elif payload.startswith("pipeline_"):
         topic_id = payload[len("pipeline_"):]
-        logger.info(f"pipeline stub: {topic_id}")
-        try:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"\U0001f6a7 Pipeline для <b>{topic_id}</b> — TODO orchestrator",
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
+        logger.info(f"pipeline deep-link: {topic_id}")
+        import asyncio
+        from curriculum.pipeline import run_pipeline
+        asyncio.create_task(run_pipeline(context.bot, chat_id, topic_id, DATA_DIR))
         handled = True
 
     elif payload == "map":

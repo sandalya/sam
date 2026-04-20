@@ -246,3 +246,146 @@ class PodcastModule(AgentBase):
         finally:
             if mp3_path:
                 mp3_path.unlink(missing_ok=True)
+
+
+# ── Pipeline integration (Phase 2.3) ────────────────────────────────────────
+
+async def generate_tts_for_pipeline(
+    bot,
+    chat_id: int,
+    topic_id: str,
+    data_dir: "Path",
+) -> None:
+    """
+    Генерує TTS podcast для теми без залежності від Update/AgentBase.
+    Викликається з curriculum.pipeline.run_pipeline().
+    """
+    from curriculum.storage import load as load_curriculum, save as save_curriculum
+    from curriculum.mutations import set_format_status
+
+    cur_path = data_dir / CURRICULUM_FILENAME
+    state = load_curriculum(cur_path)
+    topic = state.get_topic(topic_id)
+    if not topic:
+        log.error(f"generate_tts_for_pipeline: topic {topic_id!r} not found")
+        await bot.send_message(chat_id, f"\u274c TTS: тема {topic_id} не знайдена.")
+        return
+
+    # Якщо вже ready — skip
+    existing = topic.formats.get("podcast_tts")
+    if existing and existing.status == "ready" and existing.url:
+        log.info(f"TTS pipeline: {topic_id} already ready, skipping")
+        return
+
+    # Mark as generating
+    set_format_status(state, topic_id, "podcast_tts", "generating")
+    save_curriculum(state, cur_path)
+
+    await bot.send_message(
+        chat_id,
+        f"\U0001f3a7 Генерую TTS подкаст: <b>{topic.title}</b>\\n~1-2 хв",
+        parse_mode="HTML",
+    )
+
+    mp3_path = None
+    try:
+        from shared.agent_base import client, MODEL_SMART
+
+        fmt = "deep" if (len(topic.why or "") + len(topic.do or "") + len(topic.title or "")) > 300 else "short"
+        words = WORD_COUNT[fmt]
+        if fmt == "short":
+            depth = (
+                "Cover the core idea clearly, give 2-3 concrete examples, "
+                "and end with a practical takeaway. "
+                "Keep it focused — one main insight the listener will remember."
+            )
+        else:
+            depth = (
+                "Go deep. Explain thoroughly, cover edge cases and tradeoffs, "
+                "use analogies, discuss architectural decisions, "
+                "give multiple real-world examples."
+            )
+        prompt = (
+            f"Write a podcast episode script about: {topic.title}\\n\\n"
+            f"Context: {topic.why}\\n\\n"
+            f"Target length: ~{words} words.\\n\\n"
+            f"{depth}\\n\\n"
+            "Audience: Experienced Python developer building AI agents "
+            "and Telegram bots.\\n"
+            "Style context: Reference practical scenarios: tool use in bots, "
+            "managing agent state, prompt design, Anthropic API patterns.\\n\\n"
+            "Start directly with content — no intro music cues, "
+            "no 'Welcome to the podcast'. Just dive in naturally."
+        )
+        response = client.messages.create(
+            model=MODEL_SMART,
+            max_tokens=4096,
+            system=[{
+                "type": "text",
+                "text": SCRIPT_SYSTEM,
+                "cache_control": {"type": "ephemeral"},
+            }],
+            messages=[{"role": "user", "content": prompt}],
+        )
+        script = "\\n".join(b.text for b in response.content if b.type == "text")
+
+        oc = _openai_client()
+        chunk_size = 4000
+        chunks = [script[i:i + chunk_size] for i in range(0, len(script), chunk_size)]
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False, dir="/tmp")
+        tmp.close()
+        mp3_path = Path(tmp.name)
+        if len(chunks) == 1:
+            resp = oc.audio.speech.create(
+                model="tts-1", voice="onyx", input=chunks[0],
+            )
+            resp.stream_to_file(mp3_path)
+        else:
+            audio_bytes = b""
+            for chunk in chunks:
+                resp = oc.audio.speech.create(
+                    model="tts-1", voice="onyx", input=chunk,
+                )
+                audio_bytes += resp.read()
+            mp3_path.write_bytes(audio_bytes)
+
+        label = FORMAT_LABEL[fmt]
+        caption = (
+            f"*{topic.title}*\\n"
+            f"_{label} • {topic.id}_\\n\\n"
+            f"{topic.why}"
+        )
+        with open(mp3_path, "rb") as f:
+            msg = await bot.send_audio(
+                chat_id=chat_id,
+                audio=f,
+                title=topic.title,
+                performer="Podcast",
+                caption=caption,
+                parse_mode="Markdown",
+            )
+
+        file_id = msg.audio.file_id if msg.audio else None
+        state = load_curriculum(cur_path)
+        if file_id:
+            set_format_status(
+                state, topic_id, "podcast_tts", "ready", url=file_id,
+            )
+        else:
+            set_format_status(state, topic_id, "podcast_tts", "ready")
+        save_curriculum(state, cur_path)
+        log.info(f"TTS pipeline: {topic_id} done, file_id={file_id}")
+
+    except Exception as e:
+        log.error(
+            f"TTS pipeline failed for {topic_id}: {e}", exc_info=True,
+        )
+        state = load_curriculum(cur_path)
+        set_format_status(
+            state, topic_id, "podcast_tts", "failed", error=str(e)[:200],
+        )
+        save_curriculum(state, cur_path)
+        await bot.send_message(chat_id, f"\u274c TTS помилка: {e}")
+    finally:
+        if mp3_path:
+            mp3_path.unlink(missing_ok=True)

@@ -106,12 +106,9 @@ def toggle_mastered_expanded(data_dir: Path) -> bool:
 
 def _render_current(data_dir: Path) -> str:
     cur_state = load_curriculum(_curriculum_path(data_dir))
-    exp = load_expanded(data_dir)
     return render_pinned(
         cur_state,
         bot_username=BOT_USERNAME,
-        expanded_mastered=exp["mastered"],
-        expanded_topic_ids=set(exp["topics"]),
     )
 
 

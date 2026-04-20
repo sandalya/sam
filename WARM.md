@@ -63,20 +63,20 @@ status: active
 ```yaml
 last_touched: 2026-04-20
 tags: [ui, pinned]
-status: active
+status: done
 ```
 
 `modules/pinned.py` переключено на `render_pinned()`. Expanded state у `data/pinned_expanded.json` (`load_expanded`, `save_expanded`, `toggle_topic_expanded`, `toggle_mastered_expanded`). `render_pinned(state, expanded_topic_ids, expanded_mastered)` рендерить per-topic deep-links: `expand_{id}` / `collapse_{id}`, `fmtcheck_{id}_{fmt}`, `pipeline_{id}`, `expand_mastered` / `collapse_mastered`, `map`. Footer: `/cur_add` підказка + `[🗺 Карта]`. `_render_topic_expanded()` — per-format чеклист з deep-links. `build_keyboard()` — deprecated (inline-кнопки прибрані на користь deep-links у тексті). `main.py::_handle_deep_link()` — dispatcher: парсить payload з `/start`, виконує дію, refresh pinned, silent delete.
 
-## Pipeline — single-format only
+## Pipeline orchestrator (Phase 2.3 done)
 
 ```yaml
-last_touched: 2026-04-19
-tags: [pipeline, generation, incomplete]
-status: active
+last_touched: 2026-04-20
+tags: [pipeline, generation]
+status: done
 ```
 
-`core/notebooklm_module.py::generate_and_notify()` + `_generate_fmt_via_cli()` — генерують по одному NBLM-формату. `core/podcast_module.py::PodcastModule` — TTS. **Немає orchestrator** що запускає всі 7 форматів за Audio/Visual-first порядком (маніфест §5.1). Після `cmd_cur_add` тема створюється з `formats={}`, нічого автоматично не генерується.
+`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 6 форматів (без exam) за content_style порядком (audio-first/visual-first). Skip ready/generating/skipped. Refresh pinned між кроками. NBLM формати через `notebooklm_module.generate_and_notify()`, TTS через `podcast_module.generate_tts_for_pipeline()` (standalone, без Update/AgentBase). `main.py` deep-link `pipeline_{id}` → `asyncio.create_task(run_pipeline(...))`. Автозапуск при add_topic — ще не реалізовано.
 
 ## Roadmap по маніфесту
 
@@ -96,7 +96,7 @@ tags: [phase-2, plan]
 status: active
 ```
 
-(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) ✅ **Callback handlers + deep-links (done 20.04).** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) Pipeline orchestrator — новий `curriculum/pipeline.py::run_pipeline()` за content_style порядком ~2-3 год. (4) Smoke + integration ~1 год. Залишилось ~4-7 год.
+(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) ✅ **Callback handlers + deep-links (done 20.04).** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) ✅ Pipeline orchestrator — `curriculum/pipeline.py::run_pipeline()` done 20.04. (4) Smoke + integration ~1 год. Залишилось ~1-2 год.
 
 ## Tool add_topic в agentic loop
 
