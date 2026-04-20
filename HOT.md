@@ -22,13 +22,12 @@ Phase 2-5 завершено. Regen молотить у фоні (16 тем, ret
 - **BotCommand list**: cur, jobs, notebooks, status, regen (прибрано start/digest/science/catchup/onboarding/profile/podcast/cur_add).
 - **Case study doc**: `docs/AGENTIC_LOOP_CASESTUDY.md` — розбір agentic loop архітектури.
 - **f-string fix**: Python 3.11 `\n` in f-string → винесено в змінні.
+- **Digest fix**: max_tokens 3000→8000 (response обрізався, JSON не закривався). Fallback парсер для truncated JSON.
 
 ## Next
 
 1. Тема "Agentic Loop & Tool Use" в курікулумі (case study як source material) — коли Саша готовий.
 2. Phase 6 — Depth Mode (після 1-2 тижнів використання).
-3. Міграція consumed — закрита, legacy даних немає.
-4. `/nbstatus` — закрита, covered by `/status` + `/notebooks`.
 
 ## Blockers
 

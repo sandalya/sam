@@ -65,7 +65,7 @@ class DigestModule(BaseModule):
 
     def _fetch_items(self) -> dict:
         import re
-        raw = self.call_claude_with_search(self._build_prompt(), max_tokens=3000)
+        raw = self.call_claude_with_search(self._build_prompt(), max_tokens=8000)
         logger.info(f"RAW response (first 500): {raw[:500] if raw else 'EMPTY'}")
         # Чистимо cite-теги які Claude вставляє при web_search
         raw = re.sub(r'<cite[^>]*>|</cite>', '', raw)
@@ -73,6 +73,19 @@ class DigestModule(BaseModule):
         logger.info(f"PARSED type={type(parsed).__name__}, value={str(parsed)[:300]}")
         if isinstance(parsed, dict):
             return parsed
+        # Fallback: якщо JSON обрізаний, спробувати закрити і розпарсити
+        if not isinstance(parsed, dict) or not parsed:
+            import json as _json
+            truncated = raw.strip()
+            # Додаємо закриваючі дужки
+            for attempt in [']}]}', '"}]}', '"]}]}', '"}],"week":[],"foryou":[]}']:
+                try:
+                    result = _json.loads(truncated + attempt)
+                    if isinstance(result, dict) and result.get("hot"):
+                        logger.info(f"Truncated JSON recovered with suffix: {attempt}")
+                        return result
+                except Exception:
+                    continue
         return {"hot": parsed or [], "week": [], "foryou": []}
 
     def _build_overview(self, data: dict) -> str:
