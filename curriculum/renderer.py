@@ -223,6 +223,39 @@ def _format_counter(t: Topic) -> tuple[int, int, str]:
     return consumed, len(ALL_FORMATS_FOR_COUNTER), "".join(symbols)
 
 
+
+def _render_topic_expanded(t: Topic, bot_username: Optional[str]) -> list[str]:
+    """
+    Expanded-блок для active-теми: per-format чеклист з deep-links.
+    Кожен формат — ✅ (consumed) або ⬜ (клікабельний deep-link fmtcheck_{id}_{fmt}).
+    Плюс [▶ запустити] і [згорнути].
+    """
+    parts: list[str] = []
+    for fmt_key in ALL_FORMATS_FOR_COUNTER:
+        label = FORMAT_LABELS.get(fmt_key, fmt_key)
+        f = t.formats.get(fmt_key)
+        if f and f.consumed:
+            parts.append(f"✅ {label}")
+        elif f and f.status == "ready" and bot_username:
+            link = _deep_link(bot_username, f"fmtcheck_{t.id}_{fmt_key}")
+            parts.append(f'<a href="{link}">⬜ {label}</a>')
+        else:
+            parts.append(f"·  {label}")
+
+    lines = ["     " + " · ".join(parts[:4])]
+    if len(parts) > 4:
+        lines.append("     " + " · ".join(parts[4:]))
+
+    # Action links
+    actions: list[str] = []
+    if bot_username:
+        actions.append(f'<a href="{_deep_link(bot_username, f"pipeline_{t.id}")}">▶ запустити</a>')
+        actions.append(f'<a href="{_deep_link(bot_username, f"collapse_{t.id}")}">▾ згорнути</a>')
+    if actions:
+        lines.append("     " + " · ".join(actions))
+
+    return lines
+
 def _render_topic_v2(t: Topic, bot_username: Optional[str]) -> list[str]:
     """
     Phase 2 рендер теми з лічильником.
@@ -283,6 +316,7 @@ def render_pinned(
     bot_username: Optional[str] = None,
     now_hhmm: Optional[str] = None,
     expanded_mastered: bool = False,
+    expanded_topic_ids: Optional[set] = None,
 ) -> str:
     """
     Phase 2 pinned рендер згідно CURRICULUM_MANIFEST.md §6.1.
@@ -306,11 +340,18 @@ def render_pinned(
     pending = [t for t in state.topics if t.state == "pending"]
     mastered = [t for t in state.topics if t.state == "mastered"]
 
+    _exp = expanded_topic_ids or set()
+
     # 🟢 Active
     lines.append(f"🟢 <b>В процесі</b> ({len(active)})")
     if active:
         for t in active:
             lines.extend(_render_topic_v2(t, bot_username))
+            if t.id in _exp:
+                lines.extend(_render_topic_expanded(t, bot_username))
+            elif bot_username:
+                link = _deep_link(bot_username, f"expand_{t.id}")
+                lines.append(f'     <a href="{link}">▸ розгорнути</a>')
     else:
         lines.append("  <i>(поки немає активних тем)</i>")
     lines.append("")
@@ -332,10 +373,15 @@ def render_pinned(
         for t in mastered:
             title = _escape_html(t.title)
             lines.append(f"  • {title}")
+        if bot_username:
+            lines.append(f'  <a href="{_deep_link(bot_username, "collapse_mastered")}">▾ згорнути</a>')
+    elif mastered:
+        if bot_username:
+            lines.append(f'{mastered_header} <a href="{_deep_link(bot_username, "expand_mastered")}">▸</a>')
+        else:
+            lines.append(f"{mastered_header} ▸")
     else:
-        # collapsed — показуємо тільки заголовок з маркером "▸"
-        marker = " ▸" if mastered else ""
-        lines.append(f"{mastered_header}{marker}")
+        lines.append(mastered_header)
     lines.append("")
 
     # 🗺 Острови
@@ -352,6 +398,11 @@ def render_pinned(
         gap_titles = ", ".join(_escape_html(i.title) for i in gap_islands)
         lines.append(f"⚠️ <b>Прогалини</b> ({len(gap_islands)}): {gap_titles}")
 
+    # Footer
+    lines.append("━━━")
+    if bot_username:
+        lines.append(f'🗺 <a href="{_deep_link(bot_username, "map")}">Карта островів</a>')
+    lines.append("🆕 Додати: <code>/cur_add назва теми</code>")
     lines.append("")
     stamp = now_hhmm or datetime.now().strftime("%H:%M")
     lines.append(f"<i>Оновлено: {stamp}</i>")

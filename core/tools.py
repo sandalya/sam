@@ -64,7 +64,20 @@ SAM_TOOLS = [
         "description": "Генерує короткий dashboard: загальний стан курікулома, острови, активні теми, прогрес по форматах.",
         "input_schema": {"type": "object", "properties": {}, "required": []}
     },
+    {
+        "name": "add_topic",
+        "description": "Додає нову тему у курікулом. Sem сам визначає острів (або створює новий), заповнює why/read/do/content_style через LLM-enrich. Використовуй коли користувач просить 'додай тему X', 'хочу вивчити Y', 'закинь у куріколом Z'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Назва теми як її сказав користувач, напр. 'Context Engineering', 'MCP servers'"}
+            },
+            "required": ["title"]
+        }
+    },
 ]
+
+
 
 
 def _load_state(data_dir: Path):
@@ -229,6 +242,43 @@ def _h_get_hub(state) -> str:
     return "\n".join(lines)
 
 
+
+def _h_add_topic(state, data_dir: Path, input_data: dict) -> str:
+    """Tool handler: додає нову тему через LLM-enrich (той же що /cur_add)."""
+    from curriculum import save
+    from curriculum.mutations import add_topic as _mut_add_topic
+    title = (input_data.get("title") or "").strip()
+    if not title:
+        return "Порожня назва теми."
+
+    try:
+        from modules.curriculum import _enrich_topic_via_llm
+        enriched = _enrich_topic_via_llm(state, title)
+    except Exception as e:
+        logger.error(f"add_topic enrich failed: {e}", exc_info=True)
+        return f"Не вдалося визначити метадані теми: {e}"
+
+    try:
+        topic = _mut_add_topic(
+            state,
+            island_id=enriched["island_id"],
+            title=title,
+            why=enriched.get("why", ""),
+            read=enriched.get("read", ""),
+            do=enriched.get("do", ""),
+            content_style=enriched.get("content_style", "audio"),
+        )
+        save(state, data_dir / CURRICULUM_FILENAME)
+        return (
+            f"Додано тему: {topic.title} [{topic.id}] "
+            f"у острів {enriched['island_id']}. "
+            f"content_style={topic.content_style}. Стан: pending."
+        )
+    except Exception as e:
+        logger.error(f"add_topic save failed: {e}", exc_info=True)
+        return f"Помилка додавання: {e}"
+
+
 # ── Диспетчер ────────────────────────────────────────────────────────────────
 
 def execute_tool(name: str, input_data: dict, data_dir: Path) -> str:
@@ -248,6 +298,8 @@ def execute_tool(name: str, input_data: dict, data_dir: Path) -> str:
             return _h_advance_topic(state)
         elif name == "get_hub":
             return _h_get_hub(state)
+        elif name == "add_topic":
+            return _h_add_topic(state, data_dir, input_data)
         else:
             return f"Unknown tool: {name}"
 

@@ -53,6 +53,10 @@ jobs = JobsModule(owner_chat_id=OWNER_CHAT_ID)
 # ── Core handlers ──────────────────────────────────────────────────────────────
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Deep-link dispatch: /start <payload> від кліків у pinned
+    if context.args:
+        await _handle_deep_link(update, context, context.args[0])
+        return
     await update.message.reply_text(
         "👋 Привіт, я Sam — твій персональний агент.\n\n"
         "Що вмію зараз:\n"
@@ -369,6 +373,113 @@ def main():
 
     logger.info("Sam is running 🚀")
     app.run_polling()
+
+
+
+
+# ── Deep-link handlers (pinned panel clicks) ─────────────────────────────────
+
+async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, payload: str):
+    """
+    Dispatch deep-link payload від pinned-панелі.
+    Після дії — refresh pinned + silent delete юзерської команди.
+    """
+    from modules.base import DATA_DIR
+    from modules.pinned import (
+        refresh_pinned, toggle_topic_expanded, toggle_mastered_expanded,
+    )
+    from curriculum.storage import load as load_curriculum
+    from curriculum.mutations import mark_format_consumed
+    from curriculum.storage import save
+
+    chat_id = update.effective_chat.id
+    if chat_id != OWNER_CHAT_ID:
+        return
+
+    handled = False
+
+    if payload in ("expand_mastered", "collapse_mastered"):
+        toggle_mastered_expanded(DATA_DIR)
+        handled = True
+
+    elif payload.startswith("expand_"):
+        topic_id = payload[len("expand_"):]
+        toggle_topic_expanded(DATA_DIR, topic_id)
+        handled = True
+
+    elif payload.startswith("collapse_"):
+        topic_id = payload[len("collapse_"):]
+        toggle_topic_expanded(DATA_DIR, topic_id)
+        handled = True
+
+    elif payload.startswith("fmtcheck_"):
+        # fmtcheck_{topic_id}_{format_key}
+        # format_key може містити _ (podcast_nblm, podcast_tts)
+        rest = payload[len("fmtcheck_"):]
+        fmt_key = None
+        for candidate in ("podcast_nblm", "podcast_tts"):
+            if rest.endswith("_" + candidate):
+                fmt_key = candidate
+                topic_id = rest[:-(len(candidate) + 1)]
+                break
+        if not fmt_key:
+            parts = rest.rsplit("_", 1)
+            if len(parts) == 2:
+                topic_id, fmt_key = parts
+            else:
+                logger.warning(f"Bad fmtcheck payload: {payload}")
+                return
+        try:
+            cur_path = DATA_DIR / "curriculum.json"
+            state = load_curriculum(cur_path)
+            mark_format_consumed(state, topic_id, fmt_key, consumed=True)
+            save(state, cur_path)
+            logger.info(f"fmtcheck: {topic_id} / {fmt_key} marked consumed")
+            handled = True
+        except Exception as e:
+            logger.error(f"fmtcheck failed: {e}", exc_info=True)
+
+    elif payload.startswith("pipeline_"):
+        topic_id = payload[len("pipeline_"):]
+        logger.info(f"pipeline stub: {topic_id}")
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"\U0001f6a7 Pipeline для <b>{topic_id}</b> — TODO orchestrator",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        handled = True
+
+    elif payload == "map":
+        logger.info("map stub")
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="\U0001f5fa Карта островів — TODO big island map",
+            )
+        except Exception:
+            pass
+        handled = True
+
+    elif payload.startswith("tts_"):
+        # Legacy TTS deep-link — pass through
+        logger.info(f"tts deep-link: {payload}")
+        return
+
+    if handled:
+        # Refresh pinned
+        try:
+            await refresh_pinned(context.bot, chat_id, DATA_DIR)
+        except Exception as e:
+            logger.error(f"refresh after deep-link failed: {e}")
+
+        # Silent delete — видаляємо юзерську /start команду
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

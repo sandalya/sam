@@ -20,7 +20,7 @@ if str(_WORKSPACE) not in sys.path:
     sys.path.insert(0, str(_WORKSPACE))
 
 from curriculum.storage import load as load_curriculum
-from curriculum.renderer import render as render_curriculum
+from curriculum.renderer import render_pinned
 
 log = logging.getLogger("sam.pinned")
 
@@ -51,10 +51,68 @@ def save_state(data_dir: Path, state: dict) -> None:
     tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.rename(p)
 
+# ── Expanded state (pinned_expanded.json) ────────────────────────────────────
+
+def _expanded_path(data_dir: Path) -> Path:
+    return data_dir / "pinned_expanded.json"
+
+
+def load_expanded(data_dir: Path) -> dict:
+    """Повертає {"topics": [...], "mastered": bool}."""
+    p = _expanded_path(data_dir)
+    if not p.exists():
+        return {"topics": [], "mastered": False}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return {
+            "topics": data.get("topics", []),
+            "mastered": data.get("mastered", False),
+        }
+    except Exception:
+        return {"topics": [], "mastered": False}
+
+
+def save_expanded(data_dir: Path, expanded: dict) -> None:
+    p = _expanded_path(data_dir)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(expanded, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.rename(p)
+
+
+def toggle_topic_expanded(data_dir: Path, topic_id: str) -> bool:
+    """Toggle topic у expanded list. Повертає новий стан (True=expanded)."""
+    exp = load_expanded(data_dir)
+    topics = exp["topics"]
+    if topic_id in topics:
+        topics.remove(topic_id)
+        result = False
+    else:
+        topics.append(topic_id)
+        result = True
+    exp["topics"] = topics
+    save_expanded(data_dir, exp)
+    return result
+
+
+def toggle_mastered_expanded(data_dir: Path) -> bool:
+    """Toggle mastered section. Повертає новий стан."""
+    exp = load_expanded(data_dir)
+    exp["mastered"] = not exp["mastered"]
+    save_expanded(data_dir, exp)
+    return exp["mastered"]
+
+
+
 
 def _render_current(data_dir: Path) -> str:
     cur_state = load_curriculum(_curriculum_path(data_dir))
-    return render_curriculum(cur_state, bot_username=BOT_USERNAME)
+    exp = load_expanded(data_dir)
+    return render_pinned(
+        cur_state,
+        bot_username=BOT_USERNAME,
+        expanded_mastered=exp["mastered"],
+        expanded_topic_ids=set(exp["topics"]),
+    )
 
 
 async def refresh_pinned(bot, chat_id: int, data_dir: Path) -> int | None:

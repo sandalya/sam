@@ -58,15 +58,15 @@ status: active
 
 `modules/proactive.py::generate_proactive_message()` викликається з `job_daily_digest`. Три тригери: `days_inactive ≥ 3`, ready-артефакти не переглянуті, всі артефакти consumed → пропозиція наступної теми. Контракт — dict через `state_manager.get_current_progress()`. Тригери з маніфесту §3.5 ("нова тема", "після тесту") — не реалізовані, Фаза 4.
 
-## Pinned панель — read-only (перед пунктом 2)
+## Pinned панель — interactive deep-links (пункт 2 done)
 
 ```yaml
 last_touched: 2026-04-20
-tags: [ui, pinned, incomplete]
+tags: [ui, pinned]
 status: active
 ```
 
-`modules/pinned.py` (120 рядків) + `curriculum/renderer.py` (175 + 215 нових рядків). Рендерить HTML з групуванням по островах, тільки active-теми, порожні острови → "Прогалини". Клікабельні `📓 NB` + `🔊 TTS`. **Стара `render()` — read-only, використовується зараз.** **Нова `render_pinned()` + `build_keyboard()` заглушка** — готові, але `modules/pinned.py` ще не переключений. Це пункт (2) Phase 2 разом з callback-handlers.
+`modules/pinned.py` переключено на `render_pinned()`. Expanded state у `data/pinned_expanded.json` (`load_expanded`, `save_expanded`, `toggle_topic_expanded`, `toggle_mastered_expanded`). `render_pinned(state, expanded_topic_ids, expanded_mastered)` рендерить per-topic deep-links: `expand_{id}` / `collapse_{id}`, `fmtcheck_{id}_{fmt}`, `pipeline_{id}`, `expand_mastered` / `collapse_mastered`, `map`. Footer: `/cur_add` підказка + `[🗺 Карта]`. `_render_topic_expanded()` — per-format чеклист з deep-links. `build_keyboard()` — deprecated (inline-кнопки прибрані на користь deep-links у тексті). `main.py::_handle_deep_link()` — dispatcher: парсить payload з `/start`, виконує дію, refresh pinned, silent delete.
 
 ## Pipeline — single-format only
 
@@ -96,7 +96,17 @@ tags: [phase-2, plan]
 status: active
 ```
 
-(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) **Callback handlers — наступне ~2 год.** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) Pipeline orchestrator — новий `curriculum/pipeline.py::run_pipeline()` за content_style порядком ~2-3 год. (4) Smoke + integration ~1 год. Залишилось ~4-7 год.
+(1) ✅ **Renderer v2** (коміт `d204a47` у workspace, `1ac7b01` у sam, 20.04). (2) ✅ **Callback handlers + deep-links (done 20.04).** `cur_toggle_{id}`, `cur_pipeline_{id}`, `cur_new`, `cur_map`, `fmt_check_{id}_{fmt}` + persistent `pinned_expanded.json`. (3) Pipeline orchestrator — новий `curriculum/pipeline.py::run_pipeline()` за content_style порядком ~2-3 год. (4) Smoke + integration ~1 год. Залишилось ~4-7 год.
+
+## Tool add_topic в agentic loop
+
+```yaml
+last_touched: 2026-04-20
+tags: [tools, agentic]
+status: active
+```
+
+`core/tools.py`: schema `add_topic` (6-й tool у SAM_TOOLS), handler `_h_add_topic`. Sem додає теми через розмову ("додай тему X"). Handler викликає `_enrich_topic_via_llm` з `modules/curriculum.py` (LLM визначає острів, why/read/do/content_style), потім `curriculum.mutations.add_topic()` + save. Не тестовано у live — потребує smoke test через розмову з Sem.
 
 ## Ключові архітектурні рішення
 
