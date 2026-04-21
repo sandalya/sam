@@ -35,6 +35,7 @@ from modules.curriculum import (
 )
 from modules.state_manager import touch_activity
 from modules.exam import start_exam, handle_exam_answer, is_exam_active, cancel_exam, handle_exam_callback
+from modules.activate import cmd_activate, handle_activate_callback
 
 import sys as _sys
 _sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace"))
@@ -339,6 +340,7 @@ def main():
             BotCommand("notebooks",  "📓 NotebookLM notebooks"),
             BotCommand("status",     "📊 Стан генерації"),
             BotCommand("regen",      "🔄 Дорегенерація форматів"),
+            BotCommand("activate",   "🎯 Активувати/деактивувати теми"),
         ])
 
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
@@ -359,6 +361,8 @@ def main():
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("regen", cmd_regen))
+    app.add_handler(CommandHandler("activate", cmd_activate))
+    app.add_handler(CallbackQueryHandler(handle_activate_callback, pattern=r"^act_"))
     app.add_handler(CommandHandler("exam_cancel", lambda u, c: cancel_exam(u.get_bot(), u.effective_chat.id, DATA_DIR)))
     app.add_handler(CallbackQueryHandler(handle_exam_callback, pattern=r"^exam_"))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
