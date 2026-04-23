@@ -136,7 +136,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Обговорення архітектури non-project файлів (workspace-адмін, kit/) — in progress.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
@@ -156,7 +156,7 @@ tags: [infrastructure, git]
 status: active
 ```
 
-Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp3, projects.yaml) живуть у workspace-репо, але потребують архітектури де жити non-project адміністративні файли.
+Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp3, projects.yaml) живуть у workspace-репо.
 
 ## Garcia — поза скоупом
 
@@ -166,7 +166,7 @@ tags: [garcia, deprecated]
 status: paused
 ```
 
-Garcia deprecated у контексті Sam. Імпорти `from shared.notebooklm_module` і `from shared.podcast_module` зламані — це ок, мертвий код. З 23.04 мігрована на триярусну пам'ять як окремий проект (abby-v2 замінив Garcia в活 workspace).
+Garcia deprecated у контексті Sam. Імпорти `from shared.notebooklm_module` і `from shared.podcast_module` зламані — це ок, мертвий код. З 23.04 мігрована на триярусну пам'ять як окремий проект (abby-v2 замінив Garcia в активній workspace).
 
 ## Принципи з маніфесту (живі)
 
@@ -201,7 +201,7 @@ tags: [infrastructure, chkp3, tools]
 status: active
 ```
 
-`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Структура:
+`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Шляхи та alias переспрямовано — `chkp3 sam` витягує `/workspace/sam` з projects.yaml. Структура:
 ```yaml
 projects:
   sam:
@@ -213,7 +213,7 @@ projects:
     language: uk
     memory_model: triadic
 ```
-chkp3 --init meggy — scaffold три файли з базовим template. **Наступне архітектурне питання**: де жити non-project файлам (kit/ утиліти, workspace-нотатки, адміністративні конфіги) — окремий репо чи монолітна структура?
+chkp3 --init meggy — scaffold три файли з базовим template. **Наступне**: оновити HOT інших 5 проектів, розширити projects.yaml новими ключами (e.g., status, dependencies, tags), автоматизація.
 
 ## Workspace administration — відкрита архітектура
 
@@ -223,12 +223,12 @@ tags: [infrastructure, workspace]
 status: blocked
 ```
 
-Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp3.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
+Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp2.sh, chkp3.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
 1. **Окремий workspace-memory/ репо** — з MEMORY.md, projects.yaml, адміністративними гайдами. kit/ утиліти там же.
 2. **Монолітна kit/ структура** — усе складається у kit/, але це может розростися на сотню файлів.
 3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp3.sh), projects.yaml, а доки живуть кожний у своєму проекті.
 
-Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed).
+Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed). З 23.04: потребує решти слід створити README та очистити legacy.
 
 ## Meggy (household_agent) на триярусній пам'яті
 
@@ -238,7 +238,7 @@ tags: [infrastructure, meggy]
 status: active
 ```
 
-Мігрована 23.04. HOT заповнено: Meggy — голосовий асистент для household-задач, поточна гілка [описати з коду]. WARM: архітектура voice-input → NLU → tools (控制燈, таймер тощо). Батьківський проект (household_agent) — у `/workspace/meggy/`, git-синхронізований. Потребує реальної сесії розробки для наповнення контекстом.
+Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: архітектура voice-input → NLU → tools. Батьківський проект (household_agent) — у `/workspace/meggy/`, git-синхронізований. Потребує реальної сесії розробки для наповнення контекстом.
 
 ## Ed на триярусній пам'яті
 
@@ -248,7 +248,7 @@ tags: [infrastructure, ed]
 status: active
 ```
 
-Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: Ed — [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника).
+Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника).
 
 ## Abby-v2 на триярусній пам'яті + key blocker
 
