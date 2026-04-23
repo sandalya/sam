@@ -8,7 +8,7 @@ updated: 2026-04-23
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [architecture, curriculum, data-model]
 status: active
 ```
@@ -18,7 +18,7 @@ status: active
 ## Activity tracking окремо від curriculum
 
 ```yaml
-last_touched: 2026-04-19
+last_touched: 2026-04-23
 tags: [architecture, state]
 status: active
 ```
@@ -28,7 +28,7 @@ status: active
 ## Sam engine-free + layout власний
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [refactor, architecture]
 status: active
 ```
@@ -38,7 +38,7 @@ Sam не імпортує жодного `shared.curriculum_engine`/`shared.curr
 ## Sam layout (post-Phase-5)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [layout, imports]
 status: active
 ```
@@ -51,7 +51,7 @@ Sam запускається з `WorkingDirectory=/workspace/sam` + `sys.path.in
 ## Phase 3 — EXAM (done)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [exam, phase-3]
 status: done
 ```
@@ -61,7 +61,7 @@ status: done
 ## Phase 4 — Proactive triggers (done)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [proactive, phase-4]
 status: done
 ```
@@ -71,7 +71,7 @@ status: done
 ## Phase 5 — Island map (done)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [map, phase-5]
 status: done
 ```
@@ -81,7 +81,7 @@ status: done
 ## Regen + NBLM retry
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [pipeline, regen]
 status: active
 ```
@@ -91,7 +91,7 @@ status: active
 ## Pinned панель — interactive deep-links
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [ui, pinned]
 status: done
 ```
@@ -101,7 +101,7 @@ status: done
 ## Pipeline orchestrator
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [pipeline, generation]
 status: done
 ```
@@ -111,7 +111,7 @@ status: done
 ## Tool add_topic в agentic loop
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [tools, agentic]
 status: active
 ```
@@ -121,7 +121,7 @@ status: active
 ## BotCommand list
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [ui, telegram]
 status: done
 ```
@@ -136,12 +136,12 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: рефакторинг kit-репо для yaml-registry chkp3 (готовий до merge, 2026-04-23).
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Обговорення архітектури non-project файлів (workspace-адмін, kit/) — in progress.
 
 ## Ключові архітектурні рішення
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [decisions]
 status: active
 ```
@@ -151,27 +151,27 @@ status: active
 ## Workspace-репо архітектура (post-catchup)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [infrastructure, git]
 status: active
 ```
 
-Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2.
+Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp3, projects.yaml) живуть у workspace-репо, але потребують архітектури де жити non-project адміністративні файли.
 
 ## Garcia — поза скоупом
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [garcia, deprecated]
 status: paused
 ```
 
-Garcia deprecated. Імпорти `from shared.notebooklm_module` і `from shared.podcast_module` зламані — це ок, мертвий код.
+Garcia deprecated у контексті Sam. Імпорти `from shared.notebooklm_module` і `from shared.podcast_module` зламані — це ок, мертвий код. З 23.04 мігрована на триярусну пам'ять як окремий проект (abby-v2 замінив Garcia в活 workspace).
 
 ## Принципи з маніфесту (живі)
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [principles]
 status: active
 ```
@@ -181,7 +181,7 @@ MVP → feedback → ітерація. Суб'єктивне відчуття з
 ## Триярусна пам'ять — структура проекту
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [infrastructure, memory]
 status: active
 ```
@@ -191,7 +191,7 @@ status: active
 - **WARM.md** — архітектура, рішення, відкриті питання (~400 рядків, оновлюється інкрементально).
 - **COLD.md** — append-only історія, архіви завершених фаз.
 
-Структура прийнята 2026-04-19, `chkp3` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md).
+Структура прийнята 2026-04-19, `chkp3` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md). З 23.04 триярусна пам'ять масштабована на 6 проектів workspace (Meggy, Ed, Garcia, Abby-v2, insilver-v3, Sam).
 
 ## chkp3 — yaml-registry для триярусної пам'яті
 
@@ -201,7 +201,7 @@ tags: [infrastructure, chkp3, tools]
 status: active
 ```
 
-`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2. Структура:
+`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Структура:
 ```yaml
 projects:
   sam:
@@ -213,4 +213,59 @@ projects:
     language: uk
     memory_model: triadic
 ```
-chkp3 --init meggy — scaffold три файли с базовим template.
+chkp3 --init meggy — scaffold три файли з базовим template. **Наступне архітектурне питання**: де жити non-project файлам (kit/ утиліти, workspace-нотатки, адміністративні конфіги) — окремий репо чи монолітна структура?
+
+## Workspace administration — відкрита архітектура
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, workspace]
+status: blocked
+```
+
+Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp3.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
+1. **Окремий workspace-memory/ репо** — з MEMORY.md, projects.yaml, адміністративними гайдами. kit/ утиліти там же.
+2. **Монолітна kit/ структура** — усе складається у kit/, але це может розростися на сотню файлів.
+3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp3.sh), projects.yaml, а доки живуть кожний у своєму проекті.
+
+Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed).
+
+## Meggy (household_agent) на триярусній пам'яті
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, meggy]
+status: active
+```
+
+Мігрована 23.04. HOT заповнено: Meggy — голосовий асистент для household-задач, поточна гілка [описати з коду]. WARM: архітектура voice-input → NLU → tools (控制燈, таймер тощо). Батьківський проект (household_agent) — у `/workspace/meggy/`, git-синхронізований. Потребує реальної сесії розробки для наповнення контекстом.
+
+## Ed на триярусній пам'яті
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, ed]
+status: active
+```
+
+Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: Ed — [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника).
+
+## Abby-v2 на триярусній пам'яті + key blocker
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, abby-v2, blocker]
+status: blocked
+```
+
+Мігрована 23.04. HOT + WARM заповнено. **Ключовий баг (Image 4)**: кнопка платного генерування не працює. Блокує реальне тестування проекту. Потребує дебагу перед наступною сесією розробки Abby.
+
+## Insilver-v3 на триярусній пам'яті
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, insilver-v3]
+status: active
+```
+
+Мігрована 23.04. HOT + WARM заповнено з коду. Проект у `/workspace/insilver-v3/`, git-синхронізований. Потребує розробника для розповсюдження контексту через реальну роботу.
