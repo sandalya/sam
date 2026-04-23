@@ -68,12 +68,12 @@ tags: [garcia, separation]
 
 ---
 
-## 2026-04-23: chkp3 yaml-registry міграція
+## 2026-04-23: chkp yaml-registry міграція
 
 ```yaml
 archivereason: завершено, готово до масштабування на інші проекти
-tags: [infrastructure, chkp3, tools]
+tags: [infrastructure, chkp, tools]
 archived_at: 2026-04-23
 ```
 
-Міграція chkp3 скрипта з хардкоду на `kit/projects.yaml` реєстр. Причина: підготовка до масштабування на Meggy, Ed, Garcia, Abby-v2 — замість дублювання логіки в кожному проекті. Додана команда `--init` для ініціалізації триярусної пам'яті нових проектів (scaffold HOT.md, WARM.md, COLD.md з базовим template). Тестування на Sam успішне, готова до развертування на 4+ проектах.
+Міграція chkp скрипта з хардкоду на `meta/chkp/projects.yaml` реєстр. Причина: підготовка до масштабування на Meggy, Ed, Garcia, Abby-v2 — замість дублювання логіки в кожному проекті. Додана команда `--init` для ініціалізації триярусної пам'яті нових проектів (scaffold HOT.md, WARM.md, COLD.md з базовим template). Тестування на Sam успішне, готова до развертування на 4+ проектах.

@@ -156,7 +156,7 @@ tags: [infrastructure, git]
 status: active
 ```
 
-Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp3, projects.yaml) живуть у workspace-репо.
+Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp, projects.yaml) живуть у workspace-репо.
 
 ## Garcia — поза скоупом
 
@@ -191,17 +191,17 @@ status: active
 - **WARM.md** — архітектура, рішення, відкриті питання (~400 рядків, оновлюється інкрементально).
 - **COLD.md** — append-only історія, архіви завершених фаз.
 
-Структура прийнята 2026-04-19, `chkp3` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md). З 23.04 триярусна пам'ять масштабована на 6 проектів workspace (Meggy, Ed, Garcia, Abby-v2, insilver-v3, Sam).
+Структура прийнята 2026-04-19, `chkp` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md). З 23.04 триярусна пам'ять масштабована на 6 проектів workspace (Meggy, Ed, Garcia, Abby-v2, insilver-v3, Sam).
 
-## chkp3 — yaml-registry для триярусної пам'яті
+## chkp — yaml-registry для триярусної пам'яті
 
 ```yaml
 last_touched: 2026-04-23
-tags: [infrastructure, chkp3, tools]
+tags: [infrastructure, chkp, tools]
 status: active
 ```
 
-`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Шляхи та alias переспрямовано — `chkp3 sam` витягує `/workspace/sam` з projects.yaml. Структура:
+`meta/chkp/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Шляхи та alias переспрямовано — `chkp sam` витягує `/workspace/sam` з projects.yaml. Структура:
 ```yaml
 projects:
   sam:
@@ -213,7 +213,7 @@ projects:
     language: uk
     memory_model: triadic
 ```
-chkp3 --init meggy — scaffold три файли з базовим template. **Наступне**: оновити HOT інших 5 проектів, розширити projects.yaml новими ключами (e.g., status, dependencies, tags), автоматизація.
+chkp --init meggy — scaffold три файли з базовим template. **Наступне**: оновити HOT інших 5 проектів, розширити projects.yaml новими ключами (e.g., status, dependencies, tags), автоматизація.
 
 ## Workspace administration — відкрита архітектура
 
@@ -223,10 +223,10 @@ tags: [infrastructure, workspace]
 status: blocked
 ```
 
-Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp2.sh, chkp3.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
+Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp2.sh, chkp.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
 1. **Окремий workspace-memory/ репо** — з MEMORY.md, projects.yaml, адміністративними гайдами. kit/ утиліти там же.
 2. **Монолітна kit/ структура** — усе складається у kit/, але це может розростися на сотню файлів.
-3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp3.sh), projects.yaml, а доки живуть кожний у своєму проекті.
+3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp.sh), projects.yaml, а доки живуть кожний у своєму проекті.
 
 Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed). З 23.04: потребує решти слід створити README та очистити legacy.
 
