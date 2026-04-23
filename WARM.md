@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-04-20
+updated: 2026-04-23
 ---
 
 # WARM — Sam
@@ -131,12 +131,12 @@ status: done
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-04-20
+last_touched: 2026-04-23
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: рефакторинг kit-репо для yaml-registry chkp3 (готовий до merge, 2026-04-23).
 
 ## Ключові архітектурні рішення
 
@@ -156,7 +156,7 @@ tags: [infrastructure, git]
 status: active
 ```
 
-Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаться у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2.
+Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2.
 
 ## Garcia — поза скоупом
 
@@ -191,4 +191,26 @@ status: active
 - **WARM.md** — архітектура, рішення, відкриті питання (~400 рядків, оновлюється інкрементально).
 - **COLD.md** — append-only історія, архіви завершених фаз.
 
-Структура прийнята 2026-04-19, `chkp3` тестування почалось 2026-04-20. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md).
+Структура прийнята 2026-04-19, `chkp3` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md).
+
+## chkp3 — yaml-registry для триярусної пам'яті
+
+```yaml
+last_touched: 2026-04-23
+tags: [infrastructure, chkp3, tools]
+status: active
+```
+
+`kit/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp3` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2. Структура:
+```yaml
+projects:
+  sam:
+    path: /workspace/sam
+    language: uk
+    memory_model: triadic
+  meggy:
+    path: /workspace/meggy
+    language: uk
+    memory_model: triadic
+```
+chkp3 --init meggy — scaffold три файли с базовим template.
