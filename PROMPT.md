@@ -1,9 +1,9 @@
 Проект: sam
 
-Стан: Архітектурна міграція workspace завершена. chkp3 переведена на yaml-registry (kit/projects.yaml), шляхи оновлено на 6 проектах. Миграція alias — замість hardcode шляхів тепер викликаємо `chkp3 sam` / `chkp3 meggy` тощо.
+Стан: TTS deep-link баг закритий (посилання тепер надсилають аудіо у чат), NBLM reset для agent_architecture-2 успішний (/regen крутиться корректно). План Flashcards interactive узгоджено: Sonnet generator, переиспользування NBLM ключа, без SR наразі.
 
-Наступне: (1) оновити HOT всіх 5 інших проектів (Meggy, Ed, Garcia, Abby-v2, Insilver-v3), (2) створити README для meta-структури workspace (як користуватися chkp3, де жити non-project файлам), (3) очистити kit/ від legacy-файлів. Архітектурне питання відкритим залишається: де жити workspace-адміністративним файлам (окремий репо чи монолітна структура)?
+Наступний крок: Flashcards interactive (Phase 6.1) — структура карток, генератор питання/відповіді, інтерактивний чат з оцінкою.
 
-Блокери: Abby-v2 image-gen баг (кнопка Image 4), Sam NBLM rate limit (моніторити).
+Блокери: немає на Flashcards. Abby-v2 image-gen баг все ще чекає дебагу.
 
-Перш ніж почнемо — скинь HOT.md + WARM.md з workspace/sam/ для синхронізації контексту.
+Перед роботою поділись будь ласка:`/workspace/sam/HOT.md` та `/workspace/sam/WARM.md`.

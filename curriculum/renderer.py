@@ -65,6 +65,17 @@ def _exam_label(t: Topic, bot_username: str = None) -> str:
     return "\U0001f9e0 Exam"
 
 
+def _fc_label(t: Topic, bot_username: Optional[str] = None) -> str:
+    """FC (flashcards) deep-link — Phase 6.1. Кликабельний якщо ready+cards."""
+    f = t.formats.get("flashcards")
+    if not f or f.status != "ready" or not f.cards:
+        return "FC"
+    if bot_username:
+        url = _deep_link(bot_username, f"fc_{t.id}")
+        return f'<a href="{url}">FC</a>'
+    return "FC"
+
+
 def _render_topic_line(t: Topic, bot_username: Optional[str]) -> list[str]:
     """
     Два рядки теми:
@@ -75,10 +86,11 @@ def _render_topic_line(t: Topic, bot_username: Optional[str]) -> list[str]:
     title = _escape_html(t.title)
     nb = _nb_link(t)
     tts = _tts_link(t, bot_username)
+    fc = _fc_label(t, bot_username)
     exam = _exam_label(t, bot_username)
     suffix = f" {style_icon}" if style_icon else ""
     line1 = f"  \u25b8 {title}{suffix}"
-    line2 = f"     {nb}  \u00b7  {tts}  \u00b7  {exam}"
+    line2 = f"     {nb}  \u00b7  {tts}  \u00b7  {fc}  \u00b7  {exam}"
     return [line1, line2]
 
 

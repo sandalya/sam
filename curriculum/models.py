@@ -73,6 +73,9 @@ class TopicFormat:
     consumed_at: Optional[str] = None
     url: Optional[str] = None
     error: Optional[str] = None
+    cards: Optional[list] = None       # Phase 6.1: flashcards deck [{id, q, a, distractors}]
+    deck_size: Optional[int] = None    # Phase 6.1: скільки карток у deck (default 10)
+    last_mode: Optional[str] = None    # Phase 6.1: "flashcard" | "quiz" | None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -86,6 +89,9 @@ class TopicFormat:
             consumed_at=data.get("consumed_at"),
             url=data.get("url"),
             error=data.get("error"),
+            cards=data.get("cards"),
+            deck_size=data.get("deck_size"),
+            last_mode=data.get("last_mode"),
         )
 
 

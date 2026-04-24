@@ -387,8 +387,13 @@ async def cmd_regen(update, context):
     state = load(CURRICULUM_V2_PATH)
     fmt_keys = ["slides", "podcast_nblm", "podcast_tts", "video", "infographic", "flashcards"]
 
+    args = context.args or []
+    topic_filter = args[0].strip() if args else None
+
     topics_to_regen = []
     for t in state.topics:
+        if topic_filter and t.id != topic_filter:
+            continue
         needs_regen = False
         for fk in fmt_keys:
             f = t.formats.get(fk)
@@ -397,6 +402,14 @@ async def cmd_regen(update, context):
                 break
         if needs_regen:
             topics_to_regen.append(t)
+
+    if topic_filter and not topics_to_regen:
+        exists = any(t.id == topic_filter for t in state.topics)
+        if not exists:
+            await update.message.reply_text(f"❌ Тема {topic_filter} не знайдена.")
+        else:
+            await update.message.reply_text(f"✅ Тема {topic_filter} не потребує regen.")
+        return
 
     if not topics_to_regen:
         await update.message.reply_text("✅ Всі формати вже ready або generating.")

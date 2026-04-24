@@ -365,6 +365,8 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_activate_callback, pattern=r"^act_"))
     app.add_handler(CommandHandler("exam_cancel", lambda u, c: cancel_exam(u.get_bot(), u.effective_chat.id, DATA_DIR)))
     app.add_handler(CallbackQueryHandler(handle_exam_callback, pattern=r"^exam_"))
+    from modules.flashcards import handle_flashcards_callback
+    app.add_handler(CallbackQueryHandler(handle_flashcards_callback, pattern=r"^fc_"))
     app.add_handler(CommandHandler("catchup", cmd_catchup))
     app.add_handler(CommandHandler("jobs", cmd_jobs))
     app.add_handler(CommandHandler("onboarding", cmd_onboarding))
@@ -449,6 +451,14 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         logger.info(f"exam deep-link: {topic_id}")
         from modules.base import DATA_DIR
         await start_exam(context.bot, chat_id, topic_id, DATA_DIR)
+        handled = True
+
+    elif payload.startswith("fc_"):
+        topic_id = payload[len("fc_"):]
+        logger.info(f"flashcards deep-link: {topic_id}")
+        from modules.base import DATA_DIR
+        from modules.flashcards import start_flashcards
+        await start_flashcards(context.bot, chat_id, topic_id, DATA_DIR)
         handled = True
     elif payload == "map":
         logger.info("map deep-link")
