@@ -48,3 +48,12 @@ Phase 6.1 Flashcards interactive MVP — завершена e2e. LLM-генер�
 - Перед тестуванням flashcards — запустити `journalctl -u sam.service -f` ПЕРЕД кліком у боті.
 - `tool_use_integration-1` має статус `state: pending` — `rag_retrieval-1` довелося перевести в `active` щоб з'явитись у pinned (pinned показує тільки active). Врахувати у міграції — теми для яких генеруємо flashcards мусять бути `active` щоб FC label був видимий.
 - `/regen {topic_id}` — нова одиночна команда, працює. Для масової міграції — `/regen` без аргументу.
+
+- Чи робити Phase 6.2 SR (spaced repetition) зразу після міграції, або чекати 1-2 тижні реального використання щоб зрозуміти потребу?
+- `_SESSIONS` — in-memory dict, скидається при рестарті бота. Якщо Саша в процесі сесії, і бот рестартнеться — сесія губиться. Для Phase 6.1 прийнятно, для 6.2 переглянути персистентність.
+
+## Reminders
+
+- Перед тестуванням flashcards — запустити `journalctl -u sam.service -f` ПЕРЕД кліком у боті.
+- `rag_retrieval-1` довелося перевести в `active` щоб з'явитись у pinned (pinned показує тільки active). Врахувати у міграції — теми для яких генеруємо flashcards мусять бути `active` щоб FC label був видимий.
+- `/regen {topic_id}` — нова одиночна команда. Для масової міграції — `/regen` без аргументу.
