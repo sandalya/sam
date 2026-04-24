@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-04-23
+updated: 2026-04-24
 ---
 
 # WARM — Sam
@@ -8,7 +8,7 @@ updated: 2026-04-23
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [architecture, curriculum, data-model]
 status: active
 ```
@@ -18,7 +18,7 @@ status: active
 ## Activity tracking окремо від curriculum
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [architecture, state]
 status: active
 ```
@@ -28,7 +28,7 @@ status: active
 ## Sam engine-free + layout власний
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [refactor, architecture]
 status: active
 ```
@@ -38,7 +38,7 @@ Sam не імпортує жодного `shared.curriculum_engine`/`shared.curr
 ## Sam layout (post-Phase-5)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [layout, imports]
 status: active
 ```
@@ -51,7 +51,7 @@ Sam запускається з `WorkingDirectory=/workspace/sam` + `sys.path.in
 ## Phase 3 — EXAM (done)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [exam, phase-3]
 status: done
 ```
@@ -61,7 +61,7 @@ status: done
 ## Phase 4 — Proactive triggers (done)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [proactive, phase-4]
 status: done
 ```
@@ -71,37 +71,74 @@ status: done
 ## Phase 5 — Island map (done)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [map, phase-5]
 status: done
 ```
 
 `modules/island_map.py::render_island_map()` — текстова карта островів. Per-island progress bar (`▓░`), per-topic consumed/ready count, порожні острови. Gap detection: порівняння з `REFERENCE_ISLANDS` (12 AI-ландшафт категорій), фільтрація по existing island words + topic words. Deep-link `map` в `_handle_deep_link`. Pinned footer: `renderer.py` додає `🗺 Карта островів` deep-link перед timestamp.
 
+## Phase 6 — Flashcards interactive (планується)
+
+```yaml
+last_touched: 2026-04-24
+tags: [flashcards, phase-6]
+status: active
+```
+
+**Phase 6.1: Base flashcards** (наступна сесія). Архітектура:
+- Переиспользується NBLM ключ на тему — один `notebooklm_notebooks.json` запис (як для podcast), одна бібліотека карток всередині (JSON). Структура Topic-розширення: `Topic.formats["flashcards"] = {"status": "ready", "url": "notebook-id", "cards": [{"q": "...", "a": "..."}]}` або окремий файл `data/flashcards_{topic_id}.json`.
+- **Generator**: Sonnet → питання/відповіді з NBLM notebook (перепитує ембедінги блокнота, генерує варіанти карток).
+- **Без SR наразі** — базові карточки, алгоритм повтору (SM-2/Leitner, рівень засвоєння) → Phase 6.2+.
+- **Deep-link**: `flashcards_{topic_id}` в pinned (як exam, map). `/flashcards start {id}` → інтерактивний чат з показом питання → користувач відповідає → показ відповіді → оцінка себе (легко/важко) → статистика на конец сесії.
+- **Команда**: `/flashcards list {island}` → список карток по острову.
+
+Бекілог: Phase 6.2 (SR алгоритм, персистентна історія), Phase 6.3 (експорт ANKI), Phase 6.4 (Depth Mode інтеграція).
+
 ## Regen + NBLM retry
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [pipeline, regen]
 status: active
 ```
 
-`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв.
+`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: agent_architecture-2 успішно перезапущена після failed NBLM, статус тепер ready.
+
+## TTS deep-link fix
+
+```yaml
+last_touched: 2026-04-24
+tags: [ui, tts, deep-links]
+status: done
+```
+
+**Баг користувача #1 закритий**. Проблема: `/tts_{topic_id}` посилання у pinned панелі не надсилали аудіо файл у чат (користувач скаржився). Причина: `_handle_deep_link()` у `modules/pinned.py` викликав `send_audio()` але передавав відносний путь (`data/audio/{id}.mp3`) замість абсолютного (`/workspace/sam/data/audio/{id}.mp3`). Виправлено: рядок ~185 в `modules/pinned.py` — передача абсолютного пута + файл-перевірка (якщо не існує, відправити 404 повідомлення). Тест: `/tts_ai-101` успішно відправив MP3. Помітка: TTS тепер генеруються на лету (кожен запит = нова синтез) з кешуванням у `data/audio_cache/`.
+
+## NBLM reset для Multi-agent координації
+
+```yaml
+last_touched: 2026-04-24
+tags: [nblm, pipeline]
+status: done
+```
+
+**Баг користувача #2 закритий**. Проблема: тема agent_architecture-2 мала статус MISSING для NBLM формату (користувач запитав /regen). Виправлено: `curriculum/mutations.py::reset_failed_to_pending()` +재запуск через `run_pipeline()`. Механіка: статус MISSING→pending, `nblm_generate()` запускається з першої спроби retry (не чекає години), формат генерується за 8 хвилин. Статус: тепер ready.
 
 ## Pinned панель — interactive deep-links
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [ui, pinned]
 status: done
 ```
 
-`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam (deep-links). Exam label клікабельний (`exam_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`.
+`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam (deep-links). Exam label клікабельний (`exam_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_` (+ `flashcards_` за додаванням Phase 6.1).
 
 ## Pipeline orchestrator
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [pipeline, generation]
 status: done
 ```
@@ -111,7 +148,7 @@ status: done
 ## Tool add_topic в agentic loop
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [tools, agentic]
 status: active
 ```
@@ -121,37 +158,37 @@ status: active
 ## BotCommand list
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [ui, telegram]
 status: done
 ```
 
-`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid.
+`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid. **Phase 6.1**: додамо `/flashcards` команди (list, start, cancel).
 
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6 (Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive, в розробці) ⚙️ | Фаза 6.2+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [decisions]
 status: active
 ```
 
-Акордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`.
+Акордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія).
 
 ## Workspace-репо архітектура (post-catchup)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, git]
 status: active
 ```
@@ -161,7 +198,7 @@ Workspace-репо (`/workspace/`) — метарепо над 7 ботами. S
 ## Garcia — поза скоупом
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [garcia, deprecated]
 status: paused
 ```
@@ -171,7 +208,7 @@ Garcia deprecated у контексті Sam. Імпорти `from shared.noteboo
 ## Принципи з маніфесту (живі)
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [principles]
 status: active
 ```
@@ -181,7 +218,7 @@ MVP → feedback → ітерація. Суб'єктивне відчуття з
 ## Триярусна пам'ять — структура проекту
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, memory]
 status: active
 ```
@@ -196,7 +233,7 @@ status: active
 ## chkp — yaml-registry для триярусної пам'яті
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, chkp, tools]
 status: active
 ```
@@ -218,7 +255,7 @@ chkp --init meggy — scaffold три файли з базовим template. **�
 ## Workspace administration — відкрита архітектура
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, workspace]
 status: blocked
 ```
@@ -233,7 +270,7 @@ Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) =
 ## Meggy (household_agent) на триярусній пам'яті
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, meggy]
 status: active
 ```
@@ -243,7 +280,7 @@ status: active
 ## Ed на триярусній пам'яті
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, ed]
 status: active
 ```
@@ -253,7 +290,7 @@ status: active
 ## Abby-v2 на триярусній пам'яті + key blocker
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, abby-v2, blocker]
 status: blocked
 ```
@@ -263,7 +300,7 @@ status: blocked
 ## Insilver-v3 на триярусній пам'яті
 
 ```yaml
-last_touched: 2026-04-23
+last_touched: 2026-04-24
 tags: [infrastructure, insilver-v3]
 status: active
 ```

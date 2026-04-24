@@ -468,9 +468,34 @@ async def _handle_deep_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         handled = True
 
     elif payload.startswith("tts_"):
-        # Legacy TTS deep-link — pass through
-        logger.info(f"tts deep-link: {payload}")
-        return
+        topic_id = payload[len("tts_"):]
+        logger.info(f"tts deep-link: {topic_id}")
+        try:
+            cur_path = DATA_DIR / "curriculum.json"
+            state = load_curriculum(cur_path)
+            topic = state.get_topic(topic_id)
+            if not topic:
+                await context.bot.send_message(chat_id, f"❌ Тема не знайдена: {topic_id}")
+                return
+            fmt = topic.formats.get("podcast_tts")
+            if not fmt or fmt.status != "ready" or not fmt.url:
+                await context.bot.send_message(
+                    chat_id,
+                    f"❌ TTS подкаст ще не готовий для «{topic.title}»",
+                )
+                return
+            await context.bot.send_audio(
+                chat_id=chat_id,
+                audio=fmt.url,
+                title=topic.title[:64],
+                caption=f"🎙 {topic.title}",
+            )
+            mark_format_consumed(state, topic_id, "podcast_tts", consumed=True)
+            save(state, cur_path)
+            handled = True
+        except Exception as e:
+            logger.error(f"tts send failed: {e}", exc_info=True)
+            await context.bot.send_message(chat_id, f"❌ Не вдалось надіслати TTS: {e}")
 
     if handled:
         # Refresh pinned
