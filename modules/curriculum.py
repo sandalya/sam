@@ -388,14 +388,26 @@ async def cmd_regen(update, context):
     fmt_keys = ["slides", "podcast_nblm", "podcast_tts", "video", "infographic", "flashcards"]
 
     args = context.args or []
-    topic_filter = args[0].strip() if args else None
+    # Парсимо --only <fmt> в будь-якій позиції
+    only_formats = None
+    filtered_args = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--only" and i + 1 < len(args):
+            only_formats = {args[i + 1].strip()}
+            i += 2
+        else:
+            filtered_args.append(args[i])
+            i += 1
+    topic_filter = filtered_args[0].strip() if filtered_args else None
 
     topics_to_regen = []
     for t in state.topics:
         if topic_filter and t.id != topic_filter:
             continue
+        check_keys = list(only_formats) if only_formats else fmt_keys
         needs_regen = False
-        for fk in fmt_keys:
+        for fk in check_keys:
             f = t.formats.get(fk)
             if not f or f.status in ("pending", "failed"):
                 needs_regen = True
@@ -428,27 +440,35 @@ async def cmd_regen(update, context):
         save(state, CURRICULUM_V2_PATH)
 
     titles = "\n".join(f"  • {t.title}" for t in topics_to_regen)
-    msg = f"🔄 Regen: {len(topics_to_regen)} тем\n" + titles + "\n\nЗапускаю послідовно (retry до 72 год на rate limit)..."
+    only_note = f" [only={','.join(only_formats)}]" if only_formats else ""
+    msg = f"🔄 Regen: {len(topics_to_regen)} тем{only_note}\n" + titles + "\n\nЗапускаю послідовно (retry до 72 год на rate limit)..."
     await update.message.reply_text(msg, parse_mode="HTML")
 
     bot = update.get_bot()
     chat_id = update.effective_chat.id
 
-    asyncio.create_task(_run_regen(bot, chat_id, topics_to_regen))
+    silent = only_formats is not None
+    asyncio.create_task(_run_regen(bot, chat_id, topics_to_regen, only_formats, silent))
 
 
-async def _run_regen(bot, chat_id, topics):
+async def _run_regen(bot, chat_id, topics, only_formats=None, silent=False):
     """Background regen — не блокує бот."""
     from curriculum.pipeline import run_pipeline
 
+    ok, failed = 0, 0
     for t in topics:
         try:
-            await run_pipeline(bot, chat_id, t.id, DATA_DIR)
+            await run_pipeline(bot, chat_id, t.id, DATA_DIR, only_formats=only_formats, silent=silent)
+            ok += 1
         except Exception as e:
+            failed += 1
             log.error(f"Regen pipeline failed for {t.id}: {e}", exc_info=True)
             await bot.send_message(chat_id, f"⚠️ {t.title}: {e}")
 
-    await bot.send_message(chat_id, "🏁 Regen завершено.")
+    summary = f"🏁 Regen завершено: {ok}/{len(topics)} ok"
+    if failed:
+        summary += f", {failed} failed"
+    await bot.send_message(chat_id, summary)
 
 
 # ── cmd_map (Phase 5) ────────────────────────────────────────────────────────

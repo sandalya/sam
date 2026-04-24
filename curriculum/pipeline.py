@@ -95,6 +95,8 @@ async def run_pipeline(
     chat_id: int,
     topic_id: str,
     data_dir: Path,
+    only_formats: set[str] | None = None,
+    silent: bool = False,
 ) -> bool:
     """
     Запускає генерацію всіх форматів для теми.
@@ -118,6 +120,9 @@ async def run_pipeline(
         return False
 
     order = _get_order(topic)
+    if only_formats:
+        order = [f for f in order if f in only_formats]
+        log.info(f"Pipeline {topic_id}: filtered to {order} (only={only_formats})")
 
     # Визначаємо які формати потрібно згенерувати
     to_generate = []
@@ -129,21 +134,23 @@ async def run_pipeline(
         to_generate.append(fmt_key)
 
     if not to_generate:
-        await bot.send_message(
-            chat_id,
-            f"✅ Всі формати для <b>{topic.title}</b> вже згенеровані або в процесі.",
-            parse_mode="HTML",
-        )
+        if not silent:
+            await bot.send_message(
+                chat_id,
+                f"✅ Всі формати для <b>{topic.title}</b> вже згенеровані або в процесі.",
+                parse_mode="HTML",
+            )
         return False
 
     fmt_list = ", ".join(to_generate)
-    await bot.send_message(
-        chat_id,
-        f"🚀 Pipeline для <b>{topic.title}</b>\n"
-        f"Формати: {fmt_list}\n"
-        f"Стиль: {topic.content_style}-first",
-        parse_mode="HTML",
-    )
+    if not silent:
+        await bot.send_message(
+            chat_id,
+            f"🚀 Pipeline для <b>{topic.title}</b>\n"
+            f"Формати: {fmt_list}\n"
+            f"Стиль: {topic.content_style}-first",
+            parse_mode="HTML",
+        )
 
     generated_count = 0
 
@@ -167,7 +174,7 @@ async def run_pipeline(
                 await _generate_tts(bot, chat_id, topic_id, data_dir)
             elif fmt_key in LLM_FORMATS:
                 if fmt_key == "flashcards":
-                    await _generate_flashcards_llm(bot, chat_id, topic_id, data_dir)
+                    await _generate_flashcards_llm(bot, chat_id, topic_id, data_dir, silent=silent)
                 else:
                     log.warning(f"Pipeline: LLM_FORMATS has {fmt_key} but no handler")
                     continue
@@ -194,12 +201,13 @@ async def run_pipeline(
     if topic:
         ready = sum(1 for f in topic.formats.values() if f.status == "ready")
         total = len(AUDIO_FIRST_ORDER)  # 6 (без exam)
-        await bot.send_message(
-            chat_id,
-            f"🏁 Pipeline завершено: <b>{topic.title}</b>\n"
-            f"Готово: {ready}/{total} форматів",
-            parse_mode="HTML",
-        )
+        if not silent:
+            await bot.send_message(
+                chat_id,
+                f"🏁 Pipeline завершено: <b>{topic.title}</b>\n"
+                f"Готово: {ready}/{total} форматів",
+                parse_mode="HTML",
+            )
 
     # Фінальний refresh
     try:
@@ -218,6 +226,7 @@ async def _generate_nblm(
     source_url: str,
     fmt_key: str,
     data_dir: Path,
+    only_formats: set[str] | None = None,
 ) -> None:
     """Делегує генерацію NBLM-формату до notebooklm_module."""
     from core.notebooklm_module import generate_and_notify
@@ -239,6 +248,7 @@ async def _generate_tts(
     chat_id: int,
     topic_id: str,
     data_dir: Path,
+    only_formats: set[str] | None = None,
 ) -> None:
     """Делегує генерацію TTS podcast до podcast_module."""
     from core.podcast_module import generate_tts_for_pipeline
@@ -256,6 +266,8 @@ async def _generate_flashcards_llm(
     chat_id: int,
     topic_id: str,
     data_dir: Path,
+    only_formats: set[str] | None = None,
+    silent: bool = False,
 ) -> None:
     """Генерує flashcards deck через Sonnet (Phase 6.1)."""
     import asyncio as _asyncio
@@ -334,11 +346,12 @@ async def _generate_flashcards_llm(
     set_format_status(state, topic_id, "flashcards", "ready")
     _save(state, cur_path)
     log.info(f"flashcards: ready for {topic_id} with {len(cards)} cards")
-    await bot.send_message(
-        chat_id,
-        f"Flashcards для <b>{topic.title}</b> готові: {len(cards)} карток.",
-        parse_mode="HTML",
-    )
+    if not silent:
+        await bot.send_message(
+            chat_id,
+            f"Flashcards для <b>{topic.title}</b> готові: {len(cards)} карток.",
+            parse_mode="HTML",
+        )
 
 
 def _parse_and_validate_cards(raw: str, deck_size: int) -> list[dict]:

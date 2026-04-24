@@ -109,6 +109,7 @@ async def handle_flashcards_callback(update: Update, context: ContextTypes.DEFAU
     q = update.callback_query
     data = q.data
     chat_id = update.effective_chat.id
+    log.info(f"fc callback: chat={chat_id} data={data!r}")
 
     try:
         await q.answer()
@@ -141,6 +142,7 @@ async def handle_flashcards_callback(update: Update, context: ContextTypes.DEFAU
 # ── Handlers ──────────────────────────────────────────────────────────────
 
 async def _on_mode_pick(q, chat_id: int, data: str, data_dir: Path) -> None:
+    log.info(f"fc mode_pick: chat={chat_id} data={data!r}")
     # fc_mode_{topic_id}_{card|quiz}
     rest = data[len("fc_mode_"):]
     if rest.endswith("_card"):
@@ -172,6 +174,7 @@ async def _on_mode_pick(q, chat_id: int, data: str, data_dir: Path) -> None:
 
 
 async def _on_show_answer(q, chat_id: int, data: str) -> None:
+    log.info(f"fc show_answer: chat={chat_id} data={data!r}")
     session = _SESSIONS.get(chat_id)
     if not session or session.mode != "card":
         await q.edit_message_text("Сесія завершена. Почніть заново з pinned.")
@@ -181,6 +184,7 @@ async def _on_show_answer(q, chat_id: int, data: str) -> None:
 
 
 async def _on_self_eval(q, chat_id: int, data: str) -> None:
+    log.info(f"fc self_eval: chat={chat_id} data={data!r}")
     session = _SESSIONS.get(chat_id)
     if not session or session.mode != "card":
         await q.edit_message_text("Сесія завершена.")
@@ -200,6 +204,7 @@ async def _on_self_eval(q, chat_id: int, data: str) -> None:
 
 
 async def _on_quiz_pick(q, chat_id: int, data: str) -> None:
+    log.info(f"fc quiz_pick: chat={chat_id} data={data!r}")
     # fc_pick_{topic_id}_{card_idx}_{choice_idx}
     session = _SESSIONS.get(chat_id)
     if not session or session.mode != "quiz":
@@ -228,6 +233,7 @@ async def _on_quiz_pick(q, chat_id: int, data: str) -> None:
 
 
 async def _on_next(q, chat_id: int, data: str) -> None:
+    log.info(f"fc next: chat={chat_id} data={data!r}")
     session = _SESSIONS.get(chat_id)
     if not session:
         await q.edit_message_text("Сесія завершена.")
@@ -241,6 +247,7 @@ async def _on_next(q, chat_id: int, data: str) -> None:
 
 
 async def _on_retry(q, chat_id: int, data: str) -> None:
+    log.info(f"fc retry: chat={chat_id} data={data!r}")
     session = _SESSIONS.get(chat_id)
     if not session:
         await q.edit_message_text("Сесія завершена.")
@@ -260,6 +267,7 @@ async def _on_retry(q, chat_id: int, data: str) -> None:
 
 
 async def _on_switch_mode(q, chat_id: int, data: str, data_dir: Path) -> None:
+    log.info(f"fc switch_mode: chat={chat_id} data={data!r}")
     # fc_switch_{topic_id}_{card|quiz}
     rest = data[len("fc_switch_"):]
     if rest.endswith("_card"):
@@ -282,6 +290,7 @@ async def _on_switch_mode(q, chat_id: int, data: str, data_dir: Path) -> None:
 
 
 async def _on_exit(q, chat_id: int, data: str) -> None:
+    log.info(f"fc exit: chat={chat_id} data={data!r}")
     _SESSIONS.pop(chat_id, None)
     await q.edit_message_text("Сесію flashcards завершено.")
 
