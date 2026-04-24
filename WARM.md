@@ -78,22 +78,22 @@ status: done
 
 `modules/island_map.py::render_island_map()` — текстова карта островів. Per-island progress bar (`▓░`), per-topic consumed/ready count, порожні острови. Gap detection: порівняння з `REFERENCE_ISLANDS` (12 AI-ландшафт категорій), фільтрація по existing island words + topic words. Deep-link `map` в `_handle_deep_link`. Pinned footer: `renderer.py` додає `🗺 Карта островів` deep-link перед timestamp.
 
-## Phase 6 — Flashcards interactive (планується)
+## Phase 6.1 — Flashcards interactive (done)
 
 ```yaml
 last_touched: 2026-04-24
 tags: [flashcards, phase-6]
-status: active
+status: done
 ```
 
-**Phase 6.1: Base flashcards** (наступна сесія). Архітектура:
+**Phase 6.1: Base flashcards — завершено.** Архітектура:
 - Переиспользується NBLM ключ на тему — один `notebooklm_notebooks.json` запис (як для podcast), одна бібліотека карток всередині (JSON). Структура Topic-розширення: `Topic.formats["flashcards"] = {"status": "ready", "url": "notebook-id", "cards": [{"q": "...", "a": "..."}]}` або окремий файл `data/flashcards_{topic_id}.json`.
 - **Generator**: Sonnet → питання/відповіді з NBLM notebook (перепитує ембедінги блокнота, генерує варіанти карток).
-- **Без SR наразі** — базові карточки, алгоритм повтору (SM-2/Leitner, рівень засвоєння) → Phase 6.2+.
-- **Deep-link**: `flashcards_{topic_id}` в pinned (як exam, map). `/flashcards start {id}` → інтерактивний чат з показом питання → користувач відповідає → показ відповіді → оцінка себе (легко/важко) → статистика на конец сесії.
-- **Команда**: `/flashcards list {island}` → список карток по острову.
-
-Бекілог: Phase 6.2 (SR алгоритм, персистентна історія), Phase 6.3 (експорт ANKI), Phase 6.4 (Depth Mode інтеграція).
+- **Card mode & Quiz mode** — два інтерактивні режими, UI через inline кнопки, цілої сесія у пам'яті (`_SESSIONS` dict).
+- **Ed тести** `11_flashcards.json` — 3 блоки, 3/3 PASS (card mode, quiz mode, completion).
+- **Deep-link**: `flashcards_{topic_id}` в pinned.
+- **Log.info у handlers** — діагностика per-callback.
+- **Ed `MessageEdited` listener** — критична для FSM ботів (edit_message_text).
 
 ## Regen + NBLM retry
 
@@ -103,7 +103,7 @@ tags: [pipeline, regen]
 status: active
 ```
 
-`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: agent_architecture-2 успішно перезапущена після failed NBLM, статус тепер ready.
+`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug).
 
 ## TTS deep-link fix
 
@@ -133,7 +133,7 @@ tags: [ui, pinned]
 status: done
 ```
 
-`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam (deep-links). Exam label клікабельний (`exam_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_` (+ `flashcards_` за додаванням Phase 6.1).
+`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04).
 
 ## Pipeline orchestrator
 
@@ -143,7 +143,7 @@ tags: [pipeline, generation]
 status: done
 ```
 
-`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 6 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop).
+`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop).
 
 ## Tool add_topic в agentic loop
 
@@ -160,10 +160,10 @@ status: active
 ```yaml
 last_touched: 2026-04-24
 tags: [ui, telegram]
-status: done
+status: active
 ```
 
-`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid. **Phase 6.1**: додамо `/flashcards` команди (list, start, cancel).
+`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen, flashcards. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid. **Phase 6.1**: додано `/flashcards` команди (list, start, cancel).
 
 ## Roadmap по маніфесту
 
@@ -173,7 +173,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive, в розробці) ⚙️ | Фаза 6.2+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
@@ -183,7 +183,7 @@ tags: [decisions]
 status: active
 ```
 
-Акордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія).
+Акордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM).
 
 ## Workspace-репо архітектура (post-catchup)
 
@@ -285,7 +285,7 @@ tags: [infrastructure, ed]
 status: active
 ```
 
-Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника).
+Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника). **MessageEdited listener тестований з Phase 6.1 flashcards** (ed commit eb0c26e) — отримав підтримку FSM-ботів з edit_message_text.
 
 ## Abby-v2 на триярусній пам'яті + key blocker
 

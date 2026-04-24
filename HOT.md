@@ -7,53 +7,51 @@ updated: 2026-04-24
 
 ## Now
 
-Phase 6.1 Flashcards interactive MVP — завершена e2e. LLM-генератор flashcards (Sonnet, inline cards у curriculum.json), UI (pinned FC label), FSM (card + quiz mode), deep-link `fc_{topic_id}` — все працює на живому боті. Тест зроблено на `rag_retrieval-1`: deck ready з 10 картками, пройдено card mode + quiz mode.
+**Phase 6.1 Flashcards — завершено.** 18/18 тем мають flashcards ready (10 карток кожна). Ed тести `11_flashcards.json` — 3/3 PASS за 1:44. Повний UI-потік (card mode + quiz mode + completion) перевірений автоматично.
 
 ## Last done
 
-**Сесія 24.04 — Flashcards interactive Phase 6.1**
+**Сесія 24.04 — Phase 6.1 finalize**
 
-- **models.py** — додано `cards`, `deck_size`, `last_mode` у `TopicFormat`.
-- **pipeline.py** — `LLM_FORMATS = {"flashcards"}`, `CARDS_PER_TOPIC=10`, `_FLASHCARDS_PROMPT_TEMPLATE`, `FLASHCARDS_MAX_RETRIES=1`, новий генератор `_generate_flashcards_llm` (Sonnet via `shared.agent_base`, `asyncio.to_thread` для sync-client виклику), валідатор `_parse_and_validate_cards` (JSON + schema checks). Flashcards винесено з NBLM_FORMATS.
-- **modules/curriculum.py** — `cmd_regen` прийнтає опціональний `topic_id`: `/regen rag_retrieval-1` робить regen тільки однієї теми. Повідомляє якщо тема не існує або не потребує regen.
-- **curriculum/renderer.py** — `_fc_label` + вставка `FC` у `_render_topic_line` між TTS і Exam. Неклікабельно якщо `!ready` або `!cards`.
-- **main.py** — імпорт `modules.flashcards`, `elif payload.startswith("fc_")` у `_handle_deep_link`, `CallbackQueryHandler(handle_flashcards_callback, pattern=r"^fc_")`.
-- **modules/flashcards.py** — новий файл ~280 рядків. `_Session` dataclass (in-memory, chat_id → session), handlers для mode picker, flashcard FSM (show/know/dunno), quiz FSM (shuffle permutation, pick, feedback), next/retry/switch_mode/exit, фінальний екран із статистикою. Quiz feedback скорочений (без дублю питання).
-- **e2e тест**: `rag_retrieval-1` → FC deep-link → mode picker → card mode 3 картки → вихід. Потім quiz mode → правильна/неправильна відповідь + feedback. Логи чисті, Sonnet генерує 10 карток за ~42 секунди (1 attempt).
+- **Міграція flashcards 18/18 тем** — reset pending → `/regen --only flashcards` → Sonnet згенерював усі 18 деків без жодного фейлу (0 retry) за ~8 хв.
+- **`cmd_regen --only <fmt>`** (`modules/curriculum.py`) — опція парсить `--only flashcards` у будь-якій позиції args, фільтрує теми лільки за вказаним форматом, передає в `_run_regen(silent=True)` щоб приглушити per-topic повідомлення.
+- **`run_pipeline(silent=True)`** (`curriculum/pipeline.py`) — приглушує `🚀 Pipeline для...`, `🏁 Pipeline завершено...`, `Flashcards готові...`, `✅ Всі формати вже згенеровані`. Помилки (`❌ Тема не знайдена`, `⚠️ Помилка fmt_key`, `Flashcards — помилка генерації`) залишаються видимими. Фінальне summary `_run_regen`: `🏁 Regen завершено: N/M ok`.
+- **log.info у handlers** (`modules/flashcards.py`) — 1 у dispatcher + 8 у кожен `_on_*` (mode_pick, show_answer, self_eval, quiz_pick, next, retry, switch_mode, exit). Формат: `fc {handler_name}: chat={chat_id} data={data!r}`.
+- **Ed transport `events.MessageEdited`** (`ed/transports/telegram.py`) — новий listener `on_bot_edit` замінює повідомлення в `_responses` за id (або додає як нове якщо не знайдено). **Без цього Ed не бачив edit_message_text** → перший прогон фейлив timeout-ами (90с × 3). З патчем: 3/3 PASS за 1:44. Критично для **всіх ботів з FSM на edit** (flashcards, exam, можливо інші).
+- **`11_flashcards.json`** (3 блоки):
+  - `fc_card_mode_basic` — deep-link → card mode → show → know → next
+  - `fc_quiz_mode_basic` — deep-link → quiz mode → pick → feedback → next
+  - `fc_quiz_completion` — 22 steps: 10 карток × (pick + next) → фінальний екран + retry/switch buttons
+- Комітнуто: sam `a0e8b84`, ed `eb0c26e`. Пуш у обидва репо ок.
 
 ## Next
 
-1. **Міграція flashcards для решти 17 тем** — reset `flashcards.status` → `pending` для всіх де немає `cards`, потім `/regen` (масовий або батч по 3-4 теми щоб не чекати Sonnet × 17 одразу). Орієнтовно 15-20 хв очікування на генерацію.
-2. **Ed тести `11_flashcards.json`** — три блоки: `11a_flashcard_mode`, `11b_quiz_mode`, `11c_completion_and_retry`. Перевірити чи є асертіци `assert_button_count`, `click_button_by_index`, `assert_text_matches_any`; додати в `ed/runner/assertions.py` якщо нема (≤30 хв).
-3. **Додати `log.info` у `_on_*` handlers у `modules/flashcards.py`** — 5 хв, зараз handler-и callback-ів не логуються і debug важкий.
-4. **NBLM slides/infographic RPC ADD_SOURCE failed** — окремий баг, blocker для повного pipeline. Потребує діагностики (токен протух? квота? сесія?). **Не стосується Phase 6.1**.
+1. **Phase 6.2 SR (spaced repetition)** — відкласти на 1-2 тижні реального використання flashcards, щоб зрозуміти що саме потрібно (SM-2 / Leitner / власний алгоритм, персистентна історія).
+2. **chkp3 max_tokens bug** — Haiku обрізає JSON при WARM+context >13k tokens, Sonnet fallback timeout 120s. HOT цієї сесії оновлено руками. Варіанти: max_tokens=16000, chunk WARM, timeout=300s.
+3. **NBLM RPC ADD_SOURCE failed** — окремий баг. Діагностика (токен протух / квота / сесія). Блокує slides/podcast_nblm/infographic/video, хоча нас конкретно Phase 6.1 не блокувало.
+4. **6 тем у `generating`** — `tool_use_integration-1`, `agent_architecture-2`, `system_operations-5` форматів slides/podcast_nblm/video/infographic застрягли після failed NBLM. Reset скрипт: знайти всі `generating` і перевести в `pending`.
 
 ## Blockers
 
-- `chkp3` зламався на цій сесії: Haiku max_tokens=8000 обрізало JSON, Sonnet fallback timeout 120s. HOT оновлено руками замість AI-summarization. Потребує фіксу (підняти max_tokens, або chunk WARM).
-- 6 тем у стані `generating` (tool_use_integration-1: slides/podcast_nblm/video; agent_architecture-2: slides/infographic; system_operations-5: slides). Застрягли після failed NBLM. Потребує reset → pending (одноразовий скрипт). Низький пріоритет, не блокер для Phase 6.1.
+- **chkp3 зламаний** на сесіях з великим WARM — Haiku max_tokens=8000 обрізає JSON, Sonnet fallback timeout 120s. Чекпоінт цієї сесії зроблено руками.
+- **NBLM pipeline лежить** (RPC ADD_SOURCE failed) — блокує slides/podcast_nblm/infographic/video. Flashcards не чіпає. Низький пріоритет без явної потреби слухати podcast.
 
 ## Active branches
 
-- **sam-репо (`main`)** — потребує коміт: всі зміни Phase 6.1 (5 файлів нових/змінених).
+- **sam-репо (`main`)** — на HEAD `a0e8b84`. Clean.
+- **ed-репо (`main`)** — на HEAD `eb0c26e`. Clean.
 - **workspace-репо** — без змін.
 
 ## Open questions
 
-- Чи робити Phase 6.2 SR (spaced repetition) зразу після міграції, або чекати 1-2 тижні реального використання щоб зрозуміти потребу?
-- `_SESSIONS` — in-memory dict, скидається при рестарті бота. Якщо Саша в процесі сесії, і бот рестартнеться — сесія губиться. Для Phase 6.1 прийнятно, для 6.2 переглянути персистентність.
+- Phase 6.2 SR — скільки чекати перед стартом? 1-2 тижні, або раніше як з'явиться дані через `deck_size`/`last_mode` use patterns?
+- `_SESSIONS` — in-memory dict, рестарт бота = втрата сесії. Для 6.2 потрібна персистентність (можливо JSON файл `data/flashcards_sessions.json` з TTL).
+- Ed: чи є сенс додати `assert_callback_fired` — перевіряти що `q.answer()` був викликаний? Зараз фіксимо лише через видимий UI-стан.
 
 ## Reminders
 
-- Перед тестуванням flashcards — запустити `journalctl -u sam.service -f` ПЕРЕД кліком у боті.
-- `tool_use_integration-1` має статус `state: pending` — `rag_retrieval-1` довелося перевести в `active` щоб з'явитись у pinned (pinned показує тільки active). Врахувати у міграції — теми для яких генеруємо flashcards мусять бути `active` щоб FC label був видимий.
-- `/regen {topic_id}` — нова одиночна команда, працює. Для масової міграції — `/regen` без аргументу.
-
-- Чи робити Phase 6.2 SR (spaced repetition) зразу після міграції, або чекати 1-2 тижні реального використання щоб зрозуміти потребу?
-- `_SESSIONS` — in-memory dict, скидається при рестарті бота. Якщо Саша в процесі сесії, і бот рестартнеться — сесія губиться. Для Phase 6.1 прийнятно, для 6.2 переглянути персистентність.
-
-## Reminders
-
-- Перед тестуванням flashcards — запустити `journalctl -u sam.service -f` ПЕРЕД кліком у боті.
-- `rag_retrieval-1` довелося перевести в `active` щоб з'явитись у pinned (pinned показує тільки active). Врахувати у міграції — теми для яких генеруємо flashcards мусять бути `active` щоб FC label був видимий.
-- `/regen {topic_id}` — нова одиночна команда. Для масової міграції — `/regen` без аргументу.
+- **Ed `MessageEdited` тепер підключений** — якщо майбутні тести FSM-ботів не працюють, це НЕ та проблема; шукати інше.
+- **`/regen --only <fmt>`** — для будь-якого одиночного формату. `flashcards`, `slides`, `podcast_tts`, etc.
+- **`/regen --only flashcards <topic_id>`** теж працює — силант-міграція для конкретної теми.
+- Перед тестуванням flashcards ручками — `journalctl -u sam.service -f | grep fc ` для debug (тепер кожен callback логується).
+- `rag_retrieval-1` в `active` state — видимо в pinned. Інші теми (не-active) видимі тільки через deep-link `fc_<topic_id>`, у pinned не з'являться.
