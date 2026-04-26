@@ -308,6 +308,30 @@ async def cmd_status(update, context):
             lines.append(f"  \u25b8 {item}")
         lines.append("")
 
+    # Articles section (Phase 6.2)
+    if state.articles:
+        lines.append("\U0001f4d1 <b>Articles</b>\n")
+        for a in state.articles:
+            title = (a.title[:50] if a.title else a.id)
+            lines.append(f"<b>{title}</b>")
+            for fk in fmt_keys:
+                f = a.formats.get(fk)
+                if not f:
+                    continue
+                if f.status == "ready":
+                    lines.append(f"  \u2705 {fk}")
+                elif f.status == "generating":
+                    tid = (f.task_id[:8] + "...") if f.task_id else "no-task-id"
+                    lines.append(f"  \u23f3 {fk} (task: {tid})")
+                elif f.status == "failed":
+                    err = (f.error or "unknown")[:60]
+                    lines.append(f"  \u274c {fk}: {err}")
+                elif f.status == "pending":
+                    lines.append(f"  \u23f8 {fk}")
+                elif f.status == "skipped":
+                    lines.append(f"  \u23ed {fk}")
+            lines.append("")
+
     await update.message.reply_text(
         "\n".join(lines), parse_mode="HTML",
     )

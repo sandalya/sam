@@ -20,28 +20,30 @@ status: active
 ```yaml
 last_touched: 2026-04-26
 tags: [architecture, article, pipeline, nblm]
-status: active
+status: blocked
 ```
 
 Нова архітектура для статей (на відміну від курикулярних тем). `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. State у `data/articles.json` або окремо у `CurriculumState.articles`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів, як для тем). Мутації: `add_article(url) → Article`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_nblm_notebook_id(id, notebook_id)`. Pinned rendering: '📑 Статті (N)' лінк з розширюваним списком чекбоксів. Чергова генерація: послідовна (не паралельна) по форматах для одної статті.
 
-**26.04 Update**: Smoke test виявив критичну архітектурну проблему з NBLM `--wait` таймаутом. Рішення: перейти на `--no-wait --json` + асинхронне `artifact wait <task_id> --timeout 1800`. Потребує refactoring генератора articles для async polling + розширення Article dataclass для тримання task_ids.
+**26.04 Update**: Phase 6.2 NBLM async polling архітектура верифікована для topic-форматів (task_id повертається, /status показує `generating`). Однак article pipeline має критичний баг: `/article <URL>` не стартує генерацію. Формати не створюються як `{"slides": {"status": "pending", ...}}`, а лишаються `{}`. Раніше бачили фінальне повідомлення '⏳ Генерую 4 формат...', зараз його нема. Потребує дебагу в `add_article()` функції — не вызывает `run_pipeline()` чи формати не ініціалізуються правильно.
 
 ## NBLM async polling — критична для articles (PRIORITY refactor)
 
 ```yaml
 last_touched: 2026-04-26
 tags: [nblm, async, architecture, critical]
-status: blocked
+status: active
 ```
 
-**Проблема (26.04 smoke test)**: NbLM CLI `generate <type> --wait` має hard-coded 300s таймаут. Slides займають 5-10 хвилин → таймаут спалюється → CLI рапортує failed. При ретраї через годину (RETRY_DELAYS) дублюються артефакти на стороні Google (3 slide deck для article_6a578102).
-
-**Root cause**: Синхронний блокуючий `--wait` не підходить для довгих операцій. Google Slides / Infographics / Video можуть займати 10-30 хвилин.
-
-**Архітектурне рішення (готове)**: NbLM CLI має правильне API:
+**Рішення верифіковано (26.04)**: NbLM CLI має правильне API:
 - `generate <type> --no-wait --json` — миттєво повертає `{task_id, status}`, не блокує
 - `artifact wait <task_id> --timeout 1800` — асинхронне опитування з довгим таймаутом (30 хв)
+
+**Тестування (26.04)**:
+- TopicFormat.task_id поле додано в моделі, `set_format_status()` приймає task_id параметр.
+- Пряма перевірка `_start_generation()` повернула task_id успішно.
+- `/status` команда показує 6 topic-форматів у `generating` стані через новий async код, 0 failed.
+- Lazy re-attach логіка вбудована — при перезавантаженні ботом, задачі можуть переприкріпитись без перегенерування.
 
 **Реалізаційні деталі**:
 1. Генератор articles (слайди, подкасти NBLM, інфографіка, відео) вызывает `generate --no-wait --json`, отримує task_id миттєво, зберігає у `Article.formats[fmt].task_id`.
@@ -49,6 +51,8 @@ status: blocked
 3. При success — updating `Article.formats[fmt].status = "ready", .task_id = None`.
 4. Pinned rendering оновлюється при зміні статусу (важливо для UX).
 5. Artifact dedup перед retry: перевірити чи notebook_id вже існує на Google перед новою генерацією.
+
+**Відкрите питання**: Чому article pipeline не запускає генерацію при `/article <URL>`? Dead-code `_generate_fmt_via_cli` потребує видалення (Patch 3c).
 
 ## Activity tracking окремо від curriculum
 
@@ -138,7 +142,7 @@ tags: [pipeline, regen, nblm]
 status: active
 ```
 
-`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug). **26.04 update**: NBLM async polling критична проблема виявлена — `--wait` таймаут 300s недостатній, потребує refactoring на `--no-wait + artifact wait`.
+`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug). **26.04 update**: NBLM async polling архітектура верифікована і працює для topic-форматів. Dead-code `_generate_fmt_via_cli` потребує видалення перед merge.
 
 ## TTS deep-link fix
 
@@ -163,22 +167,22 @@ status: done
 ## Pinned панель — interactive deep-links
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [ui, pinned]
 status: active
 ```
 
-`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04). **26.04 update**: додати `article_` dispatcher для article-статей.
+`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04). **26.04 update**: додати `article_` dispatcher для article-статей (при `/article` команді).
 
 ## Pipeline orchestrator
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [pipeline, generation]
 status: active
 ```
 
-`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop). **26.04 update**: потребує розширення для article-артефактів (інший генератор, інший flow для `--no-wait`).
+`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop). **26.04 update**: потребує розширення для article-артефактів (інший генератор, інший flow для `--no-wait`). КРИТИЧНА ПРОБЛЕМА: article pipeline не запускає генерацію при `/article <URL>` — баг в `add_article()` або call до `run_pipeline()`.
 
 ## Tool add_topic в agentic loop
 
@@ -208,7 +212,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 **CRITICAL** — блокує на NBLM async refactor | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 **BLOCKED на article pipeline баг** — NBLM async архітектура готова, тестована для topics, але articles не генеруються. Dead-code видалення чекає (Patch 3c) | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
@@ -218,7 +222,7 @@ tags: [decisions]
 status: active
 ```
 
-Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait` (НОВЕ для 26.04). **Task tracking**: Article dataclass потребує розширення для task_ids (dict[format, task_id]) аби відстежувати async операції.
+Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait`. **Task tracking**: Article dataclass розширено для task_ids (dict[format, task_id]) аби відстежувати async операції. **TopicFormat.task_id**: додано для topic-форматів, тестовано, готово. **Article.formats нініціалізуються**: БАГИ — не створюються як `{"slides": {...}, "podcast_nblm": {...}, ...}` при `/article`, потребує дебагу.
 
 ## Workspace-репо архітектура (post-catchup)
 

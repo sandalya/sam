@@ -239,6 +239,7 @@ def set_format_status(
     *,
     url: Optional[str] = None,
     error: Optional[str] = None,
+    task_id: Optional[str] = None,
 ) -> TopicFormat:
     """
     Оновлює статус формату. Якщо status=ready — виставляє generated_at та url (якщо переданий).
@@ -265,6 +266,10 @@ def set_format_status(
         fmt.error = None
 
     topic.updated_at = now
+    if status == "generating" and task_id is not None:
+        fmt.task_id = task_id
+    elif status in ("ready", "failed", "pending", "skipped"):
+        fmt.task_id = None
     log.info(f"Topic {topic_id}.formats[{format_key}]: status → {status}")
     return fmt
 
@@ -383,6 +388,7 @@ def set_article_format_status(
     *,
     url: Optional[str] = None,
     error: Optional[str] = None,
+    task_id: Optional[str] = None,
 ) -> TopicFormat:
     """Mirror set_format_status, але для Article. TopicFormat реюзаємо."""
     if status not in ALLOWED_FORMAT_STATUSES:
@@ -404,5 +410,9 @@ def set_article_format_status(
         fmt.error = error or "unknown"
     else:
         fmt.error = None
+    if status == "generating" and task_id is not None:
+        fmt.task_id = task_id
+    elif status in ("ready", "failed", "pending", "skipped"):
+        fmt.task_id = None
     log.info(f"Article {article_id}.formats[{format_key}]: status → {status}")
     return fmt

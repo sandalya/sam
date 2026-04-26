@@ -7,44 +7,45 @@ updated: 2026-04-26
 
 ## Now
 
-**Phase 6.2 — NBLM async polling refactor.** Article pipeline live з мульти-чекбоксами, інтерактивною чергою, рендером у pinned. Smoke test виявив критичний баг: NbLM CLI `--wait` має 300s таймаут, slides беруть 5-10 хвилин, CLI рапортує failed. Ретрай через годину створює дублікати артефактів на стороні Google (3 slide deck для article_6a578102). Архітектурне рішення готове: `generate --no-wait --json` → task_id миттєво, потім окремо `artifact wait <task_id> --timeout 1800` асинхронно.
+**Phase 6.2 — NBLM async polling refactor (CRITICAL).** Верифіковано `/status` з новим async кодом: 6 topic-форматів у `generating` стані через `_start_generation()` (task_id повернений успішно, 0 failed). Аллокатор task_id в TopicFormat.task_id працює. Однак article auto-pipeline має баг: `/article` додає Article але `formats={}` остаються пустими, генерація не стартує (раніше бачили '⏳ Генерую 4 формат...').
 
 ## Last done
 
-**Сесія 26.04 — Article pipeline smoke test → NBLM async polling diagnosis**
+**Сесія 26.04 — Phase 6.2 NBLM async polling рефакт верифіковано + article pipeline баг**
 
-- **Article URL pipeline завершено** — `/article <URL>` → fetch → Claude аналіз → 5 форматів (slides, podcast_nblm, infographic, flashcards, video) з чекбоксами ✨recommended/🚀Згенерувати. Стан у `state.articles` dataclass, мутації: `add_article`/`remove_article`/`set_article_format_status`/`set_article_nblm_notebook_id`.
-- **Sequential queue** — статті генеруються послідовно по форматах (не паралельно), видимість у pinned '📑 Статті (N)' після mastered.
-- **Повна команда-набір** — `/article <URL>` додає стаття, `/article_del <shortid>` видаляє, чекбокси для формат-вибору + кнопка генерування.
-- **Smoke test → критичний баг виявлено** — NbLM CLI `generate --wait` таймаут 300s недостатній для slides (займають 5-10 хвилин). При фейлі ретрай через годину не перевіряє чи слайди вже існують → дублікати на стороні Google (3 slide deck для article_6a578102).
-- **NBLM async polling архітектура діагностована** — CLI має `generate <type> --no-wait --json` (повертає task_id миттєво) + окремо `artifact wait <task_id> --timeout 1800` (асинхронне опитування). Це правильний шлях замість синхронного `--wait`.
-- **Ручний救援 article_6a578102** — вручну виправлено slides=ready з URL у curriculum.json, дублікати залишились у Google Drive (вимагає cleanup).
+- **TopicFormat.task_id поле добавлено** — Topic-формати тепер тримають task_id при запуску `_start_generation()`. Тест: прямий виклик повернув task_id успішно.
+- **set_format_status оновлена** — приймає task_id параметр, записує у TopicFormat.task_id. Мутація працює.
+- **_start_generation + _wait_for_artifact замість --wait** — замість синхронного `generate --wait` (300s таймаут), ділимо на: (1) `generate --no-wait --json` (повертає task_id миттєво), (2) окремий `artifact wait <task_id> --timeout 1800` асинхронно. Архітектура верифікована у коді.
+- **Lazy re-attach логіка вбудована** — при перезавантаженні ботом, задачі з task_id можуть переприкріпитись до форматів без перегенерування.
+- **/status показує articles з task_id** — Команда додала вивід task_id для кожного article-формату. Поточний стан видно.
+- **Article pipeline баг виявлено** — `/article <URL>` додає Article об'єкт, але генерація не стартує. Формати створюються як `formats={}` (пусто), не як `formats={"slides": {"status": "pending", ...}}`. Раніше у smoke-test бачили фінальне повідомлення '⏳ Генерую 4 формат...', зараз його нема → генератор не запускається.
+- **Ноутбук 87236f77** — використаний як тестовий під час smoke-test Phase 1+2, у нього є flashcards як побічний продукт тестування.
+- **Dead-code _generate_fmt_via_cli** — знайдено у коді (Patch 3c), потребує видалення перед merge.
 
 ## Next
 
-1. **NBLM async polling refactor (PRIORITY)** — замінити синхронний `--wait` на `--no-wait` + асинхронне `artifact wait <task_id> --timeout 1800`. Охоп: генератор артефактів (slides, podcast_nblm, infographic, video) для articles + articles mutations повинні писати task_id у стан. Телеметрія: лог коли task переходить у ready.
-2. **Artifact dedup (вторинна)** — перед retry для article-формату перевіряти чи артефакт вже існує на стороні Google за notebook_id, уникаючи дублікатів.
-3. **Smoke test article pipeline повторний** — запустити генерацію всіх 5 форматів для реальної статті, перевірити що слайди генеруються без зависання, нема дублікатів, артефакти міцно лежать у Google.
+1. **Видалити dead-code _generate_fmt_via_cli (Patch 3c)** — очистити код перед merge async polling.
+2. **Зафіксити article auto-pipeline — баг у форматах** — `/article <URL>` повинна створювати `formats={"slides": {"status": "pending", ...}, ...}` і запускати генерацію, як це було раніше. Розбір: (а) де формати не створюються, (б) чому генератор не запускається.
+3. **Верифікація: article pipeline full-cycle** — запустити `/article <реальна URL>` з усіма 5 форматами, перевірити що `_start_generation` викликається, task_id записується у стан, `/status` показує задачі у `generating` стані.
 
 ## Blockers
 
-- **NBLM async polling** — критичний для article pipeline. Блокує production-розгортання статей без ручного втручання.
+- **Article pipeline генерація не стартує** — батіжить автоматичний запуск при `/article`, потребує дебагу. Перевірити: функція `add_article()` викликає `run_pipeline()` чи ні.
 
 ## Active branches
 
-- **sam-репо (`main`)** — чистий, готів до комітів async polling refactor.
-- **ed-репо (`main`)** — синхронізований, MessageEdited listener для FSM (eb0c26e від 24.04).
+- **sam-репо (`main`)** — готов до комітів рефактора, dead-code очистка чекає.
+- **ed-репо (`main`)** — синхронізований.
 
 ## Open questions
 
-- Яка оптимальна timeout для `artifact wait`? 1800s (30 хв) достатня для всіх форматів (podcast_nblm, infographic, video, slides)?
-- Чи потрібна retry-логіка після `artifact wait timeout`? (e.g., якщо задача виконується дуже довго, 30+ хвилин)
-- Як тримати task_id у Article dataclass? Нове поле `task_ids: dict[str, str]` = {format: task_id}?
-- Чи прибрати дублікати з Google Drive вручну, чи автоматично при cleanup?
+- Чому article-формати не створюються у add_article()? Код тягнув масив FORMAT_TYPES та створював пусту структуру раніше.
+- Яка оптимальна timeout для `artifact wait`? Поточна 1800s (30 хв) достатня для всіх?
+- Чи потрібна retry-логіка після `artifact wait timeout`?
 
 ## Reminders
 
-- **NbLM async polling правильний архітектурний шлях** — `generate --no-wait --json` + `artifact wait` асинхронно. НЕ використовувати `--wait` у майбутніх генераторах.
-- **Article dataclass розширення** — додати поле для task_ids або nested ArticleFormat структури з task_id.
-- **Pinned rendering** — слід оновлювати при переході format-статусу з pending→processing→ready (телеметрія важлива для користувача).
-- **Дублікати article_6a578102** — на Google Drive залишились 3 slide deck, потрібен cleanup або ignore (не блокує фаз, но гігієна важна).
+- **NbLM async polling архітектура готова** — `generate --no-wait --json` + `artifact wait <task_id>` асинхронно. Це правильний шлях.
+- **Article dataclass розширено** — TopicFormat.task_id поле вже в моделі.
+- **Pi5 sam-сервіс активний** — готовий до тестування щоразу.
+- **Dead-code очистка** — Patch 3c (`_generate_fmt_via_cli`) потребує видалення.

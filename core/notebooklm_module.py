@@ -25,6 +25,7 @@ Phase 2.3 redesign:
 """
 import asyncio
 import logging
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -188,6 +189,75 @@ async def _generate_fmt_via_cli(
     return True, ""
 
 
+# ── generate_fmt async (Phase 6.2: --no-wait + artifact wait) ───────────
+
+async def _start_generation(
+    notebook_id: str,
+    fmt: str,
+    instructions: str,
+) -> tuple[str, str]:
+    """Phase 1: запускає генерацію через --no-wait --json. Повертає (task_id, error).
+    error: "" | "rate_limit" | "error" | "unsupported"."""
+    if fmt not in _NBLM_CMD_ARGS:
+        log.error(f"Format {fmt!r} is not an NBLM format")
+        return "", "unsupported"
+
+    args = list(_NBLM_CMD_ARGS[fmt]) + ["-n", notebook_id, "--no-wait", "--json"]
+    if instructions:
+        args.append(instructions)
+
+    rc, stdout, stderr = await _run(args, timeout=120)
+    if rc == -1:
+        return "", "error"
+    if "rate limited" in stdout.lower() or "rate limited" in stderr.lower():
+        return "", "rate_limit"
+    if rc != 0:
+        log.error(f"Start {fmt} failed rc={rc}: stdout={stdout[:300]} stderr={stderr[:300]}")
+        return "", "error"
+    try:
+        data = json.loads(stdout)
+        task_id = data.get("task_id", "")
+        if not task_id:
+            log.error(f"Start {fmt}: no task_id in response: {stdout[:300]}")
+            return "", "error"
+        log.info(f"Start {fmt}: task_id={task_id} status={data.get('status')}")
+        return task_id, ""
+    except json.JSONDecodeError as e:
+        log.error(f"Start {fmt}: JSON decode failed: {e}, stdout={stdout[:300]}")
+        return "", "error"
+
+
+async def _wait_for_artifact(
+    task_id: str,
+    notebook_id: str,
+    timeout: int = 1800,
+) -> tuple[bool, str]:
+    """Phase 2: чекає на завершення артефакту. Loop при timeout (нескінченно).
+    Повертає (ok, error). error: "" | "failed" | "error"."""
+    while True:
+        args = ["artifact", "wait", task_id, "-n", notebook_id,
+                "--timeout", str(timeout), "--json"]
+        rc, stdout, stderr = await _run(args, timeout=timeout + 60)
+        if rc == -1:
+            log.warning(f"Wait {task_id}: subprocess timeout, retry loop")
+            continue
+        try:
+            data = json.loads(stdout)
+        except json.JSONDecodeError as e:
+            log.error(f"Wait {task_id}: JSON decode failed: {e}, stdout={stdout[:300]}")
+            return False, "error"
+        status = data.get("status", "")
+        if status == "completed":
+            log.info(f"Wait {task_id}: completed")
+            return True, ""
+        if status == "failed":
+            err = data.get("error") or "generation failed"
+            log.error(f"Wait {task_id}: failed: {err}")
+            return False, "failed"
+        # Будь-який інший статус (in_progress/pending/timeout) — продовжуємо чекати
+        log.info(f"Wait {task_id}: status={status}, continuing")
+
+
 # ── generate_and_notify ──────────────────────────────────────────────────────
 
 async def generate_and_notify(
@@ -249,16 +319,44 @@ async def generate_and_notify(
         set_format_status(state, topic_id, fmt, "generating")
     save(state, cur_path)
 
-    # Step 4: generate with rate-limit backoff
-    RETRY_DELAYS = [0] + [3600] * 71  # retry hourly, up to 72h
+    # Step 4: two-phase generation with re-attach support
+    RETRY_DELAYS = [0] + [3600] * 71  # hourly retry up to 72h on rate_limit at start
+
+    # Lazy re-attach: if there is already a task_id in state, skip Phase 1
+    state = load(cur_path)
+    existing = (state.get_article(topic_id) if kind == "article"
+                else state.get_topic(topic_id))
+    existing_fmt = existing.formats.get(fmt) if existing else None
+    task_id = existing_fmt.task_id if (existing_fmt and existing_fmt.status == "generating") else ""
+
     ok, err = False, "error"
-    for delay in RETRY_DELAYS:
-        if delay:
-            log.info(f"Retry {fmt} for topic {topic_id} after {delay}s")
-            await asyncio.sleep(delay)
-        ok, err = await _generate_fmt_via_cli(notebook_id, fmt, instructions)
-        if ok or err != "rate_limit":
-            break
+
+    if task_id:
+        log.info(f"Re-attach {fmt} for {topic_id}: task_id={task_id}")
+    else:
+        # Phase 1: start with rate-limit backoff
+        start_err = "error"
+        for delay in RETRY_DELAYS:
+            if delay:
+                log.info(f"Retry start {fmt} for {topic_id} after {delay}s")
+                await asyncio.sleep(delay)
+            task_id, start_err = await _start_generation(notebook_id, fmt, instructions)
+            if task_id or start_err != "rate_limit":
+                break
+        if not task_id:
+            ok, err = False, start_err
+        else:
+            # Save task_id to state before waiting (re-attach point on restart)
+            state = load(cur_path)
+            if kind == "article":
+                set_article_format_status(state, topic_id, fmt, "generating", task_id=task_id)
+            else:
+                set_format_status(state, topic_id, fmt, "generating", task_id=task_id)
+            save(state, cur_path)
+
+    # Phase 2: wait (only if we have a task_id from re-attach or from Phase 1)
+    if task_id:
+        ok, err = await _wait_for_artifact(task_id, notebook_id)
 
     # Step 5: persist outcome
     state = load(cur_path)

@@ -76,6 +76,7 @@ class TopicFormat:
     cards: Optional[list] = None       # Phase 6.1: flashcards deck [{id, q, a, distractors}]
     deck_size: Optional[int] = None    # Phase 6.1: скільки карток у deck (default 10)
     last_mode: Optional[str] = None    # Phase 6.1: "flashcard" | "quiz" | None
+    task_id: Optional[str] = None      # Phase 6.2: NBLM async task_id (re-attach)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -92,6 +93,7 @@ class TopicFormat:
             cards=data.get("cards"),
             deck_size=data.get("deck_size"),
             last_mode=data.get("last_mode"),
+            task_id=data.get("task_id"),
         )
 
 
