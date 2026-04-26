@@ -154,41 +154,6 @@ async def get_or_create_notebook(
     log.info(f"Created notebook {notebook_id} for {kind} {topic_id}")
     return notebook_id
 
-
-# ── generate_fmt (internal) ──────────────────────────────────────────────────
-
-async def _generate_fmt_via_cli(
-    notebook_id: str,
-    fmt: str,
-    instructions: str,
-) -> tuple[bool, str]:
-    """
-    Запускає NBLM CLI для генерації одного формату.
-    Повертає (ok, error_type). error_type: "" | "rate_limit" | "timeout" | "error" | "unsupported"
-    """
-    if fmt not in _NBLM_CMD_ARGS:
-        log.error(f"Format {fmt!r} is not an NBLM format")
-        return False, "unsupported"
-
-    args = list(_NBLM_CMD_ARGS[fmt]) + ["-n", notebook_id, "--wait"]
-    if instructions:
-        args.append(instructions)
-
-    rc, stdout, stderr = await _run(args, timeout=1800)
-    if rc == -1:
-        return False, "timeout"
-    if "rate limited" in stdout.lower():
-        return False, "rate_limit"
-    if rc == 1 and "Generating" in stdout:
-        # Генерація запустилась але впала на стороні Google — варто ретраїти
-        log.error(f"Generate {fmt} failed rc={rc}: {stdout[:200]}")
-        return False, "rate_limit"
-    if rc != 0:
-        log.error(f"Generate {fmt} failed rc={rc}: {stdout[:200]}")
-        return False, "error"
-    return True, ""
-
-
 # ── generate_fmt async (Phase 6.2: --no-wait + artifact wait) ───────────
 
 async def _start_generation(
