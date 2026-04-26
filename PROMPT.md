@@ -1,9 +1,9 @@
-Проект: sam
+Проект: Sam (AI-лічба-ментор, Telegram-бот).
 
-Поточний стан: Phase 6.2 (Article pipeline) виявив критичний баг — NBLM CLI `--wait` таймаут 300s недостатній для slides (займають 5-10 хвилин). При фейлі через годину ретрай створює дублікати артефактів на Google Drive. Дефинітивне рішення готове: замінити синхронний `--wait` на асинхронне `--no-wait --json` + `artifact wait <task_id> --timeout 1800`.
+Стан: Phase 6.2 NBLM async polling — архітектура верифікована для topic-форматів (task_id повертається, /status показує generating). Але article pipeline має баг: `/article <URL>` додає Article але формати не генеруються (раніше було '⏳ Генерую 4 формат...'). Dead-code `_generate_fmt_via_cli` чекає видалення (Patch 3c).
 
-Что робити: NBLM async polling refactor у генераторі articles (slides, podcast_nblm, infographic, video). Розширити Article dataclass для task_ids, telemetry для status-переходів, artifact dedup перед retry. Потім smoke test всіх 5 форматів.
+Что зробити: (1) дебаг article auto-pipeline — чому формати не ініціалізуються і генерація не стартує, (2) видалити dead-code, (3) верифікувати full-cycle: `/article <URL>` → формати створені → `/status` показує задачі у generating.
 
-Блокери: async polling критична для production article pipeline.
+Блокери: article-генерація не запускається, потребує дебагу в `add_article()`.
 
-Преді почати — прочитай HOT.md та WARM.md (в `/workspace/sam/`).
+Шарити: HOT.md + WARM.md на старті сесії.

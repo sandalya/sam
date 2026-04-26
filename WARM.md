@@ -13,9 +13,9 @@ tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py` (Island/Topic/TopicFormat/CurriculumState), `storage.py` (load/save), `mutations.py` (add_topic/add_island/set_topic_state/mark_format_consumed/set_format_status/set_format_url), `islands.py` (LLM-кластеризація), `migration.py` (legacy→v2), `renderer.py` (pinned rendering). Раніше жив у `shared/curriculum/` — перенесено 20.04 у власність Sam (домейн-код, не shared-інфра). Стан у `data/curriculum.json` (schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`, `legacy_id` для маппінгу на `notebooklm_notebooks.json`. Формати: `slides / podcast_nblm / podcast_tts / video / infographic / flashcards / exam`.
+`sam/curriculum/` — пакет з `models.py` (Island/Topic/TopicFormat/Article/ArticleFormat/CurriculumState), `storage.py` (load/save), `mutations.py` (add_topic/add_island/set_topic_state/mark_format_consumed/set_format_status/set_format_url/add_article/remove_article/set_article_format_status), `islands.py` (LLM-кластеризація), `migration.py` (legacy→v2), `renderer.py` (pinned rendering). Раніше жив у `shared/curriculum/` — перенесено 20.04 у власність Sam (домейн-код, не shared-інфра). Стан у `data/curriculum.json` (schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`, `legacy_id` для маппінгу на `notebooklm_notebooks.json`. Формати для тем: `slides / podcast_nblm / podcast_tts / video / infographic / flashcards / exam`. **26.04 update**: Article dataclass додано з 5-ти форматів (slides, podcast_nblm, infographic, flashcards, video), task_id поле для async tracking.
 
-## Article pipeline (Phase 6.2 in progress)
+## Article pipeline (Phase 6.2 in progress — BLOCKED)
 
 ```yaml
 last_touched: 2026-04-26
@@ -23,9 +23,12 @@ tags: [architecture, article, pipeline, nblm]
 status: blocked
 ```
 
-Нова архітектура для статей (на відміну від курикулярних тем). `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. State у `data/articles.json` або окремо у `CurriculumState.articles`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів, як для тем). Мутації: `add_article(url) → Article`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_nblm_notebook_id(id, notebook_id)`. Pinned rendering: '📑 Статті (N)' лінк з розширюваним списком чекбоксів. Чергова генерація: послідовна (не паралельна) по форматах для одної статті.
+Нова архітектура для статей (на відміну від курикулярних тем). `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. ArticleFormat: `{"status": "pending|generating|ready|failed", "task_id": null|str, "url": null|str, "consumed": false}` — така ж структура як TopicFormat. State у `data/articles.json` або у `CurriculumState.articles`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів, як для тем, але без exam). Мутації: `add_article(url) → Article`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_format_task_id(id, fmt, task_id)`, `set_article_nblm_notebook_id(id, fmt, notebook_id)`. Pinned rendering: '📑 Статті (N)' лінк з розширюваним списком чекбоксів. Чергова генерація: послідовна (не паралельна) по форматах для одної статті.
 
-**26.04 Update**: Phase 6.2 NBLM async polling архітектура верифікована для topic-форматів (task_id повертається, /status показує `generating`). Однак article pipeline має критичний баг: `/article <URL>` не стартує генерацію. Формати не створюються як `{"slides": {"status": "pending", ...}}`, а лишаються `{}`. Раніше бачили фінальне повідомлення '⏳ Генерую 4 формат...', зараз його нема. Потребує дебагу в `add_article()` функції — не вызывает `run_pipeline()` чи формати не ініціалізуються правильно.
+**26.04 Update — CRITICAL BAG**: Phase 6.2 NBLM async polling архітектура верифікована для topic-форматів (task_id повертається, /status показує `generating`). Однак article pipeline має критичний баг: `/article <URL>` не стартує генерацію. Формати **не створюються** як `{"slides": {"status": "pending", ...}, "podcast_nblm": {...}, ...}`, а лишаються `formats={}`. Раніше у smoke-test бачили фінальне повідомлення '⏳ Генерую 4 формат...', зараз його нема. Генератор не запускається. **Потребує дебагу**:
+- В `add_article()` чи `Article.__init__()` — чому формати не ініціалізуються?
+- В контроллері `cmd_article` чи мутаціях — чому `run_pipeline()` не викликається для articles?
+- Чи `_start_generation()` для articles взагалі викликається? Тестувати через smoke.
 
 ## NBLM async polling — критична для articles (PRIORITY refactor)
 
@@ -43,16 +46,16 @@ status: active
 - TopicFormat.task_id поле додано в моделі, `set_format_status()` приймає task_id параметр.
 - Пряма перевірка `_start_generation()` повернула task_id успішно.
 - `/status` команда показує 6 topic-форматів у `generating` стані через новий async код, 0 failed.
-- Lazy re-attach логіка вбудована — при перезавантаженні ботом, задачі можуть переприкріпитись без перегенерування.
+- Lazy re-attach логіка вбудована — при перезавантаженні ботом, задачі можуть переприкріпитись без перегенерування. **Потребує явної верифікації**: рестарт був при активному task_id 7af67aad (video), але не перевіряли чи задача справді re-attach чи перезапустилась.
 
 **Реалізаційні деталі**:
-1. Генератор articles (слайди, подкасти NBLM, інфографіка, відео) вызывает `generate --no-wait --json`, отримує task_id миттєво, зберігає у `Article.formats[fmt].task_id`.
+1. Генератор articles (слайди, подкасти NBLM, інфографіка, видео) вызывает `generate --no-wait --json`, отримує task_id миттєво, зберігає у `Article.formats[fmt].task_id`.
 2. Telemetry task у фоні (asyncio task чи periodic check) вызывает `artifact wait <task_id> --timeout 1800`.
 3. При success — updating `Article.formats[fmt].status = "ready", .task_id = None`.
 4. Pinned rendering оновлюється при зміні статусу (важливо для UX).
 5. Artifact dedup перед retry: перевірити чи notebook_id вже існує на Google перед новою генерацією.
 
-**Відкрите питання**: Чому article pipeline не запускає генерацію при `/article <URL>`? Dead-code `_generate_fmt_via_cli` потребує видалення (Patch 3c).
+**Відкрите питання**: Чому article pipeline не запускає генерацію при `/article <URL>`? Dead-code `_generate_fmt_via_cli` потребує видалення (Patch 3c). Lazy re-attach потребує явної верифікації при активному task_id.
 
 ## Activity tracking окремо від curriculum
 
@@ -172,7 +175,7 @@ tags: [ui, pinned]
 status: active
 ```
 
-`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04). **26.04 update**: додати `article_` dispatcher для article-статей (при `/article` команді).
+`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04). **26.04 update**: потребує `article_` dispatcher для article-статей (при `/article` команді), потребує реалізації перед smoke-тестом.
 
 ## Pipeline orchestrator
 
@@ -182,7 +185,7 @@ tags: [pipeline, generation]
 status: active
 ```
 
-`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop). **26.04 update**: потребує розширення для article-артефактів (інший генератор, інший flow для `--no-wait`). КРИТИЧНА ПРОБЛЕМА: article pipeline не запускає генерацію при `/article <URL>` — баг в `add_article()` або call до `run_pipeline()`.
+`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop). **26.04 update**: потребує розширення для article-артефактів (інший генератор, інший flow для `--no-wait`). **КРИТИЧНА ПРОБЛЕМА**: article pipeline не запускає генерацію при `/article <URL>` — баг в `add_article()` або call до `run_pipeline()`. Потребує дебагу + fix + smoke-тесту.
 
 ## Tool add_topic в agentic loop
 
@@ -212,7 +215,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 **BLOCKED на article pipeline баг** — NBLM async архітектура готова, тестована для topics, але articles не генеруються. Dead-code видалення чекає (Patch 3c) | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 **BLOCKED на article pipeline баг** — NBLM async архітектура готова, тестована для topics (6 topic-форматів generating, task_id повертаються, /status показує, lazy re-attach вбудована но не верифікована явно), але articles не генеруються, формати не ініціалізуються, генератор не запускається. Dead-code видалення чекає (Patch 3c) | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
@@ -222,7 +225,7 @@ tags: [decisions]
 status: active
 ```
 
-Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait`. **Task tracking**: Article dataclass розширено для task_ids (dict[format, task_id]) аби відстежувати async операції. **TopicFormat.task_id**: додано для topic-форматів, тестовано, готово. **Article.formats нініціалізуються**: БАГИ — не створюються як `{"slides": {...}, "podcast_nblm": {...}, ...}` при `/article`, потребує дебагу.
+Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait`. **Task tracking**: Article dataclass розширено для task_ids (dict[format, task_id]) аби відстежувати async операції. **TopicFormat.task_id**: додано для topic-форматів, тестовано, готово. **Article.formats ініціалізація**: КРИТИЧНИЙ БАГ — не створюються як `{"slides": {...}, "podcast_nblm": {...}, ...}` при `/article`, потребує дебагу + fix. **Lazy re-attach**: верифіковано для topics через код, але не явно при активному task_id — потребує явної верифікації при рестарті з task 7af67aad video.
 
 ## Workspace-репо архітектура (post-catchup)
 
