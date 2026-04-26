@@ -1,6 +1,5 @@
-Проект: sam
-Стан: Phase 6.1 Flashcards завершено (18/18 тем, Ed тести 3/3 PASS). Перший живий тест Ed MessageEdited listener пройшов успішно — edit_message_text тепер працює в FSM-ботах. Наступний крок — Phase 6.2 SR або діагностика NBLM/chkp3 бага.
+Проект: Sam. Статус: Article pipeline в розробці. У smoke test виявлено критичний баг NBLM — синхронний --wait таймаутить на слайдах (300s < 5-10 хв), ретрай дублює артефакти на Google. Архітектура: NbLM має `--no-wait --json + artifact wait <task_id> --timeout 1800` (асинхронне опитування). Потребує refactoring генератора (slides, podcast_nblm, infographic, video) щоб перейти на цей шлях.
 
-Баги: (1) chkp3 Haiku max_tokens overflow при WARM>13k, Sonnet fallback timeout 120s; (2) NBLM RPC ADD_SOURCE failed блокує slides/podcast_nblm; (3) 6 тем у `generating` після failed NBLM.
+Читай HOT.md + WARM.md. Наступний крок: NBLM async polling refactor + artifact dedup + smoke test article pipeline.
 
-Перш ніж почти — поділись HOT.md + WARM.md із сесії 24.04, щоб я знав точний стан. Чи є нові розробки у Рэген/NBLM/инших фронтів?
+Блокери: NBLM async polling. Без цього нема production-готовності для article pipeline.
