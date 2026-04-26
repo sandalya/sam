@@ -31,6 +31,7 @@ from typing import Optional
 from curriculum import (
     load, save,
     set_nblm_notebook_id, set_format_status,
+    set_article_nblm_notebook_id, set_article_format_status,
     ALLOWED_FORMATS,
 )
 
@@ -104,6 +105,7 @@ async def get_or_create_notebook(
     topic_title: str,
     data_dir: Path,
     category: str = "SAM",
+    kind: str = "topic",
 ) -> Optional[str]:
     """
     Повертає notebook_id для теми. Якщо Topic.nblm_notebook_id порожнє — створює
@@ -113,14 +115,17 @@ async def get_or_create_notebook(
     """
     cur_path = _curriculum_path(data_dir)
     state = load(cur_path)
-    topic = state.get_topic(topic_id)
-    if not topic:
-        log.error(f"Topic {topic_id!r} not found in curriculum")
+    if kind == "article":
+        entity = state.get_article(topic_id)
+    else:
+        entity = state.get_topic(topic_id)
+    if not entity:
+        log.error(f"{kind.capitalize()} {topic_id!r} not found in curriculum")
         return None
 
-    if topic.nblm_notebook_id:
-        log.info(f"Reusing notebook {topic.nblm_notebook_id} for topic {topic_id}")
-        return topic.nblm_notebook_id
+    if entity.nblm_notebook_id:
+        log.info(f"Reusing notebook {entity.nblm_notebook_id} for {kind} {topic_id}")
+        return entity.nblm_notebook_id
 
     # Create new notebook
     notebook_name = f"{category} — {topic_title}"
@@ -139,10 +144,13 @@ async def get_or_create_notebook(
         log.error(f"Could not parse notebook ID from stdout: {stdout}")
         return None
 
-    # Persist в Topic
-    set_nblm_notebook_id(state, topic_id, notebook_id)
+    # Persist в Topic або Article
+    if kind == "article":
+        set_article_nblm_notebook_id(state, topic_id, notebook_id)
+    else:
+        set_nblm_notebook_id(state, topic_id, notebook_id)
     save(state, cur_path)
-    log.info(f"Created notebook {notebook_id} for topic {topic_id}")
+    log.info(f"Created notebook {notebook_id} for {kind} {topic_id}")
     return notebook_id
 
 
@@ -192,6 +200,7 @@ async def generate_and_notify(
     instructions: str,
     skip_source: bool = False,
     data_dir: Path = None,
+    kind: str = "topic",
 ) -> None:
     """
     Один формат end-to-end: ensure notebook → add source → generate → notify.
@@ -212,11 +221,14 @@ async def generate_and_notify(
     cur_path = _curriculum_path(data_dir)
 
     # Step 1: ensure notebook
-    notebook_id = await get_or_create_notebook(topic_id, topic_title, data_dir)
+    notebook_id = await get_or_create_notebook(topic_id, topic_title, data_dir, kind=kind)
     if not notebook_id:
         await bot.send_message(chat_id, "❌ Не вдалось створити notebook.")
         state = load(cur_path)
-        if state.get_topic(topic_id):
+        if kind == "article" and state.get_article(topic_id):
+            set_article_format_status(state, topic_id, fmt, "failed", error="notebook create failed")
+            save(state, cur_path)
+        elif kind == "topic" and state.get_topic(topic_id):
             set_format_status(state, topic_id, fmt, "failed", error="notebook create failed")
             save(state, cur_path)
         return
@@ -229,9 +241,12 @@ async def generate_and_notify(
         if rc != 0:
             log.warning(f"Add source warning (ignored) for {topic_id}: {stderr}")
 
-    # Step 3: mark as generating in Topic
+    # Step 3: mark as generating
     state = load(cur_path)
-    set_format_status(state, topic_id, fmt, "generating")
+    if kind == "article":
+        set_article_format_status(state, topic_id, fmt, "generating")
+    else:
+        set_format_status(state, topic_id, fmt, "generating")
     save(state, cur_path)
 
     # Step 4: generate with rate-limit backoff
@@ -247,10 +262,16 @@ async def generate_and_notify(
 
     # Step 5: persist outcome
     state = load(cur_path)
-    if ok:
-        set_format_status(state, topic_id, fmt, "ready", url=nb_url)
+    if kind == "article":
+        if ok:
+            set_article_format_status(state, topic_id, fmt, "ready", url=nb_url)
+        else:
+            set_article_format_status(state, topic_id, fmt, "failed", error=err)
     else:
-        set_format_status(state, topic_id, fmt, "failed", error=err)
+        if ok:
+            set_format_status(state, topic_id, fmt, "ready", url=nb_url)
+        else:
+            set_format_status(state, topic_id, fmt, "failed", error=err)
     save(state, cur_path)
 
     # Step 6: notify user

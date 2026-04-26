@@ -21,11 +21,11 @@ async def get_or_create_notebook(topic_id: str, topic_title: str) -> str | None:
 
 
 async def generate_and_notify(bot, chat_id, topic_id, topic_title, source_url,
-                               fmt, instructions, skip_source=False, **_):
+                               fmt, instructions, skip_source=False, kind="topic", **_):
     return await _generate_and_notify(
         bot=bot, chat_id=chat_id, topic_id=topic_id, topic_title=topic_title,
         source_url=source_url, fmt=fmt, instructions=instructions,
-        skip_source=skip_source, data_dir=DATA_DIR,
+        skip_source=skip_source, data_dir=DATA_DIR, kind=kind,
     )
 
 

@@ -1,9 +1,6 @@
 Проект: sam
+Стан: Phase 6.1 Flashcards завершено (18/18 тем, Ed тести 3/3 PASS). Перший живий тест Ed MessageEdited listener пройшов успішно — edit_message_text тепер працює в FSM-ботах. Наступний крок — Phase 6.2 SR або діагностика NBLM/chkp3 бага.
 
-Стан: TTS deep-link баг закритий (посилання тепер надсилають аудіо у чат), NBLM reset для agent_architecture-2 успішний (/regen крутиться корректно). План Flashcards interactive узгоджено: Sonnet generator, переиспользування NBLM ключа, без SR наразі.
+Баги: (1) chkp3 Haiku max_tokens overflow при WARM>13k, Sonnet fallback timeout 120s; (2) NBLM RPC ADD_SOURCE failed блокує slides/podcast_nblm; (3) 6 тем у `generating` після failed NBLM.
 
-Наступний крок: Flashcards interactive (Phase 6.1) — структура карток, генератор питання/відповіді, інтерактивний чат з оцінкою.
-
-Блокери: немає на Flashcards. Abby-v2 image-gen баг все ще чекає дебагу.
-
-Перед роботою поділись будь ласка:`/workspace/sam/HOT.md` та `/workspace/sam/WARM.md`.
+Перш ніж почти — поділись HOT.md + WARM.md із сесії 24.04, щоб я знав точний стан. Чи є нові розробки у Рэген/NBLM/инших фронтів?

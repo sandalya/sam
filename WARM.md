@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-04-24
+updated: 2026-04-26
 ---
 
 # WARM — Sam
@@ -8,12 +8,38 @@ updated: 2026-04-24
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [architecture, curriculum, data-model]
 status: active
 ```
 
 `sam/curriculum/` — пакет з `models.py` (Island/Topic/TopicFormat/CurriculumState), `storage.py` (load/save), `mutations.py` (add_topic/add_island/set_topic_state/mark_format_consumed/set_format_status/set_format_url), `islands.py` (LLM-кластеризація), `migration.py` (legacy→v2), `renderer.py` (pinned rendering). Раніше жив у `shared/curriculum/` — перенесено 20.04 у власність Sam (домейн-код, не shared-інфра). Стан у `data/curriculum.json` (schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`, `legacy_id` для маппінгу на `notebooklm_notebooks.json`. Формати: `slides / podcast_nblm / podcast_tts / video / infographic / flashcards / exam`.
+
+## Article pipeline (new in Phase 6.2)
+
+```yaml
+last_touched: 2026-04-26
+tags: [architecture, article, pipeline]
+status: active
+```
+
+Нова архітектура для статей (на відміну від курикулярних тем). `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. State у `data/articles.json` або окремо у `CurriculumState.articles`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів, як для тем). Мутації: `add_article(url) → Article`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_nblm_notebook_id(id, notebook_id)`. Pinned rendering: '📑 Статті (N)' лінк з розширюваним списком чекбоксів. Чергова генерація: послідовна (не паралельна) по форматах для одної статті.
+
+## NBLM async polling — критична для articles
+
+```yaml
+last_touched: 2026-04-26
+tags: [nblm, async, architecture]
+status: blocked
+```
+
+**Проблема (26.04 smoke test)**: NbLM CLI `generate <type> --wait` має hard-coded 300s таймаут. Slides займають 5-10 хвилин → таймаут спалюється → CLI рапортує failed. При ретраї через годину (RETRY_DELAYS) дублюються артефакти на стороні Google (3 slide deck для article_6a578102).
+
+**Рішення архітектури**: NbLM CLI має правильне API:
+- `generate <type> --no-wait --json` — миттєво повертає `{task_id, status}`, не блокує
+- `artifact wait <task_id> --timeout 1800` — асинхронне опитування з довгим таймаутом (30 хв)
+
+Потребує refactoring генератора (слайди, подкасти NBLM, інфографіка, відео) щоб використовувати цей двохетапний процес. Телеметрія: лог коли task переходить у ready. Artifact dedup: перед retry перевіряти за notebook_id чи артефакт вже існує.
 
 ## Activity tracking окремо від curriculum
 
@@ -87,7 +113,7 @@ status: done
 ```
 
 **Phase 6.1: Base flashcards — завершено.** Архітектура:
-- Переиспользується NBLM ключ на тему — один `notebooklm_notebooks.json` запис (як для podcast), одна бібліотека карток всередині (JSON). Структура Topic-розширення: `Topic.formats["flashcards"] = {"status": "ready", "url": "notebook-id", "cards": [{"q": "...", "a": "..."}]}` або окремий файл `data/flashcards_{topic_id}.json`.
+- Переиспользується NBLM ключ на тему — один `notebooklm_notebooks.json` запис (як для podcast), одна бібліотека карток всередину (JSON). Структура Topic-розширення: `Topic.formats["flashcards"] = {"status": "ready", "url": "notebook-id", "cards": [{"q": "...", "a": "..."}]}` або окремий файл `data/flashcards_{topic_id}.json`.
 - **Generator**: Sonnet → питання/відповіді з NBLM notebook (перепитує ембедінги блокнота, генерує варіанти карток).
 - **Card mode & Quiz mode** — два інтерактивні режими, UI через inline кнопки, цілої сесія у пам'яті (`_SESSIONS` dict).
 - **Ed тести** `11_flashcards.json` — 3 блоки, 3/3 PASS (card mode, quiz mode, completion).
@@ -103,7 +129,7 @@ tags: [pipeline, regen]
 status: active
 ```
 
-`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug).
+`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug). **26.04 update**: NBLM async polling criticial issue виявлено, потребує refactoring на `--no-wait + artifact wait`.
 
 ## TTS deep-link fix
 
@@ -123,7 +149,7 @@ tags: [nblm, pipeline]
 status: done
 ```
 
-**Баг користувача #2 закритий**. Проблема: тема agent_architecture-2 мала статус MISSING для NBLM формату (користувач запитав /regen). Виправлено: `curriculum/mutations.py::reset_failed_to_pending()` +재запуск через `run_pipeline()`. Механіка: статус MISSING→pending, `nblm_generate()` запускається з першої спроби retry (не чекає години), формат генерується за 8 хвилин. Статус: тепер ready.
+**Баг користувача #2 закритий**. Проблема: тема agent_architecture-2 мала статус MISSING для NBLM формату (користувач запитав /regen). Виправлено: `curriculum/mutations.py::reset_failed_to_pending()` + перезапуск через `run_pipeline()`. Механіка: статус MISSING→pending, `nblm_generate()` запускається з першої спроби retry (не чекає години), формат генерується за 8 хвилин. Статус: тепер ready.
 
 ## Pinned панель — interactive deep-links
 
@@ -163,17 +189,17 @@ tags: [ui, telegram]
 status: active
 ```
 
-`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen, flashcards. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid. **Phase 6.1**: додано `/flashcards` команди (list, start, cancel).
+`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen, flashcards. Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid. **Phase 6.1**: додано `/flashcards` команди (list, start, cancel). **Phase 6.2**: `/article` + `/article_del` потребує додавання.
 
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
 
 ## Ключові архітектурні рішення
 
@@ -183,7 +209,7 @@ tags: [decisions]
 status: active
 ```
 
-Акордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM).
+Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait`.
 
 ## Workspace-репо архітектура (post-catchup)
 
@@ -262,7 +288,7 @@ status: blocked
 
 Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp2.sh, chkp.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
 1. **Окремий workspace-memory/ репо** — з MEMORY.md, projects.yaml, адміністративними гайдами. kit/ утиліти там же.
-2. **Монолітна kit/ структура** — усе складається у kit/, але це может розростися на сотню файлів.
+2. **Монолітна kit/ структура** — усе складається у kit/, але це може розростись на сотню файлів.
 3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp.sh), projects.yaml, а доки живуть кожний у своєму проекті.
 
 Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed). З 23.04: потребує решти слід створити README та очистити legacy.

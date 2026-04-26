@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .models import (
+    Article,
     CurriculumState, Island, Topic, TopicFormat,
     TopicState, ContentStyle, FormatStatus, FormatKey,
     ALLOWED_FORMATS, ALLOWED_TOPIC_STATES, ALLOWED_CONTENT_STYLES,
@@ -323,3 +324,85 @@ def set_nblm_notebook_id(
     topic.updated_at = _now()
     log.info(f"Topic {topic_id}: nblm_notebook_id → {notebook_id}")
     return topic
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Article mutations (Phase 2.5 — standalone NBLM ресурси)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def add_article(
+    state: CurriculumState,
+    article_id: str,
+    title: str,
+    source_url: str,
+    summary: str = "",
+) -> Article:
+    """Додає нову статтю в state. ID має бути унікальним."""
+    if state.get_article(article_id):
+        raise ValueError(f"Article {article_id!r} already exists")
+    article = Article(
+        id=article_id,
+        title=title,
+        source_url=source_url,
+        summary=summary,
+    )
+    state.articles.append(article)
+    log.info(f"Article {article_id} added: {title[:50]}")
+    return article
+
+
+def remove_article(state: CurriculumState, article_id: str) -> Article:
+    """Видаляє статтю. Повертає видалений обʼєкт."""
+    article = state.get_article(article_id)
+    if not article:
+        raise ValueError(f"Article {article_id!r} does not exist")
+    state.articles = [a for a in state.articles if a.id != article_id]
+    log.info(f"Article {article_id} removed")
+    return article
+
+
+def set_article_nblm_notebook_id(
+    state: CurriculumState,
+    article_id: str,
+    notebook_id: Optional[str],
+) -> Article:
+    """Встановлює notebook_id для статті."""
+    article = state.get_article(article_id)
+    if not article:
+        raise ValueError(f"Article {article_id!r} does not exist")
+    article.nblm_notebook_id = notebook_id
+    log.info(f"Article {article_id}: nblm_notebook_id → {notebook_id}")
+    return article
+
+
+def set_article_format_status(
+    state: CurriculumState,
+    article_id: str,
+    format_key: str,
+    status: FormatStatus,
+    *,
+    url: Optional[str] = None,
+    error: Optional[str] = None,
+) -> TopicFormat:
+    """Mirror set_format_status, але для Article. TopicFormat реюзаємо."""
+    if status not in ALLOWED_FORMAT_STATUSES:
+        raise ValueError(f"Invalid format status: {status!r}")
+    article = state.get_article(article_id)
+    if not article:
+        raise ValueError(f"Article {article_id!r} does not exist")
+    if format_key not in article.formats:
+        article.formats[format_key] = TopicFormat()
+    fmt = article.formats[format_key]
+    fmt.status = status
+    now = _now()
+    if status == "ready":
+        fmt.generated_at = now
+        if url is not None:
+            fmt.url = url
+        fmt.error = None
+    elif status == "failed":
+        fmt.error = error or "unknown"
+    else:
+        fmt.error = None
+    log.info(f"Article {article_id}.formats[{format_key}]: status → {status}")
+    return fmt

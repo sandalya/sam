@@ -202,6 +202,50 @@ class Topic:
         return self.state == "active"
 
 
+
+# ─── Article (standalone NBLM ресурс, не привʼязаний до острова/теми) ─────────
+
+@dataclass
+class Article:
+    """Окрема стаття пропущена через NotebookLM. Не курікулумна тема — без state/island."""
+    id: str                                           # "article_<sha1[:8]>"
+    title: str
+    source_url: str
+    summary: str = ""                                 # 1-2 речення від Claude
+    added_at: str = field(default_factory=_now_iso)
+    nblm_notebook_id: Optional[str] = None            # NBLM notebook UUID
+    formats: dict[str, TopicFormat] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        d = asdict(self)
+        d["formats"] = {k: v.to_dict() if isinstance(v, TopicFormat) else v
+                        for k, v in self.formats.items()}
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Article":
+        formats_raw = data.get("formats", {})
+        formats = {k: TopicFormat.from_dict(v) for k, v in formats_raw.items()}
+        return cls(
+            id=data["id"],
+            title=data["title"],
+            source_url=data["source_url"],
+            summary=data.get("summary", ""),
+            added_at=data.get("added_at") or _now_iso(),
+            nblm_notebook_id=data.get("nblm_notebook_id"),
+            formats=formats,
+        )
+
+    def format(self, key: FormatKey) -> TopicFormat:
+        """Повертає TopicFormat для ключа, створюючи pending якщо немає."""
+        if key not in self.formats:
+            self.formats[key] = TopicFormat()
+        return self.formats[key]
+
+    def formats_ready_count(self) -> int:
+        return sum(1 for f in self.formats.values() if f.status == "ready")
+
+
 # ─── CurriculumState (верхній рівень) ─────────────────────────────────────────
 
 @dataclass
@@ -211,6 +255,7 @@ class CurriculumState:
     learning_vector: str = ""
     islands: list[Island] = field(default_factory=list)
     topics: list[Topic] = field(default_factory=list)
+    articles: list[Article] = field(default_factory=list)
     created_at: str = field(default_factory=_now_iso)
     migrated_from: Optional[str] = None
 
@@ -224,6 +269,7 @@ class CurriculumState:
             "migrated_from": self.migrated_from,
             "islands": [i.to_dict() for i in self.islands],
             "topics": [t.to_dict() for t in self.topics],
+            "articles": [a.to_dict() for a in self.articles],
         }
 
     @classmethod
@@ -233,6 +279,7 @@ class CurriculumState:
             learning_vector=data.get("learning_vector", ""),
             islands=[Island.from_dict(i) for i in data.get("islands", [])],
             topics=[Topic.from_dict(t) for t in data.get("topics", [])],
+            articles=[Article.from_dict(a) for a in data.get("articles", [])],
             created_at=data.get("created_at") or _now_iso(),
             migrated_from=data.get("migrated_from"),
         )
@@ -244,6 +291,9 @@ class CurriculumState:
 
     def get_topic(self, topic_id: str) -> Optional[Topic]:
         return next((t for t in self.topics if t.id == topic_id), None)
+
+    def get_article(self, article_id: str) -> Optional["Article"]:
+        return next((a for a in self.articles if a.id == article_id), None)
 
     def topics_in_island(self, island_id: str) -> list[Topic]:
         return [t for t in self.topics if t.island_id == island_id]

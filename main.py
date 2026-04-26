@@ -338,6 +338,7 @@ def main():
             BotCommand("cur",        "📚 План навчання AI"),
             BotCommand("jobs",       "💼 Ринок праці"),
             BotCommand("notebooks",  "📓 NotebookLM notebooks"),
+            BotCommand("article",    "📑 Стаття через NotebookLM"),
             BotCommand("status",     "📊 Стан генерації"),
             BotCommand("regen",      "🔄 Дорегенерація форматів"),
             BotCommand("activate",   "🎯 Активувати/деактивувати теми"),
@@ -356,6 +357,10 @@ def main():
     app.add_handler(CommandHandler("cur", cmd_hub))
     app.add_handler(CommandHandler("podcast", cmd_podcast))
     app.add_handler(CommandHandler("notebooks", cmd_notebooks))
+    from modules.article import cmd_article, cmd_article_del, handle_article_callback
+    app.add_handler(CommandHandler("article", cmd_article))
+    app.add_handler(CommandHandler("article_del", cmd_article_del))
+    app.add_handler(CallbackQueryHandler(handle_article_callback, pattern=r"^art_"))
     app.add_handler(CommandHandler("getfileid", cmd_getfileid))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))

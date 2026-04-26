@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from .models import CurriculumState, Topic
+from .models import CurriculumState, Topic, Article
 
 
 NB_BASE = "https://notebooklm.google.com/notebook/"
@@ -24,6 +24,44 @@ CONTENT_STYLE_ICON = {
     "audio":  "🎧",
     "visual": "👁",
 }
+
+# Іконки форматів для статтей (компактний рендер)
+ARTICLE_FORMAT_ICON = {
+    "slides":       "📊",
+    "podcast_nblm": "🎙",
+    "video":        "🎬",
+    "infographic":  "📈",
+    "flashcards":   "🃏",
+}
+
+
+def _render_article_line(article: Article) -> str:
+    """Один рядок: • <a href=...>Title</a> 📊 🎙 🎬   <code>id</code>"""
+    title = _escape_html(article.title)
+    # Лінк: на notebook якщо є, інакше — на source URL
+    if article.nblm_notebook_id:
+        url = f"{NB_BASE}{article.nblm_notebook_id}"
+    else:
+        url = article.source_url
+    title_link = f'<a href="{url}">{title}</a>'
+
+    # Іконки готових форматів
+    ready_icons = []
+    for fmt, fmt_obj in article.formats.items():
+        if fmt_obj.status == "ready":
+            icon = ARTICLE_FORMAT_ICON.get(fmt)
+            if icon:
+                ready_icons.append(icon)
+    icons_str = " ".join(ready_icons)
+
+    # Короткий ID для /article_del
+    short_id = article.id.replace("article_", "")
+    id_str = f' <code>{short_id}</code>'
+
+    if icons_str:
+        return f"  • {title_link} {icons_str}{id_str}"
+    return f"  • {title_link}{id_str}"
+
 
 
 def _deep_link(bot_username: str, payload: str) -> str:
@@ -161,6 +199,13 @@ def render_pinned(
         titles = ", ".join(_escape_html(t.title) for t in mastered)
         lines.append(f"\u2705 <b>Засвоєні</b> ({len(mastered)})")
         lines.append(f"  {titles}")
+        lines.append("")
+
+    # ── Articles секція ──────────────────────────────────────────────────────
+    if state.articles:
+        lines.append(f"\U0001f4d1 <b>Статті</b> ({len(state.articles)})")
+        for art in state.articles:
+            lines.append(_render_article_line(art))
         lines.append("")
 
     if bot_username:
