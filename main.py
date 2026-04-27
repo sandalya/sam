@@ -344,6 +344,46 @@ def main():
             BotCommand("activate",   "🎯 Активувати/деактивувати теми"),
         ])
 
+        # Phase 6.2: lazy re-attach orphaned generating tasks (post-restart recovery)
+        try:
+            import asyncio as _asyncio
+            from modules.base import DATA_DIR as _DD
+            from curriculum.storage import load as _load_cur
+            from core.notebooklm_module import generate_and_notify as _gan
+
+            _state = _load_cur(_DD / "curriculum.json")
+            _orphans = []
+            for _t in _state.topics:
+                for _fname, _f in _t.formats.items():
+                    if _f.status == "generating" and _f.task_id:
+                        _orphans.append(("topic", _t, _fname))
+            for _a in _state.articles:
+                for _fname, _f in _a.formats.items():
+                    if _f.status == "generating" and _f.task_id:
+                        _orphans.append(("article", _a, _fname))
+
+            if _orphans:
+                logger.info(f"Lazy re-attach: scheduling {len(_orphans)} orphaned task(s)")
+                for _kind, _owner, _fname in _orphans:
+                    _src = getattr(_owner, "source_url", None) or getattr(_owner, "url", "") or ""
+                    logger.info(f"Lazy re-attach: {_kind} {_owner.id} fmt={_fname} task={_owner.formats[_fname].task_id}")
+                    _asyncio.create_task(_gan(
+                        bot=application.bot,
+                        chat_id=OWNER_CHAT_ID,
+                        topic_id=_owner.id,
+                        topic_title=_owner.title,
+                        source_url=_src,
+                        fmt=_fname,
+                        instructions="",
+                        skip_source=True,
+                        data_dir=_DD,
+                        kind=_kind,
+                    ))
+            else:
+                logger.info("Lazy re-attach: no orphaned tasks")
+        except Exception as _e:
+            logger.exception(f"Lazy re-attach failed: {_e}")
+
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     # Commands
