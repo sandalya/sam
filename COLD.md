@@ -77,3 +77,21 @@ archived_at: 2026-04-23
 ```
 
 Міграція chkp скрипта з хардкоду на `meta/chkp/projects.yaml` реєстр. Причина: підготовка до масштабування на Meggy, Ed, Garcia, Abby-v2 — замість дублювання логіки в кожному проекті. Додана команда `--init` для ініціалізації триярусної пам'яті нових проектів (scaffold HOT.md, WARM.md, COLD.md з базовим template). Тестування на Sam успішне, готова до развертування на 4+ проектах.
+
+---
+
+## 2026-04-27: Lazy re-attach верифікація + stale task_id баг
+
+```yaml
+archivereason: завершено lazy re-attach верифікацію; виявлено nblm async polling issue
+archived_at: 2026-04-27
+tags: [nblm, async, lazy-reattach, bug]
+```
+
+**Lazy re-attach верифіковано на проді** (commit b39bfaf): рестарт 18:54 з active task 7af67aad (video для article_6a578102) → `post_init` скан curriculum.json → `Lazy re-attach: scheduling 1 orphaned task(s)` → Phase 2 wait loop запущено. Task re-attach та phase-skip логіка працюють коректно.
+
+**HOT memory drifts очищені**:
+1. «article pipeline critical bug» (вигадана проблема) — workflow працює як задумано (opt-in via 🚀, не auto-pipeline).
+2. «lazy re-attach вбудована» — до сьогодні була тільки теорія; тепер справді вбудовано з `post_init` scan.
+
+**Stale task_id баг виявлено (новий, критичний)**: video артефакт готовий у NBLM UI (~21h тому), але CLI `artifact wait <task_id>` повертає `status=timeout` замість `completed`. Task_id видається розпадається через ~24h в NBLM API, навіть коли артефакт реально готовий. Симптом: 5+ поспіль `Wait <task_id>: status=timeout` без жодного `completed/failed` між ними. Fallback-рішення: при N timeout-ів поспіль → `artifact list -n <notebook_id>` → match по формату → витягнути URL → patch JSON. Потребує реалізації в `_wait_for_artifact()` або окремому recovery механізмі.

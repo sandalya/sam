@@ -1,9 +1,9 @@
-Проект: Sam (AI-лічба-ментор, Telegram-бот).
+Проект: Sam
 
-Стан: Phase 6.2 NBLM async polling — архітектура верифікована для topic-форматів (task_id повертається, /status показує generating). Але article pipeline має баг: `/article <URL>` додає Article але формати не генеруються (раніше було '⏳ Генерую 4 формат...'). Dead-code `_generate_fmt_via_cli` чекає видалення (Patch 3c).
+Сучасний стан: Phase 6.2 заблокована на критичному бузі article pipeline. NBLM async polling архітектура верифікована для topic-форматів (task_id повертаються, /status показує generating, 6 форматів), але articles не генеруються — формати залишаються пусто `formats={}` замість ініціалізації 5-ти форматів. Раніше бачили '⏳ Генерую 4 формат...' — зараз нічого. Dead-code `_generate_fmt_via_cli` видалено (commit 8eaa1c2, -35 рядків), чекає merge.
 
-Что зробити: (1) дебаг article auto-pipeline — чому формати не ініціалізуються і генерація не стартує, (2) видалити dead-code, (3) верифікувати full-cycle: `/article <URL>` → формати створені → `/status` показує задачі у generating.
+Что далі: Видалити dead-code, дефіксити article pipeline (чому формати не ініціалізуються в `add_article()` / чому `run_pipeline()` не викликається), smoke-тест article full-cycle з 3-4 форматів, верифіцити lazy re-attach явно при активному task_id.
 
-Блокери: article-генерація не запускається, потребує дебагу в `add_article()`.
+Блокери: Article генерація не стартує. Lazy re-attach не верифіковано явно (був рестарт 7af67aad video).
 
-Шарити: HOT.md + WARM.md на старті сесії.
+Перед роботою: поділись HOT.md + WARM.md з /workspace/sam/.

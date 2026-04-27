@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-04-26
+updated: 2026-04-27
 ---
 
 # WARM — Sam
@@ -8,87 +8,69 @@ updated: 2026-04-26
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py` (Island/Topic/TopicFormat/Article/ArticleFormat/CurriculumState), `storage.py` (load/save), `mutations.py` (add_topic/add_island/set_topic_state/mark_format_consumed/set_format_status/set_format_url/add_article/remove_article/set_article_format_status), `islands.py` (LLM-кластеризація), `migration.py` (legacy→v2), `renderer.py` (pinned rendering). Раніше жив у `shared/curriculum/` — перенесено 20.04 у власність Sam (домейн-код, не shared-інфра). Стан у `data/curriculum.json` (schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`, `legacy_id` для маппінгу на `notebooklm_notebooks.json`. Формати для тем: `slides / podcast_nblm / podcast_tts / video / infographic / flashcards / exam`. **26.04 update**: Article dataclass додано з 5-ти форматів (slides, podcast_nblm, infographic, flashcards, video), task_id поле для async tracking.
+`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **27.04 update**: Article dataclass з 5-ти форматів, task_id поле для async tracking — верифіковано на проді через lazy re-attach.
 
-## Article pipeline (Phase 6.2 in progress — BLOCKED)
+## Article pipeline (Phase 6.2 — ACTIVE)
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [architecture, article, pipeline, nblm]
-status: blocked
+status: active
 ```
 
-Нова архітектура для статей (на відміну від курикулярних тем). `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. ArticleFormat: `{"status": "pending|generating|ready|failed", "task_id": null|str, "url": null|str, "consumed": false}` — така ж структура як TopicFormat. State у `data/articles.json` або у `CurriculumState.articles`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів, як для тем, але без exam). Мутації: `add_article(url) → Article`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_format_task_id(id, fmt, task_id)`, `set_article_nblm_notebook_id(id, fmt, notebook_id)`. Pinned rendering: '📑 Статті (N)' лінк з розширюваним списком чекбоксів. Чергова генерація: послідовна (не паралельна) по форматах для одної статті.
+Нова архітектура для статей. `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. ArticleFormat: `{"status": "pending|generating|ready|failed", "task_id": null|str, "url": null|str, "consumed": false}`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів). State у `data/articles.json` або `CurriculumState.articles`. Мутації: `add_article(url)`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_format_task_id(id, fmt, task_id)`. Pinned: '📑 Статті (N)' з розширюваним списком чекбоксів. **27.04 verif**: lazy re-attach тестовано — task 7af67aad (video) re-attach при рестарті успішно. Flow: `/article` → opt-in via 🚀 → генерація послідовна → NBLM async polling для кожного формату.
 
-**26.04 Update — CRITICAL BAG**: Phase 6.2 NBLM async polling архітектура верифікована для topic-форматів (task_id повертається, /status показує `generating`). Однак article pipeline має критичний баг: `/article <URL>` не стартує генерацію. Формати **не створюються** як `{"slides": {"status": "pending", ...}, "podcast_nblm": {...}, ...}`, а лишаються `formats={}`. Раніше у smoke-test бачили фінальне повідомлення '⏳ Генерую 4 формат...', зараз його нема. Генератор не запускається. **Потребує дебагу**:
-- В `add_article()` чи `Article.__init__()` — чому формати не ініціалізуються?
-- В контроллері `cmd_article` чи мутаціях — чому `run_pipeline()` не викликається для articles?
-- Чи `_start_generation()` для articles взагалі викликається? Тестувати через smoke.
-
-## NBLM async polling — критична для articles (PRIORITY refactor)
+## NBLM async polling — критична для articles (ACTIVE)
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [nblm, async, architecture, critical]
 status: active
 ```
 
-**Рішення верифіковано (26.04)**: NbLM CLI має правильне API:
-- `generate <type> --no-wait --json` — миттєво повертає `{task_id, status}`, не блокує
-- `artifact wait <task_id> --timeout 1800` — асинхронне опитування з довгим таймаутом (30 хв)
+**Архітектура верифікована (26-27.04)**:
+- `generate <type> --no-wait --json` → миттєво `{task_id, status}`, не блокує.
+- `artifact wait <task_id> --timeout 1800` → асинхронне опитування (30 хв).
+- TopicFormat.task_id + ArticleFormat.task_id додані, `set_format_status()` приймає task_id.
 
-**Тестування (26.04)**:
-- TopicFormat.task_id поле додано в моделі, `set_format_status()` приймає task_id параметр.
-- Пряма перевірка `_start_generation()` повернула task_id успішно.
-- `/status` команда показує 6 topic-форматів у `generating` стані через новий async код, 0 failed.
-- Lazy re-attach логіка вбудована — при перезавантаженні ботом, задачі можуть переприкріпитись без перегенерування. **Потребує явної верифікації**: рестарт був при активному task_id 7af67aad (video), але не перевіряли чи задача справді re-attach чи перезапустилась.
+**27.04 update — Stale task_id баг** (критичний новий): task_id протухає через ~24h у API, навіть якщо артефакт готовий. CLI `artifact wait` повертає `timeout` замість `completed`. Видно по 5+ timeout поспіль без completed між ними. Fallback: `artifact list -n <notebook_id>` → match by format → URL → JSON patch. Потребує реалізації.
 
-**Реалізаційні деталі**:
-1. Генератор articles (слайди, подкасти NBLM, інфографіка, видео) вызывает `generate --no-wait --json`, отримує task_id миттєво, зберігає у `Article.formats[fmt].task_id`.
-2. Telemetry task у фоні (asyncio task чи periodic check) вызывает `artifact wait <task_id> --timeout 1800`.
-3. При success — updating `Article.formats[fmt].status = "ready", .task_id = None`.
-4. Pinned rendering оновлюється при зміні статусу (важливо для UX).
-5. Artifact dedup перед retry: перевірити чи notebook_id вже існує на Google перед новою генерацією.
-
-**Відкрите питання**: Чому article pipeline не запускає генерацію при `/article <URL>`? Dead-code `_generate_fmt_via_cli` потребує видалення (Patch 3c). Lazy re-attach потребує явної верифікації при активному task_id.
+**Lazy re-attach верифіковано**: task 7af67aad (video для article_6a578102) re-attach при рестарті 18:54 успішно. `post_init` скан `curriculum.json` для formats з `status=generating + task_id`, `asyncio.create_task(generate_and_notify(...))` зі `skip_source=True`. Phase 1 пропущена (skip-source + наявний task_id), Phase 2 wait loop активна.
 
 ## Activity tracking окремо від curriculum
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [architecture, state]
 status: active
 ```
 
-`data/learning_state.json` тримає тільки `last_activity` + `streak_days`. `modules/state_manager.py::touch_activity()` викликається при user-активності. Artifact-consumed tracking у `Topic.formats[key].consumed` — `learning_state.json.topics` (legacy) не використовується. Міграція consumed не потрібна — legacy даних немає.
+`data/learning_state.json` тримає `last_activity` + `streak_days`. `modules/state_manager.py::touch_activity()` при user-активності. Artifact-consumed у `Topic.formats[key].consumed`.
 
 ## Sam engine-free + layout власний
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [refactor, architecture]
 status: active
 ```
 
-Sam не імпортує жодного `shared.curriculum_engine`/`shared.curriculum`/`shared.notebooklm_module`/`shared.podcast_module` — всі перенесені у sam/. Залишились справжні shared-модулі що **не** чіпаємо: `agent_base`, `logger`, `token_tracker`, `token_logger`, `errors`, `memory_store`, `conversation_store`, `catchup_module`, `digest_module`. `modules/curriculum.py` — три команди: `cmd_cur_add`, `cmd_done`, `cmd_regen`. `main.py` отримує `DATA_DIR` напряму з `modules/base.py`.
+Sam не імпортує жодного `shared.curriculum_engine`. Залишились справжні shared: `agent_base`, `logger`, `token_tracker`, `errors`, `conversation_store`, `catchup_module`, `digest_module`. `modules/curriculum.py` — три команди: `cmd_cur_add`, `cmd_done`, `cmd_regen`. `main.py` отримує `DATA_DIR` напряму.
 
-## Sam layout (post-Phase-5)
+## Sam layout
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-04-26
 tags: [layout, imports]
 status: active
 ```
 
-Sam запускається з `WorkingDirectory=/workspace/sam` + `sys.path.insert(0, '/workspace')`. Тому:
-- **Top-level у sam:** `curriculum`, `core`, `modules`, `data`, `docs` — імпорти без префіксу (`from curriculum import load`).
-- **Через workspace:** `shared.agent_base`, `shared.token_tracker` — для спільних утиліт.
-- **ENV:** systemd `EnvironmentFile=/workspace/sam/.env` — прокидає `ANTHROPIC_API_KEY`, `TELEGRAM_TOKEN`, `OWNER_CHAT_ID`.
+WorkingDirectory=/workspace/sam + sys.path.insert(0, '/workspace'). ENV: systemd EnvironmentFile=/workspace/sam/.env.
 
 ## Phase 3 — EXAM (done)
 
@@ -98,7 +80,7 @@ tags: [exam, phase-3]
 status: done
 ```
 
-`modules/exam.py` — stateful діалоговий тест. Session у `data/exam_session.json`. 5 питань, LLM генерує (`_generate_questions`) і оцінює (`_evaluate_answer`). `PASS_THRESHOLD=3` правильних із 5. Deep-link `exam_{topic_id}` з pinned (renderer `_exam_label` — клікабельний). Exam intercept в `handle_text` — якщо `is_exam_active()`, всі повідомлення → `handle_exam_answer()`. Inline кнопки: ✅ Mastered (`exam_mastered_{id}` → `set_topic_state(mastered)`), 🔄 Retry (`exam_retry_{id}`), ➕ Підтема (`exam_subtopic_{id}` → `_generate_subtopic_title` LLM). `/exam_cancel` — скасовує. `CallbackQueryHandler(handle_exam_callback, pattern=r"^exam_")`.
+`modules/exam.py` — stateful тест. Session у `data/exam_session.json`. 5 питань, LLM генерує + оцінює. PASS_THRESHOLD=3. Deep-link `exam_{topic_id}` в pinned. Intercept в handle_text.
 
 ## Phase 4 — Proactive triggers (done)
 
@@ -108,7 +90,7 @@ tags: [proactive, phase-4]
 status: done
 ```
 
-`modules/proactive.py` переписано на curriculum v2. Три тригери: (1) є ready не-consumed формати → "подивись", (2) все consumed → "готовий до екзамену?", (3) failed формати → "спробуй /regen". Exam subtopic suggestion — при завершенні екзамену з помилками, кнопка "➕ Додати підтему по прогалині" + `_generate_subtopic_title()` (LLM). Маніфест §3.5 тригер "нова тема → пайплайн" — done через auto-pipeline в Phase 2.
+Три тригери: ready не-consumed → "подивись", all consumed → "екзамен?", failed → "рegen". Exam subtopic suggestion.
 
 ## Phase 5 — Island map (done)
 
@@ -118,7 +100,7 @@ tags: [map, phase-5]
 status: done
 ```
 
-`modules/island_map.py::render_island_map()` — текстова карта островів. Per-island progress bar (`▓░`), per-topic consumed/ready count, порожні острови. Gap detection: порівняння з `REFERENCE_ISLANDS` (12 AI-ландшафт категорій), фільтрація по existing island words + topic words. Deep-link `map` в `_handle_deep_link`. Pinned footer: `renderer.py` додає `🗺 Карта островів` deep-link перед timestamp.
+`modules/island_map.py::render_island_map()` — текстова карта. Per-island progress, per-topic count. Deep-link `map`. Pinned footer: `🗺 Карта островів`.
 
 ## Phase 6.1 — Flashcards interactive (done)
 
@@ -128,14 +110,7 @@ tags: [flashcards, phase-6]
 status: done
 ```
 
-**Phase 6.1: Base flashcards — завершено.** Архітектура:
-- Переиспользується NBLM ключ на тему — один `notebooklm_notebooks.json` запис (як для podcast), одна бібліотека карток всередину (JSON). Структура Topic-розширення: `Topic.formats["flashcards"] = {"status": "ready", "url": "notebook-id", "cards": [{"q": "...", "a": "..."}]}` або окремий файл `data/flashcards_{topic_id}.json`.
-- **Generator**: Sonnet → питання/відповіді з NBLM notebook (перепитує ембедінги блокнота, генерує варіанти карток).
-- **Card mode & Quiz mode** — два інтерактивні режими, UI через inline кнопки, цілої сесія у пам'яті (`_SESSIONS` dict).
-- **Ed тести** `11_flashcards.json` — 3 блоки, 3/3 PASS (card mode, quiz mode, completion).
-- **Deep-link**: `flashcards_{topic_id}` в pinned.
-- **Log.info у handlers** — діагностика per-callback.
-- **Ed `MessageEdited` listener** — критична для FSM ботів (edit_message_text).
+Переиспользується NBLM ключ. Card mode & Quiz mode через inline кнопки. Deep-link `flashcards_{topic_id}` в pinned. Ed тести: 3 блоки, 3/3 PASS.
 
 ## Regen + NBLM retry
 
@@ -145,9 +120,9 @@ tags: [pipeline, regen, nblm]
 status: active
 ```
 
-`/regen` (`cmd_regen` в `modules/curriculum.py`) — масова дорегенерація. Знаходить всі теми з MISSING або failed форматами, reset failed→pending, запускає `run_pipeline` послідовно для кожної теми у фоні (`asyncio.create_task(_run_regen(...))`). NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` — кожну годину, до 72 годин. Раніше було 3 спроби за 45 хв. **24.04 update**: Sonnet fallback для Haiku max_tokens overflow, timeout 120s → 300s (чекпоінт bug). **26.04 update**: NBLM async polling архітектура верифікована і працює для topic-форматів. Dead-code `_generate_fmt_via_cli` потребує видалення перед merge.
+`/regen` — масова дорегенерація failed формативів. Reset failed→pending, `run_pipeline` послідовно у фоні. NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` (~72 год). **26.04 update**: NBLM async polling архітектура верифікована. Dead-code `_generate_fmt_via_cli` потребує видалення перед merge.
 
-## TTS deep-link fix
+## TTS deep-link fix (done)
 
 ```yaml
 last_touched: 2026-04-24
@@ -155,9 +130,9 @@ tags: [ui, tts, deep-links]
 status: done
 ```
 
-**Баг користувача #1 закритий**. Проблема: `/tts_{topic_id}` посилання у pinned панелі не надсилали аудіо файл у чат (користувач скаржився). Причина: `_handle_deep_link()` у `modules/pinned.py` викликав `send_audio()` але передавав відносний путь (`data/audio/{id}.mp3`) замість абсолютного (`/workspace/sam/data/audio/{id}.mp3`). Виправлено: рядок ~185 в `modules/pinned.py` — передача абсолютного пута + файл-перевірка (якщо не існує, відправити 404 повідомлення). Тест: `/tts_ai-101` успішно відправив MP3. Помітка: TTS тепер генеруються на лету (кожен запит = нова синтез) з кешуванням у `data/audio_cache/`.
+Проблема: `/tts_{topic_id}` не надсилав файл. Виправлено: абсолютний путь + файл-перевірка.
 
-## NBLM reset для Multi-agent координації
+## NBLM reset для Multi-agent координації (done)
 
 ```yaml
 last_touched: 2026-04-24
@@ -165,17 +140,17 @@ tags: [nblm, pipeline]
 status: done
 ```
 
-**Баг користувача #2 закритий**. Проблема: тема agent_architecture-2 мала статус MISSING для NBLM формату (користувач запитав /regen). Виправлено: `curriculum/mutations.py::reset_failed_to_pending()` + перезапуск через `run_pipeline()`. Механіка: статус MISSING→pending, `nblm_generate()` запускається з першої спроби retry (не чекає години), формат генерується за 8 хвилин. Статус: тепер ready.
+MISSING→pending, перезапуск через `run_pipeline()`.
 
 ## Pinned панель — interactive deep-links
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [ui, pinned]
 status: active
 ```
 
-`modules/pinned.py` переключено на `render_pinned()`. `curriculum/renderer.py`: per-topic NB · TTS · Exam · Flashcards (deep-links). Exam & Flashcards label клікабельні (`exam_{id}`, `flashcards_{id}`). Footer: `🗺 Карта островів` deep-link + timestamp. `_handle_deep_link` dispatcher: `fmtcheck_`, `pipeline_`, `exam_`, `map`, `tts_`, `flashcards_` (усі 6 live 24.04). **26.04 update**: потребує `article_` dispatcher для article-статей (при `/article` команді), потребує реалізації перед smoke-тестом.
+`modules/pinned.py` на `render_pinned()`. Per-topic NB · TTS · Exam · Flashcards (deep-links). `curriculum/renderer.py`: deep-links для articles. Footer: `🗺 Карта островів` + timestamp. `_handle_deep_link`: fmtcheck_, pipeline_, exam_, map, tts_, flashcards_, **article_** (потребує реалізації dispatcher для articles). **27.04 note**: потребує `article_` handler перед smoke-тестом articles.
 
 ## Pipeline orchestrator
 
@@ -185,7 +160,7 @@ tags: [pipeline, generation]
 status: active
 ```
 
-`curriculum/pipeline.py::run_pipeline()` — orchestrator. Послідовна генерація всіх 7 форматів (без exam) за content_style порядком. Skip ready/generating/skipped. Refresh pinned між кроками. Auto-pipeline при add_topic (і cmd_cur_add, і tool в agentic loop). **26.04 update**: потребує розширення для article-артефактів (інший генератор, інший flow для `--no-wait`). **КРИТИЧНА ПРОБЛЕМА**: article pipeline не запускає генерацію при `/article <URL>` — баг в `add_article()` або call до `run_pipeline()`. Потребує дебагу + fix + smoke-тесту.
+`curriculum/pipeline.py::run_pipeline()` — послідовна генерація 7 форматів (без exam). Skip ready/generating. Refresh pinned між кроками. Auto-pipeline при add_topic. **26.04 update**: розширення для article-артефактів. **Потребує**: article deep-link dispatcher у pinned.py.
 
 ## Tool add_topic в agentic loop
 
@@ -195,39 +170,39 @@ tags: [tools, agentic]
 status: active
 ```
 
-`core/tools.py`: 6 tools у SAM_TOOLS. `add_topic` handler `_h_add_topic` — LLM визначає острів, why/read/do/content_style. Auto-pipeline запускається після add_topic. Case study doc: `docs/AGENTIC_LOOP_CASESTUDY.md`.
+`core/tools.py`: 6 tools у SAM_TOOLS. `add_topic` handler — LLM визначає острів, why/read/do/content_style. Auto-pipeline після add_topic.
 
 ## BotCommand list
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [ui, telegram]
 status: active
 ```
 
-`set_my_commands` в `post_init`: cur, jobs, notebooks, status, regen, flashcards. **26.04 update**: додано `/article` + `/article_del` (потребує додавання у commands). Прибрані: start, digest, science, catchup, onboarding, profile, podcast, cur_add. Hidden utilities: pin, unpin, cost, done, exam_cancel, getfileid.
+`set_my_commands`: cur, jobs, notebooks, status, regen, flashcards, **article, article_del** (потребує додавання у list).
 
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0 (маніфест) ✅ | Фаза 1 (модель даних, bootstrap) ✅ | Фаза 2 (пайплайн + interactive pinned) ✅ | Фаза 3 (діалоговий тест) ✅ | Фаза 4 (проактивні тригери) ✅ | Фаза 5 (карта островів) ✅ | Фаза 6.1 (Flashcards interactive) ✅ | Фаза 6.2 (Articles + NBLM async polling) 🚧 **BLOCKED на article pipeline баг** — NBLM async архітектура готова, тестована для topics (6 topic-форматів generating, task_id повертаються, /status показує, lazy re-attach вбудована но не верифікована явно), але articles не генеруються, формати не ініціалізуються, генератор не запускається. Dead-code видалення чекає (Patch 3c) | Фаза 6.3+ (SR алгоритм, export, Depth Mode, відкладена — після 1-2 тижнів використання) ⬜. Паралельно: масштабування триярусної пам'яті на інші проекти workspace (Meggy, Ed, Garcia, Abby-v2) — завершено 23.04. Архітектура non-project файлів (workspace-адмін, kit/) — в обговоренні.
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (NBLM async polling верифікована, lazy re-attach тестовано, stale task_id баг найдено + fallback потребує реалізації) | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
 
 ## Ключові архітектурні рішення
 
 ```yaml
-last_touched: 2026-04-26
+last_touched: 2026-04-27
 tags: [decisions]
 status: active
 ```
 
-Аккордеон у Telegram → expand in-place через editMessageText. Exam — stateful session в JSON файлі, intercept в handle_text перед роутером. Regen — background task через create_task, не блокує бот. Island map — текстовий (mermaid/d3 — Phase 6+). Proactive — 3 тригери з curriculum v2, не зі старого state_manager. `artifacts_remaining` у proactive = тільки `status=="ready" & not consumed`. **Flashcards**: переиспользується NBLM (не окремий блокнот), карточки тримаються у `Topic.formats.flashcards.cards` або файлі (вибір наступна сесія). **Ed MessageEdited**: новий listener у transports тримає `_responses` dict у синхронізації при ботових edits (критично для FSM). **Articles**: окремо від тем (не використовують islands), асинхронна генерація через NBLM `--no-wait + artifact wait`. **Task tracking**: Article dataclass розширено для task_ids (dict[format, task_id]) аби відстежувати async операції. **TopicFormat.task_id**: додано для topic-форматів, тестовано, готово. **Article.formats ініціалізація**: КРИТИЧНИЙ БАГ — не створюються як `{"slides": {...}, "podcast_nblm": {...}, ...}` при `/article`, потребує дебагу + fix. **Lazy re-attach**: верифіковано для topics через код, але не явно при активному task_id — потребує явної верифікації при рестарті з task 7af67aad video.
+**27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` для pinned deep-links. Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользуе NBLM, Ed MessageEdited listener, Articles окремо від тем.
 
-## Workspace-репо архітектура (post-catchup)
+## Workspace-репо архітектура
 
 ```yaml
 last_touched: 2026-04-24
@@ -235,7 +210,7 @@ tags: [infrastructure, git]
 status: active
 ```
 
-Workspace-репо (`/workspace/`) — метарепо над 7 ботами. Sam — standalone repo, власний .git. Workspace-репо і sam-репо обидва пушаються у `github.com/sandalya/sam.git` (master / main). Workspace комітиться вручну, sam — через chkp2. З 23.04: 6 проектів мають триярусну пам'ять (HOT/WARM/COLD) у власних директоріях. kit/ утиліти (chkp, projects.yaml) живуть у workspace-репо.
+Workspace-репо метарепо над 7 ботами. Sam — standalone repo. Workspace + sam обидва пушаються у github. З 23.04: 6 проектів з HOT/WARM/COLD.
 
 ## Garcia — поза скоупом
 
@@ -245,9 +220,9 @@ tags: [garcia, deprecated]
 status: paused
 ```
 
-Garcia deprecated у контексті Sam. Імпорти `from shared.notebooklm_module` і `from shared.podcast_module` зламані — це ок, мертвий код. З 23.04 мігрована на триярусну пам'ять як окремий проект (abby-v2 замінив Garcia в активній workspace).
+Garcia deprecated у Sam контексті. З 23.04 мігрована на triadic memory.
 
-## Принципи з маніфесту (живі)
+## Принципи з маніфесту
 
 ```yaml
 last_touched: 2026-04-24
@@ -255,7 +230,7 @@ tags: [principles]
 status: active
 ```
 
-MVP → feedback → ітерація. Суб'єктивне відчуття засвоєння > метрики. Ментор, не надсистема. Структура островів еволюціонує. Анти-патерни: немає авто-статусів за часом, немає блокуючих prerequisites, немає спаму у чаті, немає Depth Mode на старті.
+MVP → feedback → ітерація. Суб'єктивне відчуття > метрики. Ментор, не надсистема. Структура еволюціонує. Анти-патерни: немає авто-статусів за часом, немає prerequisites, немає спаму, немає Depth Mode на старті.
 
 ## Триярусна пам'ять — структура проекту
 
@@ -265,12 +240,7 @@ tags: [infrastructure, memory]
 status: active
 ```
 
-Проект використовує три файли для управління контекстом:
-- **HOT.md** — переписується щосесії, поточний крок і результати (~60 рядків).
-- **WARM.md** — архітектура, рішення, відкриті питання (~400 рядків, оновлюється інкрементально).
-- **COLD.md** — append-only історія, архіви завершених фаз.
-
-Структура прийнята 2026-04-19, `chkp` тестування почалось 2026-04-20, миграція на yaml-registry завершена 2026-04-23. Скрипт `chkp2.sh` автоматизує git commit, claude-інстанції читають HOT+WARM на старті сесії (Правило нуль в MEMORY.md). З 23.04 триярусна пам'ять масштабована на 6 проектів workspace (Meggy, Ed, Garcia, Abby-v2, insilver-v3, Sam).
+HOT (переписується щосесії) | WARM (архітектура + рішення, інкрементально) | COLD (append-only історія). З 2026-04-19. chkp2 автоматизує. З 23.04 масштабована на 6 проектів.
 
 ## chkp — yaml-registry для триярусної пам'яті
 
@@ -280,21 +250,9 @@ tags: [infrastructure, chkp, tools]
 status: active
 ```
 
-`meta/chkp/projects.yaml` — реєстр усіх проектів (path, language, memory_model). `chkp` мігрована на YAML замість хардкоду. Нова команда `--init` скаффолдить HOT/WARM/COLD для нового проекту. Готова до роботи з Meggy, Ed, Garcia, Abby-v2, insilver-v3 (з 23.04 — усі успішно ініціалізовані). Шляхи та alias переспрямовано — `chkp sam` витягує `/workspace/sam` з projects.yaml. Структура:
-```yaml
-projects:
-  sam:
-    path: /workspace/sam
-    language: uk
-    memory_model: triadic
-  meggy:
-    path: /workspace/meggy
-    language: uk
-    memory_model: triadic
-```
-chkp --init meggy — scaffold три файли з базовим template. **Наступне**: оновити HOT інших 5 проектів, розширити projects.yaml новими ключами (e.g., status, dependencies, tags), автоматизація.
+`meta/chkp/projects.yaml` реєстр. `--init` scaffold. Готова для 6 проектів.
 
-## Workspace administration — відкрита архітектура
+## Workspace administration
 
 ```yaml
 last_touched: 2026-04-24
@@ -302,49 +260,14 @@ tags: [infrastructure, workspace]
 status: blocked
 ```
 
-Workspace тепер має 6 проектів × 3 файли (HOT/WARM/COLD) = 18 memory-файлів + kit/ утиліти (chkp2.sh, chkp.sh, projects.yaml, MEMORY.md) + можливі workspace-широкі нотатки (як сейчас SESSION.md живе у root). Структура не визначена. Варіанти:
-1. **Окремий workspace-memory/ репо** — з MEMORY.md, projects.yaml, адміністративними гайдами. kit/ утиліти там же.
-2. **Монолітна kit/ структура** — усе складається у kit/, але це може розростись на сотню файлів.
-3. **Децентралізовано** — kit/ тільки інстанційні скрипти (chkp2.sh, chkp.sh), projects.yaml, а доки живуть кожний у своєму проекті.
+Структура 18 memory-файлів + kit/ утиліти не визначена. Варіанти: окремий workspace-memory/ репо, монолітна kit/, децентралізовано. Потребує дизайну перед масштабуванням.
 
-Потребує обговорення + дизайну перед наступною фазою масштабування (якщо буде 10+ проектів). Тимчасово: kit/ — універсальна свалка (working-as-designed). З 23.04: потребує решти слід створити README та очистити legacy.
-
-## Meggy (household_agent) на триярусній пам'яті
+## Meggy, Ed, Abby-v2, Insilver-v3 на триярусній пам'яті
 
 ```yaml
 last_touched: 2026-04-24
-tags: [infrastructure, meggy]
+tags: [infrastructure, projects]
 status: active
 ```
 
-Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: архітектура voice-input → NLU → tools. Батьківський проект (household_agent) — у `/workspace/meggy/`, git-синхронізований. Потребує реальної сесії розробки для наповнення контекстом.
-
-## Ed на триярусній пам'яті
-
-```yaml
-last_touched: 2026-04-24
-tags: [infrastructure, ed]
-status: active
-```
-
-Мігрована 23.04. HOT заповнено базовим template + скан коду. WARM: [стислий опис з коду]. Git у `/workspace/ed/`, синхронізований. Готовий до розробки з першої сесії (чекання на розробника). **MessageEdited listener тестований з Phase 6.1 flashcards** (ed commit eb0c26e) — отримав підтримку FSM-ботів з edit_message_text.
-
-## Abby-v2 на триярусній пам'яті + key blocker
-
-```yaml
-last_touched: 2026-04-24
-tags: [infrastructure, abby-v2, blocker]
-status: blocked
-```
-
-Мігрована 23.04. HOT + WARM заповнено. **Ключовий баг (Image 4)**: кнопка платного генерування не працює. Блокує реальне тестування проекту. Потребує дебагу перед наступною сесією розробки Abby.
-
-## Insilver-v3 на триярусній пам'яті
-
-```yaml
-last_touched: 2026-04-24
-tags: [infrastructure, insilver-v3]
-status: active
-```
-
-Мігрована 23.04. HOT + WARM заповнено з коду. Проект у `/workspace/insilver-v3/`, git-синхронізований. Потребує розробника для розповсюдження контексту через реальну роботу.
+Ед + Інсільвер готові до розробки. Meggy потребує реальної сесії. Abby-v2 має key blocker (paid generation button broken). Garcia паузована.
