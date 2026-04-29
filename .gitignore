@@ -1,4 +1,17 @@
 .env
+.env.*
+!.env.example
+
 venv/
 __pycache__/
 *.pyc
+*.pyo
+
+data/
+
+*.log
+*.bak
+*.bak.*
+*.bak-*
+.DS_Store
+bot.pid
