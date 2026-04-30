@@ -331,6 +331,148 @@ async def cmd_getfileid(update, context):
     await update.message.reply_text(f"`{msg.audio.file_id}`", parse_mode="Markdown")
 
 
+async def cmd_dbg_nblm_sync(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Debug hook: /dbg_nblm_sync — синхронізує orphan notebooks як bonus episodes."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from core.nblm_orphan_sync import sync_orphan_audio
+    await update.message.reply_text("⏳ Синхронізую orphan notebooks... (~1-2 хв)")
+    try:
+        result = sync_orphan_audio()
+        items = result.get("orphan_items", [])
+        lines = [
+            f"Orphan sync done: {len(items)} episodes",
+            f"Skipped (curriculum): {result.get('skipped_curriculum', '?')}",
+            f"Skipped (no audio): {result.get('skipped_no_audio', '?')}",
+        ]
+        if items:
+            lines.append("Titles:")
+            for it in items:
+                lines.append(f"  • {it['title'][:60]}")
+        await update.message.reply_text("\n".join(lines))
+    except Exception as e:
+        await update.message.reply_text(f"ERROR: {e}")
+
+
+async def cmd_dbg_rss_server(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Debug hook: /dbg_rss_server — тестує HTTP-ендпоінти RSS-сервера."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    import aiohttp
+    BASE = "http://100.86.239.46:8765"
+    lines = []
+    timeout = aiohttp.ClientTimeout(total=5)
+
+    async with aiohttp.ClientSession() as session:
+        # /healthz
+        try:
+            async with session.get(f"{BASE}/healthz", timeout=timeout) as r:
+                body = await r.text()
+                lines.append(f"healthz: {r.status} {body.strip()}")
+        except Exception as e:
+            lines.append(f"healthz: ERROR {e}")
+
+        # /feed.xml
+        try:
+            async with session.get(f"{BASE}/feed.xml", timeout=timeout) as r:
+                body = await r.text()
+                ct = r.headers.get("Content-Type", "")
+                lines.append(f"feed: {r.status} ct={ct} len={len(body)}")
+        except Exception as e:
+            lines.append(f"feed: ERROR {e}")
+
+        # /audio/agent_architecture-1.mp3
+        try:
+            async with session.get(f"{BASE}/audio/agent_architecture-1.mp3", timeout=timeout) as r:
+                ct = r.headers.get("Content-Type", "")
+                cl = r.headers.get("Content-Length", "0")
+                ar = r.headers.get("Accept-Ranges", "")
+                await r.release()
+                lines.append(f"audio: {r.status} ct={ct} length={cl} accept-ranges={ar}")
+        except Exception as e:
+            lines.append(f"audio: ERROR {e}")
+
+        # 404 for missing file
+        try:
+            async with session.get(f"{BASE}/audio/nonexistent.mp3", timeout=timeout) as r:
+                await r.release()
+                lines.append(f"audio_404: {r.status}")
+        except Exception as e:
+            lines.append(f"audio_404: ERROR {e}")
+
+    await update.message.reply_text("\n".join(lines))
+
+
+async def cmd_dbg_rss(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Debug hook: /dbg_rss — тестує rss_feed.generate_feed()."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.base import DATA_DIR
+    from core.rss_feed import generate_feed
+    import xml.etree.ElementTree as ET
+
+    try:
+        feed_path = generate_feed(
+            curriculum_path=DATA_DIR / "curriculum.json",
+            audio_dir=DATA_DIR / "audio",
+            output_xml=DATA_DIR / "feed.xml",
+        )
+        tree = ET.parse(str(feed_path))
+        channel = tree.getroot().find("channel")
+        title = channel.findtext("title") or ""
+        description = channel.findtext("description") or ""
+        language = channel.findtext("language") or ""
+        items = channel.findall("item")
+        guids = [it.findtext("guid") or "" for it in items]
+        enclosures = [it.find("enclosure") for it in items]
+        enc_urls = [e.get("url", "") if e is not None else "" for e in enclosures]
+        enc_lengths = [e.get("length", "0") if e is not None else "0" for e in enclosures]
+        lines = [
+            f"FEED OK",
+            f"title={title}",
+            f"description={description[:40]}",
+            f"language={language}",
+            f"items={len(items)}",
+        ]
+        for i, (guid, url, length) in enumerate(zip(guids, enc_urls, enc_lengths)):
+            lines.append(f"item[{i}] guid={guid} url={url} length={length}")
+        await update.message.reply_text("\n".join(lines))
+    except Exception as e:
+        await update.message.reply_text(f"FEED ERROR: {e}")
+
+
+async def cmd_dbg_download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Debug hook: /dbg_download <notebook_id> [force] — тестує audio_downloader."""
+    if update.effective_chat.id != OWNER_CHAT_ID:
+        return
+    from modules.base import DATA_DIR
+    from core.audio_downloader import download_podcast_audio
+
+    args = context.args
+    if not args:
+        await update.message.reply_text("Usage: /dbg_download <notebook_id> [force]")
+        return
+
+    notebook_id = args[0]
+    force = len(args) > 1 and args[1] == "force"
+    output_dir = DATA_DIR / "audio"
+    output_name = f"test_{notebook_id[:8]}"
+    existed_before = (output_dir / f"{output_name}.mp3").exists()
+
+    result = download_podcast_audio(notebook_id, output_dir, output_name, force=force)
+
+    if result is None:
+        await update.message.reply_text(f"RESULT: None\nnotebook_id={notebook_id}")
+    elif existed_before and not force:
+        await update.message.reply_text(
+            f"RESULT: SKIPPED\npath={result}\nsize={result.stat().st_size}"
+        )
+    else:
+        await update.message.reply_text(
+            f"RESULT: DOWNLOADED\npath={result}\nsize={result.stat().st_size}"
+        )
+
+
 def main():
     async def post_init(application):
         from telegram import BotCommand
@@ -402,6 +544,10 @@ def main():
     app.add_handler(CommandHandler("article_del", cmd_article_del))
     app.add_handler(CallbackQueryHandler(handle_article_callback, pattern=r"^art_"))
     app.add_handler(CommandHandler("getfileid", cmd_getfileid))
+    app.add_handler(CommandHandler("dbg_download", cmd_dbg_download))
+    app.add_handler(CommandHandler("dbg_rss", cmd_dbg_rss))
+    app.add_handler(CommandHandler("dbg_rss_server", cmd_dbg_rss_server))
+    app.add_handler(CommandHandler("dbg_nblm_sync", cmd_dbg_nblm_sync))
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("status", cmd_status))

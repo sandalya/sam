@@ -337,6 +337,14 @@ async def generate_and_notify(
             set_format_status(state, topic_id, fmt, "failed", error=err)
     save(state, cur_path)
 
+    # RSS regen після успішної генерації podcast_nblm (non-fatal)
+    if ok and fmt == "podcast_nblm":
+        try:
+            from core.rss_feed import regenerate_feed_async
+            asyncio.create_task(regenerate_feed_async())
+        except Exception as _rss_e:
+            log.warning(f"RSS regen failed (non-fatal): {_rss_e}")
+
     # Step 6: notify user
     format_name = FORMAT_NAMES.get(fmt, fmt)
     if ok:
