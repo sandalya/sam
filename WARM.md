@@ -13,17 +13,24 @@ tags: [nblm, format, рефакторинг, quality]
 status: done
 ```
 
-**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено. Готово до merge в main.
+**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено (core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py). Diff готовий до merge.
 
 ## Content generation via Haiku brief (Фаза Б — планується)
 
 ```yaml
 last_touched: 2026-05-01
-tags: [architecture, content-gen, brief, phase-b]
+tags: [architecture, content-gen, brief, phase-b, design]
 status: planned
 ```
 
-**Фаза Б — core/content_gen/ пакет**: Реальні інструкції не живуть в Topic.content_style, а генеруються через Haiku pre-analysis. `brief.py` модуль: Haiku читає Topic/Article контекст → генерує 1-2 рядка instruction set → передає backends-ам (audio, visual, quiz, TTS, flashcards). Backend-agnostic design: кожен backend отримує brief + контент, сам інтерпретує інструкції. Архітектура: `core/content_gen/brief.py` (генерація) + `core/backends/` дерево (audio/, visual/, quiz/, tts/, flashcards/) — кожен backend має свою логіку використання brief. **Відкриті питання**: кількість instruction-варіантів (мінімум 3: audio, visual, quiz чи динамічна?), backend spec (plain text vs JSON), brief cache (зберігати vs регенерувати), Haiku API quota, fallback при rate-limit.
+**Фаза Б — core/content_gen/ пакет**: Реальні інструкції не живуть в Topic.content_style, а генеруються через Haiku pre-analysis. `brief.py` модуль: Haiku читає Topic/Article контекст → генерує 1-2 рядка instruction set → передає backends-ам (audio, visual, quiz, TTS, flashcards). Backend-agnostic design: кожен backend отримує brief + контент, сам інтерпретує інструкції. Архітектура: `core/content_gen/brief.py` (генерація) + `core/backends/` дерево (audio/, visual/, quiz/, tts/, flashcards/) — кожен backend має свою логіку використання brief. 
+
+**Дизайн питання цієї сесії (01.05)**:
+1. Кількість instruction-варіантів: мінімум 3 (audio, visual, quiz) чи динамічна генерація на Topic.formats/Article.formats?
+2. Backend spec: brief як plain text string чи JSON структурований {"type": "audio", "instructions": "..."}?
+3. Brief cache: зберігати Topic.formats[key].brief або один раз на тему, шериться статично?
+4. Haiku API quota, fallback при rate-limit.
+5. Прототип: `BriefGenerator::generate_brief(topic, article?) -> str`.
 
 ## RSS feed pipeline
 

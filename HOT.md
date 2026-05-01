@@ -7,55 +7,58 @@ updated: 2026-05-01
 
 ## Now
 
-**Фаза Б: Підготовка до реалізації core/content_gen/ пакету з brief.py (Haiku pre-analysis)**
+**Фаза Б: Проектування架構 core/content_gen/ пакету (backend-agnostic design)**
 
-Фаза А NBLM deep-dive успішно завершена та протестована. `--format deep-dive --length default` інтегровано у pipeline, звук явно кращий. Тепер готуємося до Фази Б: створення backend-agnostic архітектури для інструкцій через Haiku brief-аналіз. Topic.content_style = Literal["audio", "visual"] визначена як просто тег, реальні інструкції генеруватимуться через brief.py.
+Фаза А NBLM deep-dive завершена, протестована, готова до merge. Тепер готуємося до Фази Б: переведення інструкцій з Topic.content_style на backend-agnostic архітектуру з Haiku brief-аналізом. Архітектура: `core/content_gen/brief.py` читає контекст теми/статті, генерує instruction set через Haiku, передає backends-ам для інтерпретації. Кожен backend (audio, visual, quiz, TTS, flashcards) отримує brief + контент, сам вирішує як його використати.
 
 ## Last done
 
-**Сесія 01.05 — Фаза А NBLM рефакторингу ЗАВЕРШЕНА**
+**Сесія 01.05 — Фаза А NBLM рефакторингу ЗАВЕРШЕНА + архітектура Фази Б дизайнована**
 
-- Успішно додано `--format deep-dive --length default` параметри у `notebooklm_module.py`
-- Тестування на `agent_architecture-1` теми показало помітно більшу глибину (~9.5 хв регенерація)
-- Підтверджено: Topic.content_style = Literal["audio", "visual"] — це тільки тег, НЕ місце для інструкцій
-- Визначено архітектуру Фази Б: brief.py (Haiku reads Topic/Article) → instruction set → backends-ам
-- 4 файли модифіковано: core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py
-- Готово до push і merge в main
+- Успішно добавлено `--format deep-dive --length default` у notebooklm_module, curriculum/pipeline, modules/notebooklm, modules/article.
+- Тестування на `agent_architecture-1`: ~9.5 хв, звук явно деталізованіший за дефолт.
+- Topic.content_style = Literal["audio", "visual"] — підтверджено як тег, НЕ місце для інструкцій.
+- Дизайнована архітектура Фази Б: brief.py (Haiku pre-analysis) → instruction set → backends-ам.
+- Визначені відкриті питання: 3+ instruction-варіанти (audio/visual/quiz чи динамічні?), backend spec (plain text vs JSON), brief cache, Haiku API quota/fallback.
+- 4 файли модифіковано. Diff готовий до merge.
 
 ## Next
 
-1. **Фаза Б — core/content_gen пакет (Priority)**
-   - Створити `core/content_gen/` пакет з `brief.py` модулем
-   - Реалізувати Haiku brief-генерацію: читає Topic/Article контекст → генерує 1-2 рядка instruction set
-   - Backend-agnostic adapter API: brief + контент → кожному backend-у
-   - Мінімум 3 instruction-варіанти: audio, visual, quiz (або динамічна генерація?)
-   - Структура: `core/content_gen/brief.py` (генерація) + `core/backends/` дерево (audio/, visual/, quiz/, tts/, flashcards/)
-2. **Мігрувати article + topic pipeline** на brief-driven instruction generation
-3. **Smoke-test на 2-3 темах** — верифікувати стабільність глибини та якості
-4. **Паралельно**: article dispatcher fix у pinned.py, article_del BotCommand додати
-5. **Опціонально**: stale task_id recovery fallback при 5+ timeout-ів (нижче в Blockers)
+1. **Фаза Б — Очерк дизайну (цей тиждень)**
+   - Визначити: мінімум instruction-варіанти (audio, visual, quiz →硬код) чи динамічна генерація на основі Topic.formats/Article.formats?
+   - Backend spec: brief як plain text string чи JSON {"type": "audio", "instructions": "..."}?
+   - Brief cache: зберігати у Topic/Article.formats[key] чи статичний дизайн — brief один раз на тему, шериться між всіма форматами?
+   - Прототип: `core/content_gen/brief.py::BriefGenerator` клас із методом `generate_brief(topic: Topic, article: Optional[Article]) -> str`.
+2. **Smoke-test Фази А (перед push)**
+   - Sam стартує без помилок.
+   - `regen agent_architecture-1 --only podcast_nblm` — щомісяцю тема, порівняти зі старим notebook 8aca66e9-b637-478f-be90-ab19bb6d2a72.
+   - Якщо ОК → `git push`.
+3. **Паралельно (можна робити одночасно)**
+   - Article dispatcher у pinned.py: реалізувати `article_` handler у `_handle_deep_link()` (PRIORITY для smoke-тесту статей).
+   - BotCommand list: додати article, article_del у set_my_commands.
+   - stale task_id fallback (LOW, можна відкласти на послідуючу сесію).
 
 ## Blockers
 
-- **stale task_id fallback не реалізовано**: video артефакт готовий у NBLM UI, але CLI `artifact wait` повертає `timeout` на 5+ поспіль. Fallback: `artifact list` → match by format → URL patch. Потребує реалізації у `_wait_for_artifact()` або окремому recovery механізмі (не критична для Фази Б, можна відкласти).
+- **stale task_id fallback не реалізовано**: video артефакт готовий у NBLM UI, але CLI `artifact wait` повертає `timeout`. Fallback: `artifact list` → match by format → URL patch. Можна відкласти, не блокує Фазу Б.
 
 ## Active branches
 
-- **sam-репо (`main`)** — f29c0a8 запушено. Фаза А 100% завершена, готова до Фази Б.
+- **sam-репо (`main`)** — Фаза А готова, бранчу ще не пушено, очікується на smoke-test.
 
 ## Open questions
 
-- **brief.py design**: Скільки instruction-варіантів генерувати? Мінімум 3 (audio, visual, quiz) чи динамічна генерація на основі Topic.formats/Article.formats?
-- **Backend-agnostic spec**: Чи кожен backend отримує brief як plain text, чи JSON структурований?
-- **Brief cache**: Зберігати brief у Topic.formats[key].brief, Article.formats[key].brief чи регенерувати щоразу?
-- **Haiku API quota**: Скільки Haiku-запитів на день? Яка fallback логіка при rate-limit?
-- **Article deep-link dispatcher**: Потребує реалізації у `_handle_deep_link()` для pinned deep-links (article_X).
+- **brief.py design**: Мінімум 3 instruction-варіанти (audio, visual, quiz) чи динамічна генерація на Topic.formats/Article.formats?
+- **Backend spec**: Яка форма передачі brief-у: plain text string чи JSON структурований?
+- **Brief cache**: Зберігати у Topic/Article.formats[key].brief чи один раз на тему, шериться статично?
+- **Haiku API quota**: Скільки запитів на день? Fallback при rate-limit?
+- **Article deep-link dispatcher**: Точна імплементація у pinned.py для article_X links.
 
 ## Reminders
 
-- **Deep-dive + default length** — стабільне через notebooklm_module, article-pipeline теж отримав ці параметри.
-- **Topic.content_style = Literal["audio", "visual"]** — просто тег, інструкції генеруються у Фазі Б через brief.py.
-- **RSS pipeline stable** — Pocket Casts готовий на `/feed.xml`, orphan sync працює, hook non-fatal.
-- **Lazy re-attach верифікована** — articles/topics при рестарті re-attach задачі автоматично через `post_init` scan.
-- **Article dispatcher** — потребує реалізації у `_handle_deep_link` для deep-links типу article_X (потім smoke-test).
-- **BotCommand list** — article, article_del потребують додавання у set_my_commands.
+- **Фаза А готова до merge** — diff у repo, не закомічено.
+- **Deep-dive параметри** тепер у 4-х файлах — pipeline, notebooklm_module, modules/article, modules/notebooklm.
+- **RSS feed stable** — orphan sync работает, hook non-fatal.
+- **Lazy re-attach верифіковано** — articles/topics при рестарті re-attach через post_init.
+- **Article dispatcher потребує** реалізації у _handle_deep_link() перед smoke-тестом статей.
+- **BotCommand list** — article, article_del потребують додавання.
