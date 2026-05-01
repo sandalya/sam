@@ -62,6 +62,35 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+# ─── ContentBrief ─────────────────────────────────────────────────────────────
+
+@dataclass
+class ContentBrief:
+    """Haiku pre-analysis результат для однієї entity. Кешується в Topic/Article."""
+    key_concepts: list[str] = field(default_factory=list)
+    focus_questions: list[str] = field(default_factory=list)
+    suggested_angle: str = ""
+    suggested_instructions: str = ""
+    source_summary: str = ""
+    generated_at: str = field(default_factory=_now_iso)
+    generated_by: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ContentBrief":
+        return cls(
+            key_concepts=list(data.get("key_concepts", [])),
+            focus_questions=list(data.get("focus_questions", [])),
+            suggested_angle=data.get("suggested_angle", ""),
+            suggested_instructions=data.get("suggested_instructions", ""),
+            source_summary=data.get("source_summary", ""),
+            generated_at=data.get("generated_at") or _now_iso(),
+            generated_by=data.get("generated_by", ""),
+        )
+
+
 # ─── TopicFormat ──────────────────────────────────────────────────────────────
 
 @dataclass
@@ -144,6 +173,7 @@ class Topic:
     legacy_id: Optional[int] = None                   # старий числовий ID (для NBLM маппінга)
     nblm_notebook_id: Optional[str] = None            # NBLM notebook UUID (1 notebook per topic, багато форматів)
     formats: dict[str, TopicFormat] = field(default_factory=dict)
+    brief: Optional[ContentBrief] = None               # Haiku pre-analysis (lazy, кешується)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -158,6 +188,7 @@ class Topic:
         formats = {
             k: TopicFormat.from_dict(v) for k, v in formats_raw.items()
         }
+        brief_raw = data.get("brief")
         return cls(
             id=data["id"],
             island_id=data["island_id"],
@@ -176,6 +207,7 @@ class Topic:
             legacy_id=data.get("legacy_id"),
             nblm_notebook_id=data.get("nblm_notebook_id"),
             formats=formats,
+            brief=ContentBrief.from_dict(brief_raw) if brief_raw else None,
         )
 
     # ── Зручні хелпери (read-only, без зміни стану) ──────────────────────────
@@ -217,6 +249,7 @@ class Article:
     added_at: str = field(default_factory=_now_iso)
     nblm_notebook_id: Optional[str] = None            # NBLM notebook UUID
     formats: dict[str, TopicFormat] = field(default_factory=dict)
+    brief: Optional[ContentBrief] = None               # Haiku pre-analysis (lazy, кешується)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -228,6 +261,7 @@ class Article:
     def from_dict(cls, data: dict) -> "Article":
         formats_raw = data.get("formats", {})
         formats = {k: TopicFormat.from_dict(v) for k, v in formats_raw.items()}
+        brief_raw = data.get("brief")
         return cls(
             id=data["id"],
             title=data["title"],
@@ -236,6 +270,7 @@ class Article:
             added_at=data.get("added_at") or _now_iso(),
             nblm_notebook_id=data.get("nblm_notebook_id"),
             formats=formats,
+            brief=ContentBrief.from_dict(brief_raw) if brief_raw else None,
         )
 
     def format(self, key: FormatKey) -> TopicFormat:
