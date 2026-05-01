@@ -160,6 +160,8 @@ async def _start_generation(
     notebook_id: str,
     fmt: str,
     instructions: str,
+    nblm_format: str | None = None,
+    length: str | None = None,
 ) -> tuple[str, str]:
     """Phase 1: запускає генерацію через --no-wait --json. Повертає (task_id, error).
     error: "" | "rate_limit" | "error" | "unsupported"."""
@@ -168,9 +170,15 @@ async def _start_generation(
         return "", "unsupported"
 
     args = list(_NBLM_CMD_ARGS[fmt]) + ["-n", notebook_id, "--no-wait", "--json"]
+    if fmt == "podcast_nblm":
+        if nblm_format:
+            args.extend(["--format", nblm_format])
+        if length:
+            args.extend(["--length", length])
     if instructions:
         args.append(instructions)
 
+    log.info(f"NBLM args for {fmt}: {args}")
     rc, stdout, stderr = await _run(args, timeout=120)
     if rc == -1:
         return "", "error"
@@ -236,6 +244,8 @@ async def generate_and_notify(
     skip_source: bool = False,
     data_dir: Path = None,
     kind: str = "topic",
+    nblm_format: str | None = None,
+    length: str | None = None,
 ) -> None:
     """
     Один формат end-to-end: ensure notebook → add source → generate → notify.
@@ -305,7 +315,7 @@ async def generate_and_notify(
             if delay:
                 log.info(f"Retry start {fmt} for {topic_id} after {delay}s")
                 await asyncio.sleep(delay)
-            task_id, start_err = await _start_generation(notebook_id, fmt, instructions)
+            task_id, start_err = await _start_generation(notebook_id, fmt, instructions, nblm_format=nblm_format, length=length)
             if task_id or start_err != "rate_limit":
                 break
         if not task_id:

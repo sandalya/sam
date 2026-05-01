@@ -95,3 +95,15 @@ tags: [nblm, async, lazy-reattach, bug]
 2. «lazy re-attach вбудована» — до сьогодні була тільки теорія; тепер справді вбудовано з `post_init` scan.
 
 **Stale task_id баг виявлено (новий, критичний)**: video артефакт готовий у NBLM UI (~21h тому), але CLI `artifact wait <task_id>` повертає `status=timeout` замість `completed`. Task_id видається розпадається через ~24h в NBLM API, навіть коли артефакт реально готовий. Симптом: 5+ поспіль `Wait <task_id>: status=timeout` без жодного `completed/failed` між ними. Fallback-рішення: при N timeout-ів поспіль → `artifact list -n <notebook_id>` → match по формату → витягнути URL → patch JSON. Потребує реалізації в `_wait_for_artifact()` або окремому recovery механізмі.
+
+---
+
+## 2026-04-30: RSS Feed pipeline COMPLETE + Pocket Casts + orphan sync
+
+```yaml
+archivereason: завершено фазу RSS + podcast distribution, stable в production
+archived_at: 2026-04-30
+tags: [rss, podcast, feed, phase-complete]
+```
+
+РСС pipeline завершено і активно. 8 items у feed: 5 curriculum (4 topics + 1 article) + 3 bonus orphan (Bash Mastery for Pi5, Software Engineering Horizons, INFRA Pi5 vs Mac Mini). Сервер на `100.86.239.46:8765` з systemd `sam-rss.service` (bind, Accept-Ranges, /healthz, /feed.xml, /audio/{file}). Orphan sync через `nblm_orphan_sync.py` (dedup по title, keep newest). Hook у `notebooklm_module.py` після `save()` — регенерує feed при готових podcast_nblm. Pocket Casts готовий до додавання по URL `http://100.86.239.46:8765/feed.xml`. Ed: `skip_judge: true` детерміністичні кейси, блоки 20/21/22 PASS ($0 cost). Priority: Phase 4 ручний тест Pocket Casts + stale task_id recovery fallback.

@@ -1,35 +1,33 @@
 ---
 project: sam
-updated: 2026-04-30
+updated: 2026-05-01
 ---
 
 # HOT — Sam
 
 ## Now
 
-**RSS Feed pipeline (Фази 1-3 + bonus orphan) — done. sam-rss.service active.**
+**Фаза А NBLM рефакторингу — deep-dive формат через notebooklm_module/pipeline/article**
 
-8 items у feed: 5 curriculum (4 topics + 1 article) + 3 bonus orphan (Bash Mastery for Pi5, Software Engineering Horizons, INFRA Pi5 vs Mac Mini). Сервер на `100.86.239.46:8765`. Hook у `notebooklm_module.py` авторегенерує feed після кожного ready podcast_nblm. Priority: Phase 4 Pocket Casts ручний тест + stale task_id recovery (з попередньої сесії).
+Проброс `--format deep-dive --length default` у pipeline. Верифіковано на `agent_architecture-1` — deep-dive звучить помітно краще за дефолт. Підготовка до Фази Б: новий `core/content_gen/` пакет з `brief.py` (Haiku pre-analysis).
 
 ## Last done
 
-**Сесія 30.04 — RSS Feed pipeline**
+**Сесія 01.05 — Фаза А NBLM рефакторингу**
 
-- `core/audio_downloader.py` — idempotent download через NBLM CLI, `--no-clobber`
-- `core/rss_feed.py` — RSS 2.0 + iTunes ns, curriculum items + orphan bonus з `[Bonus]` prefix
-- `core/rss_server.py` — aiohttp на `100.86.239.46:8765`: /healthz, /feed.xml, /audio/{file} з Accept-Ranges
-- `core/nblm_orphan_sync.py` — list → dedup by title → filter curriculum → artifact list → download → `orphan_meta.json`
-- `sam-rss.service` — systemd, active + enabled
-- Hook у `notebooklm_module.py` (5 рядків після save()) — non-fatal `asyncio.create_task(regenerate_feed_async())`
-- Ed: `skip_judge: true` в `engine.py`; блоки 20/21/22 — 5 cases, всі PASS, $0.00
+- Додано `--format deep-dive --length default` у `notebooklm_module.py` для проходження через pipeline
+- Тестування на `agent_architecture-1` теми — результат помітно кращий за дефолт
+- Arquitectura Topic.content_style визначена як `Literal["audio", "visual"]` (інструкції НЕ йдуть сюди)
+- Backend-agnostic план підтвердив: інструкції через Фазу Б (brief.py), backends/ дерево для TTS/quiz/flashcards
 
 ## Next
 
-1. **Phase 4 Pocket Casts** — Add by URL → `http://100.86.239.46:8765/feed.xml` (Tailscale активний)
-2. **Stale task_id recovery** (PRIORITY, з 27.04) — `_wait_for_artifact` fallback: N timeout → `artifact list` → match → patch JSON
-3. **Закрити поточний video** `article_6a578102` — або fallback п.2, або руками
-4. **`/dbg_nblm_sync`** при появі нових notebooks у NBLM — ре-синк orphan
-5. **Three-tier migration** — Meg, Ed, Garcia, Abby-v2 на HOT/WARM/COLD
+1. **Фаза Б (Priority)** — Створити `core/content_gen/` пакет:
+   - `brief.py` — Haiku pre-analysis за `--format deep-dive --length default`
+   - Adapter API для інструкцій (замість Topic.content_style)
+   - Тестування на curriculum item
+2. **Перевести pipeline на новий API** — migrate article + topic formats до brief-driven instructability
+3. **Smoke-test на 2-3 темах** — переконатися что глибина і якість stable
 
 ## Blockers
 
@@ -37,19 +35,17 @@ updated: 2026-04-30
 
 ## Active branches
 
-- **sam-репо (`main`)** — `f29c0a8` запушено.
-- **ed-репо (`main`)** — `skip_judge` додано в `engine.py`.
+- **sam-репо (`main`)** — f29c0a8 запушено (RSS pipeline + deep-dive prep)
 
 ## Open questions
 
-- Скільки timeout-ів поспіль вважати stale? 5 (~2.5 год) чи 10 (~5 год)?
-- Universal fallback (автоматичний) чи окрема команда `/recover_stale`?
+- Скільки Haiku instruction-варіантів мати у brief.py? (мінімум ~3: audio, visual, quiz) чи динамічна генерація?
+- Content_style enum Literal або config-driven?
 
 ## Reminders
 
-- **Lazy re-attach тільки для in-flight tasks** (status=generating + task_id).
-- **`set_format_status()` без task_id не зітре існуючий** — безпечно для re-attach.
-- **Stale task_id видно по логах**: 5+ підряд `timeout`, жодного `completed/failed` між ними.
-- **Article auto-pipeline НЕ існує** — opt-in by design (🚀 кнопка).
-- **RSS сервер окремий від Sam** — рестарт Sam не зупиняє sam-rss.service.
-- **Orphan sync не автоматичний** — запускати `/dbg_nblm_sync` вручну після появи нових notebooks.
+- **Deep-dive + default length** працює через notebooklm_module, не розповсюджується на article-pipeline поки що.
+- **Topic.content_style** — это просто тег, інструкції при генерації йдуть через brief, не через модель даних.
+- **RSS pipeline stable** — Pocket Casts ready, orphan sync на запит через `/dbg_nblm_sync`.
+- **Lazy re-attach верифікована** — articles/topics при рестарті re-attach задачі автоматично.
+- **Stale task_id recovery** — fallback нотована, не критична для поточної сесії (Фаза А не генерує нові задачі).

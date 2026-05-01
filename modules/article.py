@@ -370,6 +370,8 @@ async def _run_generation_queue(
                 topic_id=article_id, topic_title=article_title,
                 source_url=source_url, fmt=fmt,
                 instructions=instructions, kind="article",
+                nblm_format="deep-dive" if fmt == "podcast_nblm" else None,
+                length="default" if fmt == "podcast_nblm" else None,
             )
             ok += 1
         except Exception as e:
