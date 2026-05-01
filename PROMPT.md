@@ -1,12 +1,12 @@
 Проект: sam
 
-**Поточний стан:** Фаза А NBLM рефакторингу — глобальний проброс `--format deep-dive --length default`. Верифіковано на `agent_architecture-1`. Перехід до Фази Б: `core/content_gen/` пакет з `brief.py` (Haiku pre-analysis) замість Topic.content_style інструкцій.
+**Стан**: Фаза А NBLM deep-dive рефакторингу завершена (01.05). Звучить краще: проброс `--format deep-dive --length default` у pipeline успішний, тестовано на agent_architecture-1 (~9.5 хв). Готово до Фази Б: create core/content_gen/brief.py (Haiku pre-analysis) + backends/ дерево для instruction-driven генерації.
 
-**Що далі:**
-1. Створити `core/content_gen/brief.py` (Haiku → инструкции)
-2. Перевести pipeline на новий API
-3. Smoke-тест на 2-3 темах
+**Наступні кроки**:
+1. Фаза Б: brief.py (Haiku розбір Topic/Article контексту → instruction set для audio/visual/quiz)
+2. Міграція article + topic pipeline на brief-driven instructability
+3. Smoke-test 2-3 тем, article dispatcher fix, article_del BotCommand
 
-**Контекст:** Topic.content_style — тег (audio/visual), інструкції через brief (Фаза Б). Backend-agnostic архітектура. RSS pipeline stable (Pocket Casts ready). Lazy re-attach + stale task_id fallback верифіковані.
+**Блокери**: немає. RSS pipeline stable, lazy re-attach верифікована.
 
-Шкодлю HOT.md + WARM.md перед стартом.
+Перш за все — скинь мені HOT.md + WARM.md. Почнемо з brief.py архітектури.
