@@ -18,7 +18,7 @@ updated: 2026-05-01
 - Створено `core/content_gen/brief.py`: BriefGenerator клас, Haiku pre-analysis → instruction set (audio/visual/quiz), кеш у Topic/Article.formats[key].brief.
 - Створено `core/content_gen/presets.py`: instruction-темплети для 3 варіантів (audio/visual/quiz).
 - Створено `core/backends/`: base.py (ContentBackend base), nblm.py (NBLM podcast), tts.py (TTS для audio), interactive.py (quiz/flashcards).
-- Додано ContentBrief dataclass у Topic/Article, migrate curriculum.json schema_version=2 (z fallback на schema_version=1).
+- Додано ContentBrief dataclass у Topic/Article, без зміни schema_version (backward compat через data.get("brief")).
 - Реалізована prepare_and_generate() API: читає Topic/Article → brief → dispatch до backend → генерація.
 - Merge до main: diff з 340+ рядків код, 0 breaking changes (lazy re-attach через shim).
 - Тест на agent_architecture-3: Haiku 4с, 6 концептів у brief, NBLM deep-dive+length+format_modifier передаються коректно, sound-quality очевидно краща ніж дефолт.
@@ -63,7 +63,7 @@ updated: 2026-05-01
 ## Reminders
 
 - **Фаза А ready на production** — глобальний deep-dive працює, merge stable.
-- **Schema migration**: schema_version 1→2, fallback для старих curriculum.json.
+- **Schema НЕ мігрували**: schema_version залишається 1, новий ContentBrief додано через `data.get("brief")` для backward compat.
 - **Backward compat**: shim в modules/notebooklm.py (14 рядків) дозволяє main.py не знати про brief — lazy attach.
 - **Lazy re-attach верифіковано** — articles/topics при рестарті re-attach через post_init z task_id.
 - **RSS feed стабільна** — orphan sync, hook non-fatal, Pocket Casts готовий.

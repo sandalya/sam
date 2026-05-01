@@ -21,7 +21,7 @@ status: active
 - `backends/tts.py`: TTS для audio-articles.
 - `backends/interactive.py`: quiz/flashcards з інтерактивною логікою.
 
-**Schema migration**: curriculum.json schema_version=2 (fallback на v1 при необхідності). ContentBrief dataclass у Topic/Article. Merge у main успішна, 340+ рядків коду, 0 breaking changes.
+**Schema БЕЗ міграції**: schema_version=1 без змін, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно). ContentBrief dataclass у Topic/Article. Merge у main успішна, 12 файлів, +747/-520 рядків, 0 breaking changes.
 
 **Test результати (agent_architecture-3)**: Haiku-brief генерація ~4с, 6 концептів у brief, NBLM з параметрами (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт.
 
@@ -53,7 +53,7 @@ tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=2, fallback schema_version=1). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **27.04 update**: Article dataclass з 5-ти форматів, task_id поле для async tracking — верифіковано на проді через lazy re-attach. **01.05 update**: ContentBrief додано у Topic/Article, migration на schema_version=2.
+`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **27.04 update**: Article dataclass з 5-ти форматів, task_id поле для async tracking — верифіковано на проді через lazy re-attach. **01.05 update**: ContentBrief додано у Topic/Article, без зміни schema_version.
 
 ## Article pipeline (Phase 6.2 — ACTIVE)
 
@@ -240,7 +240,7 @@ tags: [decisions]
 status: active
 ```
 
-**01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: briefs/ дерево (audio/, visual/, quiz/), кожен backend отримує brief + контент + interpretation-логіка. `prepare_and_generate()` API. Schema migration curriculum.json→schema_version=2. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
+**01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: backends/ дерево (nblm, tts, interactive — останні два заглушки), кожен backend отримує brief + контент через ContentBackend ABC. `prepare_and_generate()` API. БЕЗ schema migration. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
 
 ## Workspace-репо архітектура
 
