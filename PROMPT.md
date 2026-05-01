@@ -1,5 +1,12 @@
-Проект: sam
-Стан: Фаза Б core/content_gen/ архітектури 100% реалізована і протестована на agent_architecture-3. Brief-генерація через Haiku, backend-agnostic backends/ дерево, schema migration на version=2. Merge у main успішна, lazy re-attach дозволяє повну backward-compat.
-Зробити далі: 1) bulk-регенерація 17 подкастів (послідовна, одна тема за раз щоб не перевантажити API); 2) article deep-link dispatcher у pinned.py для /article_<id> (PRIORITY); 3) BotCommand додати article/article_del.
-Блокери: stale task_id fallback можна паралелити (не критичний).
-Передай HOT.md + WARM.md з workspace/sam/.
+Проект: Sam
+
+Стан: Фаза Б core/content_gen/ пакету на 100% реалізована, успішно merged до main. Запущено bulk-регенерацію 13 подкастів через `/regen --only podcast_nblm` (очікується 24-72 год через rate-limit). Статус stable, чекаємо поки завершиться.
+
+Наступні кроки:
+1. Моніторити bulk-regen (перевіка: `python3 -c 'import json; d=json.load(open("data/curriculum.json")); print({s: sum(1 for t in d["topics"] if t.get("formats",{}).get("podcast_nblm",{}).get("status","missing")==s) for s in ["ready","pending","generating","failed"]})'`).
+2. Паралельно: реалізувати article deep-link dispatcher у `_handle_deep_link()` (Фаза В PRIORITY).
+3. Smoke-test звучання на 3-4 темах після bulk-завершення.
+
+Блокери: Rate-limit loop на 13 подкастів. Низький пріоритет: stale task_id fallback, BotCommand додавання article/article_del.
+
+Гот/Ворм/Колд прикріплені. Без них не починайте роботу!

@@ -7,61 +7,59 @@ updated: 2026-05-01
 
 ## Now
 
-**Фаза Б: ЗАВЕРШЕНА і MERGED, буде чекатися bulk-регенерація подкастів (24-72 год)**
+**Дебаг post-session: bug root cause localized, fix deployed, 3 stuck topics reset**
 
-Фаза Б core/content_gen/ пакету на 100% реалізована, тестована на agent_architecture-3, успішно merged до main о 19:57 01.05. Запущено bulk-регенерацію 13 подкастів через `/regen --only podcast_nblm` (всі теми крім agent_architecture-1 і agent_architecture-3 які вже мають свіжий deep-dive brief). Паралельно готуємось до Фази В (article deep-link dispatcher + BotCommand додавання).
+Вiдpаховано проблему у nblm.py:268-273: `set_format_status('generating')` без task_id запускалась ДО rate-limit retry loop. Якщо всі retry повернули rate_limit, то `save()` з task_id ніколи не виконується → стан зависає на generating з task_id=None назавжди. Fix: видалено 4 рядки (step 3 mark + orphaned save). Step 5 вже обробляє failed коректно. 3 теми (завислі) reset до pending, 5 подкастів ready (legacy з modules/notebooklm.py), 10 missing. NBLM rate-limited до ночи. Відкриті: stale task_id для video (два артефакти, 19826355 + 7af67aad) — окремий баг. RETRY_DELAYS=72h кандидат на скорочення.
 
 ## Last done
 
-**Сесія 01.05 — Фаза Б COMPLETE + merge + bulk-regen запущена**
+**Сесія 01.05 вечір (14:00 UTC) — Bug fix + reset**
 
-- Фаза Б core/content_gen/ пакету на 100% реалізована: brief.py (Haiku pre-analysis), presets.py (audio/visual/quiz шаблони), backends/{base,nblm,tts,interactive}.py, ContentBrief dataclass у Topic/Article, prepare_and_generate() API.
-- Schema_version залишається 1, fallback через `data.get("brief")` для backward-compat.
-- Merge до main: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму (14 рядків у modules/notebooklm.py).
-- Тест на agent_architecture-3: Haiku-генерація ~4с, brief з 6 концептів, NBLM параметри (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт.
-- Видалено _generate_format_instructions з article.py — brief тепер один на entity, переиспользується всіма форматами.
-- Запущено bulk-регенерацію: `/regen --only podcast_nblm` о 19:57 для 13 тем (tool_use_integration-1, agent_architecture-2/3 відповідно; production_reliability-2/3/4/5; multi_model_orchestration-1/2; system_operations-2/3/4/5). Монітор: першi 1-2 підуть швидко (< 1 хв), решта — rate-limit retry-loop (RETRY_DELAYS = 71 година послідовно). Brief кешується після першої генерації.
+- Проаналізовано логи `tool_use_integration-1`: rate_limit loop з task_id=None, topic.formats['podcast_nblm'].status='generating' вічно.
+- Знайдено корінь: nblm.py:268-273 set_format_status('generating') БЕЗ task_id запускається до retry loop; якщо loop повертає rate_limit, save() з task_id ніколи не викликається.
+- Fix: видалено 4 рядки (Step 3 mark + orphaned save), step 5 (failed handling) вже покривав error case.
+- Reset 3 stuck topics (tool_use_integration-1, production_reliability-2/3) → status=pending.
+- 5 подкастів ready (agent_architecture-1/3, multi_model_orchestration-1/2, system_operations-5) — legacy з modules/notebooklm.py, не перегенеровувались.
+- 10 тем missing podcast (решта 13 з bulk-regen, рухаються через rate-limit loop).
+- NBLM rate-limited до ночи, API recovery очікується.
 
 ## Next
 
-1. **Чекати bulk-регенерацію 13 подкастів (24-72 год, rate-limit limited)**
-   - Статус: запущено о 19:57. Моніторити через pinned (lazy re-attach polling).
-   - Верифікація: `python3 -c 'import json; d=json.load(open("data/curriculum.json")); print({s: sum(1 for t in d["topics"] if t.get("formats",{}).get("podcast_nblm",{}).get("status","missing")==s) for s in ["ready","pending","generating","failed"]})'`
-   - По завершенню: smoke-test звучання на 3-4 темах вибірково, порівняння зі старим deep-dive (agent_architecture-1).
+1. **Morning session: перевірити tool_use_integration-1 статус**
+   - Якщо ready/failed: ✅ fix end-to-end confirmed, restart bulk на решті 12 (rate-limit loop очищений).
+   - Якщо pending: retry все ще в loop (стара версія в пам'яті?), потребує перезавантаження модулю або restart daemon.
+   - Command: `python3 -c 'import json; d=json.load(open("data/curriculum.json")); t=[x for x in d["topics"] if x["id"]=="tool_use_integration-1"]; print(t[0]["formats"]["podcast_nblm"] if t else "NOT_FOUND")'`
 
-2. **Фаза В — Article deep-link dispatcher (PRIORITY після bulk-regen)**
-   - Реалізація: `article_` handler у `_handle_deep_link()` у pinned.py.
-   - Flow: article_ID_HASH → load Article → display name/url + format-статуси (inline кнопки для audit-дій).
-   - BotCommand: додати `article`, `article_del` у set_my_commands().
-   - Test: `/article https://example.com` → opt-in via 🚀 → мінімум podcast_nblm ready → `/article_<id>` → display.
+2. **Якщо fix confirmed (ready/failed)**:
+   - Restart `/regen --only podcast_nblm` для 13 тем (або 12 + tool_use_integration-1 окремо якщо failed).
+   - Моніторинг: першi 1-2 швидко, решта rate-limit retry-loop (71+ год sequentially).
+   - Brief cache перекористовується (вже згенерований).
 
-3. **Smoke-test Фази Б перед наступною сесією (коли bulk-regen впаде)**
-   - Sam стартує без помилок, core/content_gen/ modules завантажуються.
-   - Brief cache у Topic.formats['podcast_nblm'].brief при першому доступі.
-   - `/regen agent_architecture-1 --only podcast_nblm` → Haiku brief-генерація → NBLM з параметрами.
-   - Порівняння звучання зі старою версією (8aca66e9-b637-478f-be90-ab19bb6d2a72).
-   - Якщо ОК → коміт + push.
+3. **Паралельно (не блокує)**:
+   - Розглянути RETRY_DELAYS = 72h; залежно від API можна скоротити на 24h (потребує тестування).
+   - Stale task_id fallback (19826355, 7af67aad video) — низький пріоритет, окремий баг.
 
 ## Blockers
 
-- **Rate-limit loop**: 13 подкастів, з яких 1-2 підуть швидко, решта чекатимуть 71+ год на API recovery. Паралельно: можна робити article dispatcher, не блокує Фазу В.
-- **Stale task_id fallback** (низький пріоритет): NBLM API task_id протухає через ~24h. Fallback не реалізовано, можна відкласти до паралельної роботи.
+- **Rate-limit loop**: 13 подкастів мають NBLM rate-limit, API recovery очікується. Фаза В (article dispatcher) не залежить.
+- **Потенційна проблема з кешем**: якщо модуль не перезавантажився після fix, retry loop може продовжити старим кодом → перевірити morning session.
 
 ## Active branches
 
-- **sam-репо (`main`)** — Фаза Б merged, bulk-regen запущена. Status: stable, готова до production smoke-test після bulk-завершення.
+- **sam-репо (`main`)** — bug fix merged (4 рядка видалено з nblm.py), тести passing, готова до production.
 
 ## Open questions
 
-- **Bulk-регенерація 13 подкастів**: тривалість по темам? Очікується 24-72 год через rate-limit. Першi два-три швидко, решта в retry-loop.
-- **Article dispatcher**: рендер у pinned як окремий accordion-блок чи інлайн у список статей?
-- **Brief cache persistence**: Topic.formats[key].brief лишається у curriculum.json ou синхронізуватися з artifact.json?
+- **tool_use_integration-1 morning статус**: ready/failed/pending?
+- **Потрібен ли manual restart daemon чи достатньо reload модуля?** (залежить від як запущено generate_and_notify).
+- **RETRY_DELAYS скорочення**: 72h → 24h? Потребує тестування на API behavior.
 
 ## Reminders
 
 - **Фаза А + Б на production** — deep-dive + brief система працює, merge stable.
-- **Schema НЕ мігрована**: schema_version=1, ContentBrief додано через fallback `data.get("brief")`.
-- **Lazy re-attach шім** (14 рядків у modules/notebooklm.py) забезпечує backward-compat.
-- **Brief генерується 1 раз** і кешується — дорого, але не кожен рендер.
-- **BotCommand list** потребує додавання article/article_del — низький пріоритет.
-- **Паралельна робота**: під час bulk-regen можна почати article dispatcher (не залежить).
+- **Bug root cause**: premature 'mark generating' (Step 3) ДО retry loop. Step 5 вже обробляє failed коректно.
+- **3 reset topics**: tool_use_integration-1, production_reliability-2/3 → pending, готові до retry.
+- **5 ready podcasts**: legacy, не перегенеровувались.
+- **Stale task_id**: окремий баг, потребує fallback реалізації (не критична).
+- **Brief cache**: перекористовується, дорого але не кожен рендер.
+- **Паралельна робота**: під час rate-limit loop можна почати article dispatcher (Фаза В) — не залежить.

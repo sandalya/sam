@@ -265,14 +265,6 @@ async def generate_and_notify(
         if rc != 0:
             log.warning(f"Add source warning (ignored) for {topic_id}: {stderr}")
 
-    # Step 3: mark as generating
-    state = load(cur_path)
-    if kind == "article":
-        set_article_format_status(state, topic_id, fmt, "generating")
-    else:
-        set_format_status(state, topic_id, fmt, "generating")
-    save(state, cur_path)
-
     # Step 4: two-phase generation with re-attach support
     RETRY_DELAYS = [0] + [3600] * 71  # hourly retry up to 72h on rate_limit at start
 
