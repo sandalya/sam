@@ -10,8 +10,7 @@ Pipeline:
   2. Claude API (MODEL_SMART) аналізує → JSON {summary, recommended_formats}
   3. add_article() в curriculum → save → refresh_pinned (стаття з'явиться у секції 📑 Статті)
   4. показ картки з 5 кнопками форматів (✨ біля рекомендованих)
-  5. callback art_<id>_<fmt> → Claude генерує instructions під формат + статтю
-                            → generate_and_notify(kind="article", ...)
+  5. callback art_<id>_<fmt> → prepare_and_generate(kind="article", ...)
                             → refresh_pinned після ready
 """
 import asyncio
@@ -30,9 +29,9 @@ from curriculum import (
     load, save,
     add_article, remove_article,
 )
+from core.content_gen import prepare_and_generate
 from .base import DATA_DIR
 from .pinned import refresh_pinned
-from .notebooklm import generate_and_notify
 
 log = logging.getLogger("modules.article")
 
@@ -165,56 +164,6 @@ async def _analyze_article(url: str, title: str, content: str) -> dict:
     if not formats:
         formats = ["podcast_nblm"]
     return {"summary": summary[:500], "recommended_formats": formats}
-
-
-PROMPT_GEN_SYSTEM = (
-    "You generate focused instruction prompts for NotebookLM to produce content from "
-    "a source article. Output the prompt directly — no preamble, no markdown, no quotes around it."
-)
-
-PROMPT_GEN_TMPL = """Generate a NotebookLM instruction prompt for format: {format}.
-
-Source article title: {title}
-Brief summary: {summary}
-Format goal: {format_goal}
-
-Audience: experienced Python developer building AI agents and Telegram bots, wants deeper understanding of theory and architecture.
-
-The instruction prompt should:
-- be in English (NotebookLM works better in English for generation)
-- be 3-6 sentences
-- guide NotebookLM to focus on the most useful aspects for this audience
-- request concrete examples and actionable insights
-- avoid generic intros / outros
-
-Return ONLY the prompt text, nothing else."""
-
-FORMAT_GOAL = {
-    "slides":       "structured slide-deck with comparisons and frameworks",
-    "podcast_nblm": "natural 2-host audio discussion exploring the topic in depth",
-    "video":        "video overview with visual explanations of key concepts",
-    "infographic":  "data-rich visual summary of the article's key points",
-    "flashcards":   "memorizable Q&A cards covering core terms and concepts",
-}
-
-
-async def _generate_format_instructions(title: str, summary: str, fmt: str) -> str:
-    """Returns ready-to-pass instructions string for NotebookLM."""
-    prompt = PROMPT_GEN_TMPL.format(
-        format=fmt, title=title, summary=summary,
-        format_goal=FORMAT_GOAL.get(fmt, fmt),
-    )
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(
-        None,
-        lambda: client.messages.create(
-            model=MODEL_SMART,
-            max_tokens=400,
-            system=PROMPT_GEN_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
-        ),
-    )
-    return "".join(b.text for b in response.content if b.type == "text").strip()
 
 
 # ── UI: format keyboard ──────────────────────────────────────────────────────
@@ -350,40 +299,27 @@ def _parse_callback(data: str) -> tuple[str | None, str, str | None]:
 
 
 async def _run_generation_queue(
-    bot, chat_id: int, article_id: str, article_title: str,
-    article_summary: str, source_url: str, formats: list[str],
+    bot, chat_id: int, article_id: str, formats: list[str],
 ) -> None:
-    """Послідовно генерує всі вибрані формати (mirror _run_regen).
-    Один summary в кінці. generate_and_notify сам надсилає per-format ready/failed."""
+    """Послідовно генерує всі вибрані формати через prepare_and_generate."""
     ok, failed = 0, 0
     for fmt in formats:
+        preset = "deepdive" if fmt == "podcast_nblm" else "standard"
         try:
-            instructions = await _generate_format_instructions(article_title, article_summary, fmt)
-        except Exception as e:
-            log.error(f"Prompt gen failed for {article_id}/{fmt}: {e}")
-            await bot.send_message(chat_id, f"⚠️ {FORMAT_LABEL[fmt]}: prompt gen failed: {e}")
-            failed += 1
-            continue
-        try:
-            await generate_and_notify(
-                bot=bot, chat_id=chat_id,
-                topic_id=article_id, topic_title=article_title,
-                source_url=source_url, fmt=fmt,
-                instructions=instructions, kind="article",
-                nblm_format="deep-dive" if fmt == "podcast_nblm" else None,
-                length="default" if fmt == "podcast_nblm" else None,
+            await prepare_and_generate(
+                bot, chat_id,
+                entity_id=article_id, kind="article", fmt=fmt,
+                data_dir=DATA_DIR, preset=preset,
             )
             ok += 1
         except Exception as e:
-            log.error(f"generate_and_notify failed for {article_id}/{fmt}: {e}")
+            log.error(f"prepare_and_generate failed for {article_id}/{fmt}: {e}")
             await bot.send_message(chat_id, f"⚠️ {FORMAT_LABEL[fmt]}: {e}")
             failed += 1
-    # Refresh pinned один раз в кінці — там зʼявляться всі готові іконки
     try:
         await refresh_pinned(bot, chat_id, DATA_DIR)
     except Exception as e:
         log.warning(f"refresh_pinned post-queue failed: {e}")
-    # Summary
     summary = f"🏁 Готово: {ok}/{len(formats)} форматів"
     if failed:
         summary += f" ({failed} провалились)"
@@ -448,9 +384,7 @@ async def handle_article_callback(update: Update, context: ContextTypes.DEFAULT_
         # Запускаємо чергу в background
         asyncio.create_task(_run_generation_queue(
             bot=context.bot, chat_id=chat_id,
-            article_id=article_id, article_title=article.title,
-            article_summary=article.summary, source_url=article.source_url,
-            formats=ordered,
+            article_id=article_id, formats=ordered,
         ))
         return
 

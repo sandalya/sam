@@ -169,7 +169,7 @@ async def run_pipeline(
 
         try:
             if fmt_key in NBLM_FORMATS:
-                await _generate_nblm(bot, chat_id, topic_id, topic.title, topic.read, fmt_key, data_dir, topic=topic)
+                await _generate_nblm(bot, chat_id, topic_id, fmt_key, data_dir)
             elif fmt_key == "podcast_tts":
                 await _generate_tts(bot, chat_id, topic_id, data_dir)
             elif fmt_key in LLM_FORMATS:
@@ -222,30 +222,20 @@ async def _generate_nblm(
     bot,
     chat_id: int,
     topic_id: str,
-    topic_title: str,
-    source_url: str,
     fmt_key: str,
     data_dir: Path,
-    topic: Topic | None = None,
-    only_formats: set[str] | None = None,
 ) -> None:
-    """Делегує генерацію NBLM-формату до notebooklm_module."""
-    from core.notebooklm_module import generate_and_notify
+    """Делегує генерацію NBLM-формату до content_gen pipeline."""
+    from core.content_gen import prepare_and_generate
 
-    nblm_format = "deep-dive" if fmt_key == "podcast_nblm" else None
-    length = "default" if fmt_key == "podcast_nblm" else None
-
-    await generate_and_notify(
-        bot=bot,
-        chat_id=chat_id,
-        topic_id=topic_id,
-        topic_title=topic_title,
-        source_url=source_url or "",
+    preset = "deepdive" if fmt_key == "podcast_nblm" else "standard"
+    await prepare_and_generate(
+        bot, chat_id,
+        entity_id=topic_id,
+        kind="topic",
         fmt=fmt_key,
-        instructions="",
         data_dir=data_dir,
-        nblm_format=nblm_format,
-        length=length,
+        preset=preset,
     )
 
 
