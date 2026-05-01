@@ -9,11 +9,11 @@ updated: 2026-05-01
 
 ```yaml
 last_touched: 2026-05-01
-tags: [nblm, format, rефакторинг, quality]
-status: active
+tags: [nblm, format, рефакторинг, quality]
+status: done
 ```
 
-**Фаза А NBLM рефакторингу**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Це повільніше (біль на генерацію), але звучить якісніше у NBLM UI. Протестовано на `agent_architecture-1` теми — результат явно кращий за попередній дефолт. Інтеграція у `notebooklm_module.py` просто + Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). Готово до Фази Б.
+**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` простая. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). Готово до Фази Б.
 
 ## Content generation via Haiku brief (Фаза Б — планується)
 
@@ -23,7 +23,7 @@ tags: [architecture, content-gen, brief, phase-b]
 status: planned
 ```
 
-**Фаза Б — core/content_gen/ пакет**: Реальні інструкції не живуть в Topic.content_style, а генеруються через Haiku pre-analysis. `brief.py` модуль: Haiku читає Topic/Article контекст → генерує 1-2 рядка instruction set → передає backends-ам (audio, visual, quiz, TTS, flashcards). Backend-agnostic design: кожен backend отримує brief + контент, сам інтерпретує инструкции. Архітектура: `core/content_gen/brief.py` (генерація) + `core/backends/` дерево (audio/, visual/, quiz/, tts/, flashcards/) — кожен backend має свою логіку використання brief.
+**Фаза Б — core/content_gen/ пакет**: Реальні інструкції не живуть в Topic.content_style, а генеруються через Haiku pre-analysis. `brief.py` модуль: Haiku читає Topic/Article контекст → генерує 1-2 рядка instruction set → передає backends-ам (audio, visual, quiz, TTS, flashcards). Backend-agnostic design: кожен backend отримує brief + контент, сам інтерпретує інструкції. Архітектура: `core/content_gen/brief.py` (генерація) + `core/backends/` дерево (audio/, visual/, quiz/, tts/, flashcards/) — кожен backend має свою логіку використання brief. **Відкриті питання**: кількість instruction-варіантів (мінімум 3: audio, visual, quiz), динамічна генерація чи фіксовані пресети, brief cache.
 
 ## RSS feed pipeline
 
@@ -220,7 +220,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE | **Фаза А (NBLM deep-dive)** 🚀 01.05 | **Фаза Б (brief.py)** 📋 планується | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE | **Фаза А (NBLM deep-dive)** ✅ 01.05 DONE | **Фаза Б (brief.py)** 📋 планується | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
 
 ## Ключові архітектурні рішення
 
@@ -230,7 +230,7 @@ tags: [decisions]
 status: active
 ```
 
-**01.05 updates**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. Інструкції з'являються у Фазі Б через brief.py + Haiku pre-analysis. Backend-agnostic: backends/ дерево (audio/, visual/, quiz/, tts/, flashcards/), кожен backend отримує brief + контент. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` для pinned deep-links. Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользуе NBLM, Ed MessageEdited listener, Articles окремо від тем.
+**01.05 updates**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. Інструкції з'являються у Фазі Б через brief.py + Haiku pre-analysis. Backend-agnostic: backends/ дерево (audio/, visual/, quiz/, tts/, flashcards/), кожен backend отримує brief + контент. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` для pinned deep-links. Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
 
 ## Workspace-репо архітектура
 

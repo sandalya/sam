@@ -7,27 +7,29 @@ updated: 2026-05-01
 
 ## Now
 
-**Фаза А NBLM рефакторингу — deep-dive формат через notebooklm_module/pipeline/article**
+**Фаза А NBLM рефакторингу завершена. Підготовка до Фази Б: core/content_gen/ пакет з brief.py**
 
-Проброс `--format deep-dive --length default` у pipeline. Верифіковано на `agent_architecture-1` — deep-dive звучить помітно краще за дефолт. Підготовка до Фази Б: новий `core/content_gen/` пакет з `brief.py` (Haiku pre-analysis).
+Фаза А успішно інтегрована: проброс `--format deep-dive --length default` у pipeline, тестована на `agent_architecture-1` — звучить помітно краще. Підготовка до Фази Б: архітектура Haiku brief-генерації замість Topic.content_style для інструкцій. Backend-agnostic дизайн: `core/content_gen/brief.py` + `core/backends/` дерево.
 
 ## Last done
 
-**Сесія 01.05 — Фаза А NBLM рефакторингу**
+**Сесія 01.05 — Фаза А NBLM рефакторингу (завершена)**
 
-- Додано `--format deep-dive --length default` у `notebooklm_module.py` для проходження через pipeline
-- Тестування на `agent_architecture-1` теми — результат помітно кращий за дефолт
-- Arquitectura Topic.content_style визначена як `Literal["audio", "visual"]` (інструкції НЕ йдуть сюди)
-- Backend-agnostic план підтвердив: інструкції через Фазу Б (brief.py), backends/ дерево для TTS/quiz/flashcards
+- Додано `--format deep-dive --length default` у `notebooklm_module.py`
+- Тестування на `agent_architecture-1` успішне — глибина помітно вища
+- Topic.content_style визначена як `Literal["audio", "visual"]` (інструкції НЕ йдуть сюди)
+- Підтверджено: Фаза Б потребує brief.py для інструкцій через Haiku pre-analysis
+- Регенерація агент-теми зайняла ~9.5 хв (очікувано, deep-dive медленніше за дефолт)
 
 ## Next
 
-1. **Фаза Б (Priority)** — Створити `core/content_gen/` пакет:
-   - `brief.py` — Haiku pre-analysis за `--format deep-dive --length default`
-   - Adapter API для інструкцій (замість Topic.content_style)
-   - Тестування на curriculum item
-2. **Перевести pipeline на новий API** — migrate article + topic formats до brief-driven instructability
-3. **Smoke-test на 2-3 темах** — переконатися что глибина і якість stable
+1. **Фаза Б — Core/content_gen пакет (Priority)**
+   - Créate `core/content_gen/brief.py` — Haiku читає Topic/Article контекст → генерує instruction set (1-2 рядки)
+   - Adapter API: brief + контент → backends-ам (не Topic.content_style)
+   - Інстанціювати мінімум 3 instruction-варіанти: audio, visual, quiz
+2. **Мігрувати article + topic pipeline** на brief-driven instructability
+3. **Smoke-test на 2-3 темах** — переконатись що глибина + якість stable
+4. **Решту: article dispatcher fix, article_del BotCommand додати**
 
 ## Blockers
 
@@ -35,17 +37,20 @@ updated: 2026-05-01
 
 ## Active branches
 
-- **sam-репо (`main`)** — f29c0a8 запушено (RSS pipeline + deep-dive prep)
+- **sam-репо (`main`)** — f29c0a8 запушено (NBLM deep-dive + Фаза А готова)
 
 ## Open questions
 
-- Скільки Haiku instruction-варіантів мати у brief.py? (мінімум ~3: audio, visual, quiz) чи динамічна генерація?
-- Content_style enum Literal або config-driven?
+- Скільки Haiku instruction-варіантів у brief.py? (мінімум 3: audio, visual, quiz) чи динамічна генерація на основі format?
+- Content_style enum `Literal` або config-driven (YAML/JSON пресети)?
+- Brief cache: чи зберігаємо brief для переиспользування, чи генеруємо щоразу?
 
 ## Reminders
 
-- **Deep-dive + default length** працює через notebooklm_module, не розповсюджується на article-pipeline поки що.
-- **Topic.content_style** — это просто тег, інструкції при генерації йдуть через brief, не через модель даних.
+- **Deep-dive + default length** працює через notebooklm_module, поки в article-pipeline не мігрований.
+- **Topic.content_style** — просто тег, інструкції при генерації через brief.py (Фаза Б).
 - **RSS pipeline stable** — Pocket Casts ready, orphan sync на запит через `/dbg_nblm_sync`.
 - **Lazy re-attach верифікована** — articles/topics при рестарті re-attach задачі автоматично.
-- **Stale task_id recovery** — fallback нотована, не критична для поточної сесії (Фаза А не генерує нові задачі).
+- **Stale task_id recovery fallback** — при 5+ timeout поспіль → `artifact list` → match by format → URL patch (не реалізовано, нотовано).
+- **Article deep-link dispatcher** — потребує реалізації у `_handle_deep_link` для pinned deep-links (article_X).
+- **Article BotCommand** — article, article_del потребують додавання у BotCommand list (set_my_commands).

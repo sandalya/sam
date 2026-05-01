@@ -107,3 +107,15 @@ tags: [rss, podcast, feed, phase-complete]
 ```
 
 РСС pipeline завершено і активно. 8 items у feed: 5 curriculum (4 topics + 1 article) + 3 bonus orphan (Bash Mastery for Pi5, Software Engineering Horizons, INFRA Pi5 vs Mac Mini). Сервер на `100.86.239.46:8765` з systemd `sam-rss.service` (bind, Accept-Ranges, /healthz, /feed.xml, /audio/{file}). Orphan sync через `nblm_orphan_sync.py` (dedup по title, keep newest). Hook у `notebooklm_module.py` після `save()` — регенерує feed при готових podcast_nblm. Pocket Casts готовий до додавання по URL `http://100.86.239.46:8765/feed.xml`. Ed: `skip_judge: true` детерміністичні кейси, блоки 20/21/22 PASS ($0 cost). Priority: Phase 4 ручний тест Pocket Casts + stale task_id recovery fallback.
+
+---
+
+## 2026-05-01: Фаза А NBLM deep-dive рефакторинг ЗАВЕРШЕНА
+
+```yaml
+archivereason: фаза 100% завершена, тестована на проді, готова до наступної фази
+archived_at: 2026-05-01
+tags: [nblm, phase-a, quality, refactor]
+```
+
+Фаза А NBLM рефакторингу **успішно завершена** 01.05. Проброс `--format deep-dive --length default` у pipeline через notebooklm_module — тестована на `agent_architecture-1` теми (~9.5 хв регенерація). Результат явно кращий за попередній дефолт: звучить деталізовано, глибоко, близько до результатів преміум-сервісів. Інтеграція у код проста: додано two-line параметри у notebooklm_module.py, Topic.content_style = Literal["audio", "visual"] визначена як тег (не місце для інструкцій). Pipeline, modules/ (article.py, nblm.py), backend-інтеграція успішні. Подальше: Фаза Б (brief.py + Haiku pre-analysis для реальних інструкцій, backend-agnostic architecture).

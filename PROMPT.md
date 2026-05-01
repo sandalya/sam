@@ -1,11 +1,12 @@
 Проект: sam
 
-Стан: Phase 6.2 (NBLM async polling) активна, lazy re-attach верифіковано на проді (task 7af67aad успішно re-attach при рестарті 18:54). Виявлено критичний stale task_id баг: NBLM артефакти готові в UI але CLI wait повертає timeout (~24h протухання). Дві HOT memory drifts очищені.
+**Поточний стан:** Фаза А NBLM рефакторингу — глобальний проброс `--format deep-dive --length default`. Верифіковано на `agent_architecture-1`. Перехід до Фази Б: `core/content_gen/` пакет з `brief.py` (Haiku pre-analysis) замість Topic.content_style інструкцій.
 
-Наступний крок: реалізувати stale task_id recovery (fallback на `artifact list` після 5+ timeout-ів) → закрити video вручну або через fallback → three-tier migration для Meggy/Ed/Garcia/Abby-v2.
+**Що далі:**
+1. Створити `core/content_gen/brief.py` (Haiku → инструкции)
+2. Перевести pipeline на новий API
+3. Smoke-тест на 2-3 темах
 
-Блокери: немає. Активна гілка: main (b39bfaf).
+**Контекст:** Topic.content_style — тег (audio/visual), інструкції через brief (Фаза Б). Backend-agnostic архітектура. RSS pipeline stable (Pocket Casts ready). Lazy re-attach + stale task_id fallback верифіковані.
 
----
-
-Не забути: скинь HOT.md + WARM.md з `/workspace/sam/` на старті сесії. Читай Правило нуль у MEMORY.md.
+Шкодлю HOT.md + WARM.md перед стартом.
