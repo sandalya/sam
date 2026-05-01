@@ -9,7 +9,7 @@ updated: 2026-05-01
 
 **Фаза Б: Проектування core/content_gen/ пакету (backend-agnostic design)**
 
-Фаза А NBLM deep-dive завершена, успішно протестована і merged → main. Фаза Б: створено core/content_gen/ пакет із brief.py (Haiku-аналіз), presets.py (template-набори), backends/{base,nblm,tts,interactive}.py. Проведено перший тест на agent_architecture-3: Haiku генерує brief за 4с, brief містить 6 концептів, NBLM аргументи з deep-dive+length+format_modifier передаються правильно. Lazy re-attach 14-рядковий shim підтримує зворотну сумісність з main.py і modules/notebooklm.py без зміни schema_version.
+Фаза А NBLM deep-dive завершена, успішно протестована і merged → main. Фаза Б: створено core/content_gen/ пакет із brief.py (Haiku-аналіз), presets.py (NBLM_PRESETS: standard, deepdive), backends/{base,nblm,tts,interactive}.py. Проведено перший тест на agent_architecture-3: Haiku генерує brief за 4с, brief містить 6 концептів, NBLM аргументи з deep-dive+length+format_modifier передаються правильно. Lazy re-attach 14-рядковий shim підтримує зворотну сумісність з main.py і modules/notebooklm.py без зміни schema_version.
 
 ## Last done
 
