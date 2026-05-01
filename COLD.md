@@ -132,3 +132,15 @@ tags: [phase-b, content-gen, architecture, completed]
 ```
 
 Фаза Б core/content_gen/ пакету **на 100% реалізована** 01.05: Backend-agnostic design із BriefGenerator (Haiku pre-analysis → instruction set), presets (audio/visual/quiz шаблони), backends/{base,nblm,tts,interactive} дерево. Інтеграція у Topic/Article: ContentBrief dataclass, prepare_and_generate() API. Schema migration curriculum.json schema_version 1→2 з fallback. Merge у main успішна: 340+ рядків коду, 0 breaking changes через lazy re-attach шім (14 рядків у modules/notebooklm.py). Тест на agent_architecture-3: Haiku-генерація ~4с, brief з 6 концептів, NBLM параметри (deep-dive, length, format_modifier) передаються коректно, звук очевидно кращий за дефолт. Видалено _generate_format_instructions з article.py — brief тепер один на entity, переиспользується всіма форматами. Наступний крок: bulk-регенерація 17 подкастів (всі крім agent_architecture-1 і agent_architecture-3).
+
+---
+
+## 2026-05-01: Фаза Б core/content_gen/ пакет FULLY MERGED + bulk-regen запущена
+
+```yaml
+archivereason: Фаза Б на 100% реалізована, tested, merged до main, bulk-regen 13 подкастів запущена, готова до production
+archived_at: 2026-05-01
+tags: [phase-b, content-gen, architecture, completed, merged]
+```
+
+Фаза Б core/content_gen/ пакету **ЗАВЕРШЕНА і MERGED** 01.05 о 19:57: Backend-agnostic design із BriefGenerator (Haiku pre-analysis → instruction set), presets (audio/visual/quiz шаблони), backends/{base,nblm,tts,interactive} дерево. Інтеграція у Topic/Article: ContentBrief dataclass, prepare_and_generate() API. Schema_version=1 без міграції, fallback через `data.get("brief")`. Merge у main: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму (14 рядків у modules/notebooklm.py). Тест на agent_architecture-3: Haiku ~4с, brief з 6 концептів, NBLM параметри передаються коректно, звук явно кращий. Видалено _generate_format_instructions з article.py. **Bulk-регенерація запущена**: `/regen --only podcast_nblm` о 19:57 для 13 тем (13 подкастів). Моніторинг: першi 1-2 швидко, решта rate-limit retry-loop (71+ год). Паралельно: готуємось до Фази В (article dispatcher + BotCommand list додавання).

@@ -5,25 +5,25 @@ updated: 2026-05-01
 
 # WARM — Sam
 
-## Фаза Б: core/content_gen/ пакет (IMPLEMENTED)
+## Фаза Б: core/content_gen/ пакет (IMPLEMENTED & MERGED)
 
 ```yaml
 last_touched: 2026-05-01
 tags: [architecture, content-gen, brief, phase-b, backend-agnostic]
-status: active
+status: done
 ```
 
-**Фаза Б — core/content_gen/ архітектура реалізована**: Backend-agnostic design для генерації контенту. Модулі:
+**Фаза Б — core/content_gen/ архітектура РЕАЛІЗОВАНА & MERGED до main**: Backend-agnostic design для генерації контенту. Модулі:
 - `brief.py`: BriefGenerator (Haiku pre-analysis) → instruction set (1-2 рядка), cache у Topic/Article.formats[key].brief.
 - `presets.py`: instruction-темплети для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний).
-- `backends/base.py`: ContentBackend base клас, кожен backend отримує Topic/Article + brief + kontekst.
+- `backends/base.py`: ContentBackend base клас, кожен backend отримує Topic/Article + brief + контекст.
 - `backends/nblm.py`: NBLM podcast-генерація, deep-dive+length+format_modifier параметри.
 - `backends/tts.py`: TTS для audio-articles.
 - `backends/interactive.py`: quiz/flashcards з інтерактивною логікою.
 
-**Schema БЕЗ міграції**: schema_version=1 без змін, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно). ContentBrief dataclass у Topic/Article. Merge у main успішна, 12 файлів, +747/-520 рядків, 0 breaking changes.
+**Schema БЕЗ міграції**: schema_version=1 без змін, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно). ContentBrief dataclass у Topic/Article. Merge у main: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму.
 
-**Test результати (agent_architecture-3)**: Haiku-brief генерація ~4с, 6 концептів у brief, NBLM з параметрами (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт.
+**Test результати (agent_architecture-3)**: Haiku-brief генерація ~4с, 6 концептів у brief, NBLM з параметрами (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт. **01.05 UPDATE: MERGE COMPLETE** — stable, готова до production.
 
 ## NBLM formato deep-dive integration (Фаза А — COMPLETE)
 
@@ -33,7 +33,17 @@ tags: [nblm, format, рефакторинг, quality]
 status: done
 ```
 
-**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено (core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py). Diff готовий до merge, merge виконано 01.05.
+**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено (core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py). Merge виконано 01.05, stable.
+
+## Bulk-регенерація 13 подкастів (Фаза Б Phase 2 — IN PROGRESS)
+
+```yaml
+last_touched: 2026-05-01
+tags: [bulk-regen, podcast-nblm, phase-b]
+status: active
+```
+
+**Запущено 01.05 о 19:57**: `/regen --only podcast_nblm` для 13 тем (всі крім agent_architecture-1 і agent_architecture-3). Теми: tool_use_integration-1, agent_architecture-2/3, production_reliability-2/3/4/5, multi_model_orchestration-1/2, system_operations-2/3/4/5. Параметри: brief через Haiku (кешується), NBLM з deep-dive+length. Моніторинг: першi 1-2 теми швидко (< 1 хв), решта в rate-limit retry-loop (RETRY_DELAYS = 71 година послідовно, ~24-72 год total). Lazy re-attach бере на себе async polling. Статус: чекаємо поки завершиться.
 
 ## RSS feed pipeline
 
@@ -63,7 +73,7 @@ tags: [architecture, article, pipeline, nblm]
 status: active
 ```
 
-Нова архітектура для статей. `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. ArticleFormat: `{"status": "pending|generating|ready|failed", "task_id": null|str, "url": null|str, "consumed": false}`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів). State у `data/articles.json` або `CurriculumState.articles`. Мутації: `add_article(url)`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_format_task_id(id, fmt, task_id)`. Pinned: '📑 Статті (N)' з розширюваним списком чекбоксів. **01.05 update**: article pipeline отримав `--format deep-dive --length default` параметри через modules/article.py. Flow: `/article` → opt-in via 🚀 → генерація послідовна → NBLM async polling для кожного формату. **Потребує**: article deep-link dispatcher у `_handle_deep_link()` перед smoke-тестом.
+Нова архітектура для статей. `/article <URL>` → fetch контенту → Claude аналіз → генерація артефактів. Dataclass: `Article(id, url, title, content, formats: dict[str, ArticleFormat])`. ArticleFormat: `{"status": "pending|generating|ready|failed", "task_id": null|str, "url": null|str, "consumed": false}`. Формати: slides, podcast_nblm, infographic, flashcards, video (5 форматів). State у `data/articles.json` або `CurriculumState.articles`. Мутації: `add_article(url)`, `remove_article(id)`, `set_article_format_status(id, fmt, status)`, `set_article_format_task_id(id, fmt, task_id)`. Pinned: '📑 Статті (N)' з розширюваним списком чекбоксів. **01.05 update**: article pipeline отримав `--format deep-dive --length default` параметри через modules/article.py. Flow: `/article` → opt-in via 🚀 → генерація послідовна → NBLM async polling для кожного формату. **ПОТРЕБУЄ (PRIORITY Фаза В)**: article deep-link dispatcher у `_handle_deep_link()` перед smoke-тестом.
 
 ## NBLM async polling — критична для articles (ACTIVE)
 
@@ -80,7 +90,7 @@ status: active
 
 **27.04 update — Stale task_id баг** (критичний): task_id протухає через ~24h у API, навіть якщо артефакт готовий. CLI `artifact wait` повертає `timeout` замість `completed`. Видно по 5+ timeout поспіль без completed між ними. Fallback: `artifact list -n <notebook_id>` → match by format → URL → JSON patch. **Потребує реалізації** у `_wait_for_artifact()` (не критична для Фази Б, можна відкласти). **01.05 update**: Фаза Б не залежить від цього fallback, можна реалізувати паралельно.
 
-**Lazy re-attach верифіковано**: task 7af67aad (video для article_6a578102) re-attach при рестарті 18:54 успішно. `post_init` скан `curriculum.json` для formats з `status=generating + task_id`, `asyncio.create_task(generate_and_notify(...))` зі `skip_source=True`. Phase 1 пропущена (skip-source + наявний task_id), Phase 2 wait loop активна. **01.05 update**: Lazy re-attach шим у modules/notebooklm.py (14 рядків) дозволяє main.py не знати про brief — backward-compatible з старим кодом.
+**Lazy re-attach верифіковано**: task 7af67aad (video для article_6a578102) re-attach при рестарті 18:54 успішно. `post_init` скан `curriculum.json` для formats з `status=generating + task_id`, `asyncio.create_task(generate_and_notify(...))` зі `skip_source=True`. Phase 1 пропущена (skip-source + наявний task_id), Phase 2 wait loop активна. **01.05 update**: Lazy re-attach шім у modules/notebooklm.py (14 рядків) дозволяє main.py не знати про brief — backward-compatible з старим кодом.
 
 ## Activity tracking окремо від curriculum
 
@@ -190,7 +200,7 @@ tags: [ui, pinned]
 status: active
 ```
 
-`modules/pinned.py` на `render_pinned()`. Per-topic NB · TTS · Exam · Flashcards (deep-links). `curriculum/renderer.py`: deep-links для articles. Footer: `🗺 Карта островів` + timestamp. `_handle_deep_link`: fmtcheck_, pipeline_, exam_, map, tts_, flashcards_, **article_** (потребує реалізації dispatcher для articles — PRIORITY Фаза Б).
+`modules/pinned.py` на `render_pinned()`. Per-topic NB · TTS · Exam · Flashcards (deep-links). `curriculum/renderer.py`: deep-links для articles. Footer: `🗺 Карта островів` + timestamp. `_handle_deep_link`: fmtcheck_, pipeline_, exam_, map, tts_, flashcards_, **article_** (ПОТРЕБУЄ реалізації dispatcher для articles — PRIORITY Фаза В).
 
 ## Pipeline orchestrator
 
@@ -200,7 +210,7 @@ tags: [pipeline, generation]
 status: active
 ```
 
-`curriculum/pipeline.py::run_pipeline()` — послідовна генерація 7 форматів (без exam). Skip ready/generating. Refresh pinned між кроками. Auto-pipeline при add_topic. **26.04 update**: розширення для article-артефактів. **01.05 update**: article pipeline отримав deep-dive параметри. **Потребує**: article deep-link dispatcher у pinned.py.
+`curriculum/pipeline.py::run_pipeline()` — послідовна генерація 7 форматів (без exam). Skip ready/generating. Refresh pinned між кроками. Auto-pipeline при add_topic. **26.04 update**: розширення для article-артефактів. **01.05 update**: article pipeline отримав deep-dive параметри. **Потребує**: article deep-link dispatcher у pinned.py для Фази В.
 
 ## Tool add_topic в agentic loop
 
@@ -220,7 +230,7 @@ tags: [ui, telegram]
 status: active
 ```
 
-`set_my_commands`: cur, jobs, notebooks, status, regen, flashcards, **article, article_del** (потребує додавання у list — LOW PRIORITY).
+`set_my_commands`: cur, jobs, notebooks, status, regen, flashcards. **ПОТРЕБУЄ додавання**: `article`, `article_del` (LOW PRIORITY, Фаза В).
 
 ## Roadmap по маніфесту
 
@@ -230,7 +240,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А (NBLM deep-dive)** ✅ 01.05 DONE | **Фаза Б (brief.py + backend-agnostic)** ✅ 01.05 IMPLEMENTED + test PASSED | **Bulk-регенерація 17 подкастів** 📋 NEXT | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А (NBLM deep-dive)** ✅ 01.05 DONE | **Фаза Б (brief.py + backend-agnostic)** ✅ 01.05 IMPLEMENTED + merge COMPLETE | **Bulk-регенерація 13 подкастів** 🔄 IN PROGRESS (24-72 год) | **Фаза В (article dispatcher + BotCommand)** 📋 NEXT | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
 
 ## Ключові архітектурні рішення
 
@@ -240,7 +250,7 @@ tags: [decisions]
 status: active
 ```
 
-**01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: backends/ дерево (nblm, tts, interactive — останні два заглушки), кожен backend отримує brief + контент через ContentBackend ABC. `prepare_and_generate()` API. БЕЗ schema migration. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
+**01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: backends/ дерево (nblm, tts, interactive), кожен backend отримує brief + контент через ContentBackend ABC. `prepare_and_generate()` API. БЕЗ schema migration. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher (Фаза В)**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
 
 ## Workspace-репо архітектура
 
