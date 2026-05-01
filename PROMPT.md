@@ -1,9 +1,9 @@
 Проект: sam
 
-**Стан**: Фаза А NBLM deep-dive успішно завершена 01.05 (--format deep-dive звучить явно краще). Готуємось до Фази Б: core/content_gen/ пакет з brief.py (Haiku pre-analysis для інструкцій). Topic.content_style = Literal[audio|visual] — просто тег, реальні інструкції генеруватимуться через backend-agnostic brief.
+Стан: Фаза А NBLM deep-dive завершена (--format deep-dive --length default інтегровано, тестовано на agent_architecture-1). Готуємось до Фази Б: backend-agnostic архітектура через brief.py + Haiku pre-analysis для реальних інструкцій. Topic.content_style = тег, інструкції генеруються динамічно.
 
-**Наступний крок**: Фаза Б — реалізувати brief.py модуль: Haiku читає Topic/Article контекст → 1-2 рядка instruction set → backends-ам (audio, visual, quiz). Паралельно: article deep-link dispatcher у pinned.py (потребує для smoke-test), article_del BotCommand додати.
+Наступне: (1) Smoke-test Фази А — Sam стартує, regen agent_architecture-1 --only podcast_nblm, порівняти зі старим notebook, push якщо OK; (2) Дизайн Фази Б — визначити instruction-варіанти (3 hardcoded vs динамічні?), backend spec (plain text vs JSON), brief cache; (3) Article dispatcher у pinned.py для deep-links article_X.
 
-**Blockers**: stale task_id fallback (timeout × 5 → artifact list recovery) — потребує реалізації але не критична для Фази Б.
+Блокери: stale task_id fallback (можна відкласти), article dispatcher (PRIORITY).
 
-Скинь HOT.md + WARM.md, готові почати Фазу Б.
+Скинь HOT.md + WARM.md для контексту, почнемо з планування Фази Б.
