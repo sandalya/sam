@@ -144,3 +144,29 @@ tags: [phase-b, content-gen, architecture, completed, merged]
 ```
 
 Фаза Б core/content_gen/ пакету **ЗАВЕРШЕНА і MERGED** 01.05 о 19:57: Backend-agnostic design із BriefGenerator (Haiku pre-analysis → instruction set), presets (audio/visual/quiz шаблони), backends/{base,nblm,tts,interactive} дерево. Інтеграція у Topic/Article: ContentBrief dataclass, prepare_and_generate() API. Schema_version=1 без міграції, fallback через `data.get("brief")`. Merge у main: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму (14 рядків у modules/notebooklm.py). Тест на agent_architecture-3: Haiku ~4с, brief з 6 концептів, NBLM параметри передаються коректно, звук явно кращий. Видалено _generate_format_instructions з article.py. **Bulk-регенерація запущена**: `/regen --only podcast_nblm` о 19:57 для 13 тем (13 подкастів). Моніторинг: першi 1-2 швидко, решта rate-limit retry-loop (71+ год). Паралельно: готуємось до Фази В (article dispatcher + BotCommand list додавання).
+
+---
+
+## 2026-05-01: Bulk-регенерація 13 подкастів (Фаза Б Phase 2) — запущена, паузована на bug fix
+
+```yaml
+archivereason: bulk-regen запущена 01.05 о 19:57, паузована через виявлення bug, резюміована 02.05
+archivereason_ua: bulk-regen запущена 01.05 о 19:57, паузована через виявлення bug, резюміована 02.05
+archivereason_date: 2026-05-02
+tags: [bulk-regen, podcast-nblm, phase-b]
+```
+
+01.05 запущено `/regen --only podcast_nblm` для 13 тем з параметрами brief через Haiku + NBLM deep-dive+length. 3 topic reset до pending через bug виявлення (premature mark generating у nblm.py:268-273). 5 подкастів ready (agent_architecture-1/3, multi_model_orchestration-1/2, system_operations-5). 8 тем pending через rate-limit retry-loop (RETRY_DELAYS = 71 годин послідовно). Bug fix deployed & end-to-end verified 02.05 → bulk-regen resumed для 8 pending. 13 тем у фазі активної регенерації, моніторинг на rate-limit loop.
+
+---
+
+## 2026-05-01: Фаза А NBLM deep-dive рефакторинг + Фаза Б core/content_gen/ — завершені й merged
+
+```yaml
+archivereason: обидві фази на 100% завершені, протестовані, merged до main, ready для production
+archivereason_ua: обидві фази на 100% завершені, протестовані, merged до main, ready для production
+archivereason_date: 2026-05-02
+tags: [phase-a, phase-b, completed, merged]
+```
+
+Фаза А: проброс `--format deep-dive --length default` у pipeline, звучить явно краще за дефолт. Інтегровано у notebooklm_module.py, artikel.py, pipeline.py. 4 файли змінено, merge 01.05 успішна. Фаза Б: BriefGenerator (Haiku pre-analysis) + presets (audio/visual/quiz) + backends/{base,nblm,tts,interactive} дерево. Schema БЕЗ міграції (version=1), lazy re-attach шім (14 рядків). 340+ рядків коду, 0 breaking changes. Test на agent_architecture-3: brief з 6 концептів, NBLM параметри передаються, звук явно кращий. Merge 01.05 о 19:57 успішна. **02.05 update**: укрсенізація brief.py + presets.py на диску (CC переклав), pending merge. Наступний крок: Фаза В (article dispatcher + BotCommand).

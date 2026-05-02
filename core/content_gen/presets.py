@@ -2,14 +2,14 @@ NBLM_PRESETS = {
     "standard": {
         "nblm_format": None,
         "length": None,
-        "angle": "balanced overview covering core concepts",
+        "angle": "збалансований огляд основних концепцій",
         "format_modifier": "",
     },
     "deepdive": {
         "nblm_format": "deep-dive",
         "length": "default",
-        "angle": "deep technical exploration with concrete examples and trade-offs",
-        "format_modifier": "Go deep on the technical mechanics. Don't stay on the surface.",
+        "angle": "поглиблене технічне дослідження з конкретними прикладами та trade-offs",
+        "format_modifier": "Заглибся в технічну механіку. Не зупиняйся на поверхні.",
     },
     # TODO: verify NBLM CLI flags before adding
     # "quick":  {"nblm_format": None, "length": "shorter", ...}

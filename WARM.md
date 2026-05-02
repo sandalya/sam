@@ -1,14 +1,14 @@
 ---
 project: sam
-updated: 2026-05-01
+updated: 2026-05-02
 ---
 
 # WARM — Sam
 
-## NBLM podcast_nblm bug: premature 'mark generating' — ROOT CAUSE IDENTIFIED & FIXED
+## NBLM podcast_nblm bug: premature 'mark generating' — ROOT CAUSE IDENTIFIED & FIXED & END-TO-END VERIFIED
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [nblm, bug, root-cause, generation-pipeline]
 status: resolved
 ```
@@ -18,31 +18,33 @@ status: resolved
 2. Loop: retry 3 times, all return rate-limit
 3. Step 3 (premature mark): `set_format_status('generating', task_id=None)` → status set, save()
 4. Loop exit (all retries failed)
-5. Step 5 (failed handling): `set_format_status('failed')` ... но save() with task_id ніколи не выконалась на step 3!
+5. Step 5 (failed handling): `set_format_status('failed')` ... але save() with task_id ніколи не виконалась на step 3!
 
 Результат: `status='generating'` з `task_id=None` → stuck forever, retry loop не перезапускається.
 
-**FIX DEPLOYED**: видалено Step 3 (4 рядки): `set_format_status('generating')` + orphaned `save()`. Step 5 вже коректно обробляє failed case. **Status: RESOLVED & TESTED** на tool_use_integration-1 manual reset → pending.
+**FIX DEPLOYED & END-TO-END VERIFIED 02.05**: видалено Step 3 (4 рядки): `set_format_status('generating')` + orphaned `save()`. Step 5 вже коректно обробляє failed case. **Status: RESOLVED & TESTED** на tool_use_integration-1 → status=ready, end-to-end confirmed. Fix working.
 
-**3 TOPICS MANUALLY RESET**: tool_use_integration-1, production_reliability-2/3 → status=pending, готові до retry через rate-limit loop при наступному `/regen`.
+**4 TOPICS PROCESSED**: tool_use_integration-1 (✅ ready), production_reliability-2/3 (✅ pending, reset), rag_retrieval-1 (✅ pending, reset). production_reliability-5 потребує manual reset (retry до ~03.05 19:26).
 
-**5 PODCASTS READY**: agent_architecture-1/3 (old deep-dive, ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy з modules/notebooklm.py, не перегенеровані у Фазі Б).
+**5 PODCASTS READY**: agent_architecture-1/3 (old deep-dive, ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy з modules/notebooklm.py, не перегенеровані у Фазі Б). Подальше: перегенерація при Фазі В чи bulk-regen.
+
+**8 PENDING PODCASTS**: production_reliability-5 (retry до 03.05 19:26), multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 (ready, потребує `/regen` для podcast_nblm). 13 тем у попередньому bulk-regen 01.05, 5 ready, 8 pending.
 
 **STALE TASK_ID FALLBACK** (окремий баг, низький пріоритет): video format 19826355 + 7af67aad — task_id протухає через ~24h в NBLM API. Fallback потребує реалізації: N timeout × 5 → `artifact list` → match by format → URL patch (відкладено).
 
 **RETRY_DELAYS CANDIDATE**: 72h послідовно (71 година × 72 = 5112h total, або ~24d для послідовного retry) — кандидат на скорочення на 24h залежно від API recovery SLA. Потребує тестування.
 
-## Фаза Б: core/content_gen/ пакет (IMPLEMENTED & MERGED)
+## Фаза Б: core/content_gen/ пакет (IMPLEMENTED, MERGED, УКРСЕНІЗАЦІЯ IN PROGRESS)
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [architecture, content-gen, brief, phase-b, backend-agnostic]
 status: done
 ```
 
 **Фаза Б — core/content_gen/ архітектура РЕАЛІЗОВАНА & MERGED до main**: Backend-agnostic design для генерації контенту. Модулі:
-- `brief.py`: BriefGenerator (Haiku pre-analysis) → instruction set (1-2 рядка), cache у Topic/Article.formats[key].brief.
-- `presets.py`: instruction-темплети для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний).
+- `brief.py`: BriefGenerator (Haiku pre-analysis) → instruction set (1-2 рядка), cache у Topic/Article.formats[key].brief. **02.05 update**: CC переклав на укр (файли на диску, pending merge).
+- `presets.py`: instruction-темплети для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний). **02.05 update**: CC переклав на укр (файли на диску, pending merge).
 - `backends/base.py`: ContentBackend base клас, кожен backend отримує Topic/Article + brief + контекст.
 - `backends/nblm.py`: NBLM podcast-генерація, deep-dive+length+format_modifier параметри.
 - `backends/tts.py`: TTS для audio-articles.
@@ -50,52 +52,54 @@ status: done
 
 **Schema БЕЗ міграції**: schema_version=1 без змін, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно). ContentBrief dataclass у Topic/Article. Merge у main: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму.
 
-**Test результати (agent_architecture-3)**: Haiku-brief генерація ~4с, 6 концептів у brief, NBLM з параметрами (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт. **01.05 UPDATE: MERGE COMPLETE** — stable, готова до production.
+**Test результати (agent_architecture-3)**: Haiku-brief генерація ~4с, 6 концептів у brief, NBLM з параметрами (deep-dive, length, format_modifier) передаються коректно, звук явно кращий за дефолт. **01.05 UPDATE: MERGE COMPLETE** — stable, готова до production. **02.05 UPDATE**: укрсенізація brief.py + presets.py на диску, pending merge.
 
 ## NBLM formato deep-dive integration (Фаза А — COMPLETE)
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [nblm, format, рефакторинг, quality]
 status: done
 ```
 
-**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено (core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py). Merge виконано 01.05, stable.
+**Фаза А NBLM рефакторингу ЗАВЕРШЕНА**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено (core/notebooklm_module.py, curriculum/pipeline.py, modules/notebooklm.py, modules/article.py). Merge виконано 01.05, stable. **02.05 update**: deep-dive параметри підтримуються, 5 podcasts ready з deep-dive форматом.
 
-## Bulk-регенерація 13 подкастів (Фаза Б Phase 2 — PAUSED FOR BUG FIX, RESUMING)
+## Bulk-регенерація 13 подкастів (Фаза Б Phase 2 — RESUMED)
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [bulk-regen, podcast-nblm, phase-b]
-status: paused
+status: active
 ```
 
-**Запущено 01.05 о 19:57**: `/regen --only podcast_nblm` для 13 тем (всі крім agent_architecture-1 і agent_architecture-3). Теми: tool_use_integration-1, agent_architecture-2/3, production_reliability-2/3/4/5, multi_model_orchestration-1/2, system_operations-2/3/4/5. Параметри: brief через Haiku (кешується), NBLM з deep-dive+length. Статус: **PAUSED** через bug виявлення (premature mark generating). 3 topic reset до pending. Моніторинг: першi 1-2 теми швидко (< 1 хв), решта в rate-limit retry-loop (RETRY_DELAYS = 71 година послідовно, ~24-72 год total). Lazy re-attach бере на себе async polling. **RESUMING**: morning session перевірить tool_use_integration-1, якщо ready/failed → restart bulk на 13 (або 12+tool_use_integration-1 окремо).
+**Запущено 01.05 о 19:57**: `/regen --only podcast_nblm` для 13 тем (всі крім agent_architecture-1 і agent_architecture-3). Теми: tool_use_integration-1, agent_architecture-2/3, production_reliability-2/3/4/5, multi_model_orchestration-1/2, system_operations-2/3/4/5. Параметри: brief через Haiku (кешується), NBLM з deep-dive+length. Статус: **PAUSED** через bug виявлення (premature mark generating). 3 topic reset до pending.
+
+**02.05 UPDATE: RESUMED**: tool_use_integration-1 end-to-end verified ready, fix confirmed working. **Наступний крок**: reset production_reliability-5 (retry до 03.05 19:26) → `/regen --only podcast_nblm` для 8 pending. Моніторинг: першi 1-2 теми швидко (< 1 хв), решта в rate-limit retry-loop (RETRY_DELAYS = 71 година послідовно, ~24-72 год total). Lazy re-attach бере на себе async polling.
 
 ## RSS feed pipeline
 
 ```yaml
-last_touched: 2026-04-30
+last_touched: 2026-05-02
 tags: [rss, podcast, feed, server]
 status: active
 ```
 
-4 нові модулі у `core/`: `audio_downloader.py` (idempotent NBLM download, `--no-clobber`), `rss_feed.py` (RSS 2.0 + iTunes ns, curriculum + orphan bonus), `rss_server.py` (aiohttp, Accept-Ranges для Pocket Casts seek), `nblm_orphan_sync.py` (list→dedup→filter→download→meta). `sam-rss.service` — bind `100.86.239.46:8765`, окремий процес від Sam (незалежний lifecycle). Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks не з curriculum. Orphan dedup по title (case-insensitive, keep newest `created_at`). Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py`: після `save()` при `ok and fmt=="podcast_nblm"` → `asyncio.create_task(regenerate_feed_async())`, non-fatal. Debug hooks: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`, `/dbg_nblm_sync`. Ed: `skip_judge: true` у `engine.py` — детерміністичні кейси без LLM judge ($0). Блоки 20/21/22 PASS.
+4 нові модулі у `core/`: `audio_downloader.py` (idempotent NBLM download, `--no-clobber`), `rss_feed.py` (RSS 2.0 + iTunes ns, curriculum + orphan bonus), `rss_server.py` (aiohttp, Accept-Ranges для Pocket Casts seek), `nblm_orphan_sync.py` (list→dedup→filter→download→meta). `sam-rss.service` — bind `100.86.239.46:8765`, окремий процес від Sam (незалежний lifecycle). Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks не з curriculum. Orphan dedup по title (case-insensitive, keep newest `created_at`). Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py`: після `save()` при `ok and fmt=="podcast_nblm"` → `asyncio.create_task(regenerate_feed_async())`, non-fatal. Debug hooks: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`, `/dbg_nblm_sync`. Ed: `skip_judge: true` у `engine.py` — детерміністичні кейси без LLM judge ($0). Блоки 20/21/22 PASS. **02.05 update**: 14 items у feed, AntennaPod app працює коректно.
 
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-04-27
+last_touched: 2026-05-02
 tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **27.04 update**: Article dataclass з 5-ти форматів, task_id поле для async tracking — верифіковано на проді через lazy re-attach. **01.05 update**: ContentBrief додано у Topic/Article, без зміни schema_version.
+`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **27.04 update**: Article dataclass з 5-ти форматів, task_id поле для async tracking — верифіковано на проді через lazy re-attach. **01.05 update**: ContentBrief додано у Topic/Article, без зміни schema_version. **02.05 update**: 8 тем з podcast_nblm ключем додано, 5 podcasts ready, 8 pending.
 
 ## Article pipeline (Phase 6.2 — ACTIVE)
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [architecture, article, pipeline, nblm]
 status: active
 ```
@@ -105,7 +109,7 @@ status: active
 ## NBLM async polling — критична для articles (ACTIVE)
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [nblm, async, architecture, critical]
 status: active
 ```
@@ -115,9 +119,9 @@ status: active
 - `artifact wait <task_id> --timeout 1800` → асинхронне опитування (30 хв).
 - TopicFormat.task_id + ArticleFormat.task_id додані, `set_format_status()` приймає task_id.
 
-**27.04 update — Stale task_id баг** (критичний): task_id протухає через ~24h у API, навіть якщо артефакт готовий. CLI `artifact wait` повертає `timeout` замість `completed`. Видно по 5+ timeout поспіль без completed між ними. Fallback: `artifact list -n <notebook_id>` → match by format → URL → JSON patch. **Потребує реалізації** у `_wait_for_artifact()` (не критична для Фази Б, можна відкласти). **01.05 update**: Фаза Б не залежить від цього fallback, можна реалізувати паралельно.
+**27.04 update — Stale task_id баг** (критичний): task_id протухає через ~24h у API, навіть якщо артефакт готовий. CLI `artifact wait` повертає `timeout` замість `completed`. Видно по 5+ timeout поспіль без completed між ними. Fallback: `artifact list -n <notebook_id>` → match by format → URL → JSON patch. **Потребує реалізації** у `_wait_for_artifact()` (не критична для Фази Б, можна відкласти). **01.05 update**: Фаза Б не залежить від цього fallback, можна реалізувати паралельно. **02.05 update**: fallback still pending, low priority.
 
-**Lazy re-attach верифіковано**: task 7af67aad (video для article_6a578102) re-attach при рестарті 18:54 успішно. `post_init` скан `curriculum.json` для formats з `status=generating + task_id`, `asyncio.create_task(generate_and_notify(...))` зі `skip_source=True`. Phase 1 пропущена (skip-source + наявний task_id), Phase 2 wait loop активна. **01.05 update**: Lazy re-attach шім у modules/notebooklm.py (14 рядків) дозволяє main.py не знати про brief — backward-compatible з старим кодом.
+**Lazy re-attach верифіковано**: task 7af67aad (video для article_6a578102) re-attach при рестарті 18:54 успішно. `post_init` скан `curriculum.json` для formats з `status=generating + task_id`, `asyncio.create_task(generate_and_notify(...))` зі `skip_source=True`. Phase 1 пропущена (skip-source + наявний task_id), Phase 2 wait loop активна. **01.05 update**: Lazy re-attach шім у modules/notebooklm.py (14 рядків) дозволяє main.py не знати про brief — backward-compatible з старим кодом. **02.05 update**: shim working, no issues.
 
 ## Activity tracking окремо від curriculum
 
@@ -192,12 +196,12 @@ status: done
 ## Regen + NBLM retry
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [pipeline, regen, nblm]
 status: active
 ```
 
-`/regen` — масова дорегенерація failed формативів. Reset failed→pending, `run_pipeline` послідовно у фоні. NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` (~72 год, потребує перевірки скорочення на 24h). **01.05 update**: bug root cause (premature mark generating) видалено, 3 topics reset, bulk-regen paused до morning verification.
+`/regen` — масова дорегенерація failed формативів. Reset failed→pending, `run_pipeline` послідовно у фоні. NBLM retry: `RETRY_DELAYS = [0] + [3600] * 71` (~72 год, потребує перевірки скорочення на 24h). **02.05 update**: bug fix verified, bulk-regen resuming for 8 pending. production_reliability-5 потребує manual reset перед `/regen`.
 
 ## TTS deep-link fix (done)
 
@@ -262,22 +266,22 @@ status: active
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А (NBLM deep-dive)** ✅ 01.05 DONE | **Фаза Б (brief.py + backend-agnostic)** ✅ 01.05 IMPLEMENTED + merge COMPLETE | **Bulk-регенерація 13 подкастів** 🔄 PAUSED FOR BUG FIX (morning resume) | **Фаза В (article dispatcher + BotCommand)** 📋 NEXT | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А (NBLM deep-dive)** ✅ 01.05 DONE | **Фаза Б (brief.py + backend-agnostic)** ✅ 01.05 IMPLEMENTED + merge COMPLETE, **укрсенізація IN PROGRESS** (CC переклав brief.py + presets.py, pending merge) | **Bulk-регенерація 13 подкастів** 🔄 RESUMED (02.05, 8 pending) | **Фаза В (article dispatcher + BotCommand)** 📋 NEXT | Фаза 6.3+ (SR / export / Depth Mode — відкладена після 1-2 тижнів використання articles). Паралельно: масштабування триярусної пам'яті на Meggy, Ed, Garcia, Abby-v2.
 
 ## Ключові архітектурні рішення
 
 ```yaml
-last_touched: 2026-05-01
+last_touched: 2026-05-02
 tags: [decisions]
 status: active
 ```
 
-**01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: backends/ дерево (nblm, tts, interactive), кожен backend отримує brief + контент через ContentBackend ABC. `prepare_and_generate()` API. БЕЗ schema migration. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (bug fix)**: Premature 'mark generating' (Step 3) видалено з nblm.py:268-273; Step 5 (failed handling) достатньо. 3 topics reset до pending. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher (Фаза В)**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
+**02.05 updates**: End-to-end bug fix verification (tool_use_integration-1 ready). Укрсенізація brief.py + presets.py на диску, pending merge. 8 pending podcasts, production_reliability-5 потребує manual reset перед `/regen`. **01.05 updates (Фаза Б)**: Brief-генерація через Haiku, backend-agnostic: backends/ дерево (nblm, tts, interactive), кожен backend отримує brief + контент через ContentBackend ABC. `prepare_and_generate()` API. БЕЗ schema migration. ContentBrief у Topic/Article. Lazy re-attach шім для backward-compat. **01.05 update (bug fix)**: Premature 'mark generating' (Step 3) видалено з nblm.py:268-273; Step 5 (failed handling) достатньо. 3 topics reset до pending. **01.05 update (Фаза А)**: Deep-dive format через --format flag у notebooklm_module, звучить краще. Інтегровано в article pipeline. Topic.content_style = Literal[audio/visual], НЕ місце для інструкцій. **27.04 updates**: Lazy re-attach верифіковано через рестарт з active task (task 7af67aad). `post_init` скан `curriculum.json` для `status=generating + task_id` → `asyncio.create_task(generate_and_notify(...))` зі skip-Phase-1 логікою. **Stale task_id fallback**: timeout × 5 → `artifact list` → match by format → URL → JSON patch (потребує реалізації, не критична). **Article dispatcher (Фаза В)**: потребує `article_` handler у `_handle_deep_link` (PRIORITY). Інші рішення як раніше: Аккордеон через editMessageText, Exam stateful session в JSON, Regen через create_task, Island map текстовий, Proactive 3 тригери, Flashcards переиспользує NBLM, Ed MessageEdited listener, Articles окремо від тем.
 
 ## Workspace-репо архітектура
 
