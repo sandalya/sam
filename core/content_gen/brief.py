@@ -16,30 +16,30 @@ class BriefParseError(ValueError):
         self.json_error = json_error
 
 _BRIEF_SYSTEM = (
-    "Ти — контент-аналітик. Проаналізуй навчальний матеріал і поверни структурований JSON-brief. "
-    "Виводь лише JSON — без markdown, без преамбули, без code fences."
+    "You are a content analyst. Analyze the learning material and return a structured "
+    "JSON brief. Output JSON only — no markdown, no preamble, no code fences."
 )
 
-_BRIEF_PROMPT = """Проаналізуй цей навчальний матеріал і сформуй content brief для генерації в NotebookLM.
+_BRIEF_PROMPT = """Analyze this learning material and produce a content brief for NotebookLM generation.
 
 Title: {title}
 Source: {source_url}
-{extra_block}Кут подачі (preset): {angle}
+{extra_block}Angle (preset): {angle}
 
-Поверни JSON з такими полями:
+Return JSON with these fields:
 {{
-  "key_concepts": ["концепція1", "концепція2"],
-  "focus_questions": ["питання1?", "питання2?"],
-  "suggested_angle": "одне речення про те, як підходити до цього матеріалу",
-  "suggested_instructions": "2-4 речення інструкцій для NotebookLM українською, починається з дієслова-директиви, адаптовано для досвідченого AI/backend-розробника",
-  "source_summary": "1-2 речення фактичного опису того, що охоплює це джерело"
+  "key_concepts": ["concept1", "concept2"],
+  "focus_questions": ["question1?", "question2?"],
+  "suggested_angle": "one sentence on how to approach this material",
+  "suggested_instructions": "2-4 sentences of instructions for NotebookLM in English, starts with an imperative verb (Explore, Analyze, Examine, etc.), tailored for an experienced AI/backend developer",
+  "source_summary": "1-2 sentences factually describing what this source covers"
 }}
 
-Вимоги:
-- key_concepts: 3-6 елементів, не порожньо
-- focus_questions: 2-4 елементи, не порожньо, закінчуються на ?
-- suggested_instructions: не порожньо, починається з дієслова-директиви (Зосередься, Дослідь, Охопи тощо)
-- source_summary: фактично, конкретно до цього матеріалу"""
+Requirements:
+- key_concepts: 3-6 items, non-empty
+- focus_questions: 2-4 items, non-empty, end with ?
+- suggested_instructions: non-empty, starts with an imperative verb (Explore, Analyze, Examine, Focus, etc.)
+- source_summary: factual, specific to this material"""
 
 
 async def generate_brief(entity, kind: str, preset_angle: str = "") -> ContentBrief:
@@ -55,7 +55,7 @@ async def generate_brief(entity, kind: str, preset_angle: str = "") -> ContentBr
         title=entity.title,
         source_url=source_url or "(no URL)",
         extra_block=extra_block,
-        angle=preset_angle or "збалансований огляд",
+        angle=preset_angle or "balanced overview",
     )
 
     try:

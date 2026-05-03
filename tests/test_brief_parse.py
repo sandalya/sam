@@ -53,6 +53,21 @@ class TestParseJson(unittest.TestCase):
             self.assertIsInstance(e.cleaned_text, str)
 
 
+class TestPromptLanguage(unittest.TestCase):
+
+    def test_prompt_is_english(self):
+        import re
+        from core.content_gen.brief import _BRIEF_SYSTEM, _BRIEF_PROMPT
+        cyrillic = re.compile(r'[а-яА-ЯіІїЇєЄґҐ]')
+        self.assertIsNone(cyrillic.search(_BRIEF_SYSTEM), "Cyrillic found in _BRIEF_SYSTEM")
+        self.assertIsNone(cyrillic.search(_BRIEF_PROMPT), "Cyrillic found in _BRIEF_PROMPT")
+        self.assertIn("You are", _BRIEF_SYSTEM)
+        self.assertIn("key_concepts", _BRIEF_PROMPT)
+        self.assertIn("focus_questions", _BRIEF_PROMPT)
+        self.assertIn("Title:", _BRIEF_PROMPT)
+        self.assertIn("Source:", _BRIEF_PROMPT)
+
+
 class TestGenerateBrief(unittest.TestCase):
 
     def test_generate_brief_falls_back_on_parse_error(self):
