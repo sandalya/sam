@@ -170,3 +170,42 @@ tags: [phase-a, phase-b, completed, merged]
 ```
 
 Фаза А: проброс `--format deep-dive --length default` у pipeline, звучить явно краще за дефолт. Інтегровано у notebooklm_module.py, artikel.py, pipeline.py. 4 файли змінено, merge 01.05 успішна. Фаза Б: BriefGenerator (Haiku pre-analysis) + presets (audio/visual/quiz) + backends/{base,nblm,tts,interactive} дерево. Schema БЕЗ міграції (version=1), lazy re-attach шім (14 рядків). 340+ рядків коду, 0 breaking changes. Test на agent_architecture-3: brief з 6 концептів, NBLM параметри передаються, звук явно кращий. Merge 01.05 о 19:57 успішна. **02.05 update**: укрсенізація brief.py + presets.py на диску (CC переклав), pending merge. Наступний крок: Фаза В (article dispatcher + BotCommand).
+
+---
+
+## 2026-05-02: Фаза Б core/content_gen/ — укрсенізація IN PROGRESS
+
+```yaml
+archivereason_ua: укрсенізація brief.py + presets.py на диску, pending merge у main
+archivereason: укрсенізація brief.py + presets.py на диску, pending merge у main
+archivereason_date: 2026-05-02
+tags: [phase-b, content-gen, localization]
+```
+
+CC переклав brief.py + presets.py на українську мову. Файли готові на диску у `/workspace/sam/core/content_gen/`. Потребує: merge у основний код, тест на 1 темі, перевірка укр brief output у production. **03.05 UPDATE**: укрсенізація merged у main, brief output в Ukrainian, production-active.
+
+---
+
+## 2026-05-03: Укрсенізація brief.py + presets.py — COMPLETE & PRODUCTION-ACTIVE
+
+```yaml
+archivereason_ua: укрсенізація merged до main, brief output в Ukrainian, production-deployed 03.05
+archivereason: укрсенізація merged до main, brief output в Ukrainian, production-deployed 03.05
+archivereason_date: 2026-05-03
+tags: [phase-b, content-gen, localization, completed]
+```
+
+Укрсенізація brief.py + presets.py завершена 03.05: файли merged до main, brief-генерація тепер в українській мові. Production-deployed, output коректний укр. Haiku JSON parse fail на укр промпті (спеціальні символи або token limit) — fallback спрацьовує, brief все одно генерується. Потребує дослідження причини на подальшому етапі (low priority).
+
+---
+
+## 2026-05-03: Bulk-регенерація 13 подкастів — 2 FAILED TOPICS ISOLATED
+
+```yaml
+archivereason_ua: 2 failed topics ізольовані для диагностики: rag_retrieval-1 (notebook 0daaf506 broken), system_operations-5 (silent rc=1 2d0285dd)
+archivereason: 2 failed topics isolated for diagnostics: rag_retrieval-1 (notebook 0daaf506 broken), system_operations-5 (silent rc=1 2d0285dd)
+archivereason_date: 2026-05-03
+tags: [bulk-regen, podcast-nblm, debugging]
+```
+
+У bulk-регенерації 13 подкастів (запущена 01.05) виявлено 2 failed topics: **rag_retrieval-1** (notebook UUID 0daaf506 поламаний, sources скорочено вручну до 1, статус не змінився), **system_operations-5** (notebook 2d0285dd silent rc=1 навіть після cleanup джерел до 1). Причина: **ADD_SOURCE auto засмічує notebook** — auto ADD_SOURCE при regen додає sources, cleanup видаляє їх, але rc=1 не змінюється. Потребує нових clean notebook'ів замість cleanup або дослідження add_source логіки в backends/nblm.py. Решта 8 тем pending у rate-limit loop, 5 тем ready.

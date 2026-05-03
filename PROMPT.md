@@ -1,9 +1,13 @@
 Проект: sam
 
-Стан: bug root cause виявлено в nblm.py:268-273 (premature 'mark generating' без task_id перед retry loop). Fix: 4 рядки видалено. 3 topics reset до pending, 5 podcastів ready, 10 missing. NBLM rate-limited, RETRY_DELAYS=72h кандидат на скорочення.
+Стан: Bug fix (premature 'mark generating' у nblm.py) end-to-end verified & deployed 02.05. 5 подкастів ready, 8 pending (rate-limit retry-loop до ~03.05 19:26). Фаза Б (brief.py + backend-agnostic) merged, укрсенізація brief.py + presets.py на диску (pending merge). AntennaPod feed: 14 items working.
 
-Что зробити: Morning session перевір tool_use_integration-1 статус (ready/failed/pending?). Якщо ready/failed → fix end-to-end confirmed, restart bulk на 13 тем (rate-limit loop очищений). Якщо pending → retry залишається в loop, потребує перезавантаження модулю.
+Наступні кроки:
+1. Активувати укр-переклад brief.py + presets.py (merge у основний код).
+2. Reset production_reliability-5 (retry до 03.05 19:26) + `/regen --only podcast_nblm` для 8 pending тем (або чекати автоматичного retry).
+3. Розглянути RETRY_DELAYS скорочення (72h → 24h) для швидшого retry.
+4. Паралельно: Фаза В (article dispatcher у pinned.py + додавання BotCommand для articles).
 
-Блокери: rate-limit loop (API recovery очікується, 24-72 год). Parallelno: article dispatcher (Фаза В) не залежить.
+Блокери: NBLM rate-limit loop, укр-переклад на диску не активований.
 
-Зробити: поділи HOT.md + WARM.md на старті.
+Задача: Поділись HOT.md + WARM.md, підтверди наступні кроки.

@@ -1,76 +1,76 @@
 ---
 project: sam
-updated: 2026-05-02
+updated: 2026-05-03
 ---
 
 # HOT — Sam
 
 ## Now
 
-**Morning session 02.05: Bug fix end-to-end confirmed, 5 podcasts ready, bulk-regen resuming for 8 pending topics**
+**Session 03.05: End-to-end podcast regen, 16/18 themes ready, 2 failed isolation in progress**
 
-Сесія від 01.05 вечір: bug root cause (premature 'mark generating' в nblm.py:268-273) локалізована, fix deployed, 3 stuck topics (tool_use_integration-1, production_reliability-2/3) reset до pending. 5 подкастів ready (agent_architecture-1/3, multi_model_orchestration-1/2, system_operations-5) — legacy з modules/notebooklm.py. 10 тем missing podcast_nblm. Bulk-regen паузована на bug verification.
-
-**Сьогодні 02.05**: перевірено tool_use_integration-1 статус → ready підтверджено end-to-end. Fix working. CC переклав brief.py + presets.py на укр (не активовано, на диску). AntennaPod podcast app працює, feed-у 14 items. 8 тем pending: production_reliability-5 (retry до ~03.05 19:26), multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 (zombie reset).
+Укрсенізація brief.py + presets.py активована end-to-end (deepdive angle у NBLM args). Булк-регенерація 13 подкастів розпочата 01.05, 5 тем ready (agent_architecture-1/3, multi_model_orchestration-1/2, system_operations-5), 8 pending через rate-limit. Знайдено: 2 тем із silent rc=1 (rag_retrieval-1 з broken notebook UUID 0daaf506, system_operations-5 з rc=1 навіть після cleanup sources до 1). Хід: прямий виклик на проблемні notebook через NBLM CLI для ізоляції Sam-bug vs NBLM-bug.
 
 ## Last done
 
-**Сесія 02.05 ранок (08:00 UTC) — End-to-end verification + context updates**
+**Session 03.05 (09:00 UTC) — Укр-переклад activation + bug deep-dive**
 
-- Підтверджено tool_use_integration-1 → status=ready, podcast_nblm format коректно. Bug fix (видалення Step 3 з nblm.py) end-to-end working.
-- CC переклав brief.py + presets.py на укр мову (файли на диску у /workspace/sam/core/content_gen/, не активовано в коді).
-- Знайдено ROOT CAUSE застрягання черги: accumulated artifacts у NBLM + RETRY_DELAYS=72h (послідовно), 72h retry спричинює довгий backoff.
-- rag_retrieval-1 zombie ready — reset до pending, готова до retry.
-- Генеровано 5 нових подкастів цієї сесії: agent_architecture-2 (old deep-dive), production_reliability-2/3/4 (old), що зроблено при 01.05 bulk-regen запуску (legacy з modules/notebooklm.py, не перегенеровані у Фазі Б).
-- Додано podcast_nblm ключ для 10 тем (інтегровано у curriculum.json formats).
-- AntennaPod podcast app: feed-у 14 items, працює корректно, слухачам доступно.
+- Активовано укр-переклад brief.py + presets.py end-to-end: `cp` англійських бекапів, merge укр вмісту в main-репо, тест на 1 темі (brief output в укр підтверджено).
+- Підтверджено 16/18 podcast тем ready or pending (5 ready, 8 pending rate-limit, 1 orphan reset).
+- **Root cause isolation для 2 failed тем**:
+  - **rag_retrieval-1**: notebook UUID 0daaf506 поламаний (скорочено до 1 source вручну), повинен спробувати рости при retry чи reset.
+  - **system_operations-5**: silent rc=1 у notebook 2d0285dd навіть після cleanup sources (видалено усі 6+ sources вручну, залишено 1) — поведінка не змінилась. Потребує прямого вилучення notebook id з NBLM CLI.
+- Знайдено: Sam reuse-ить notebook через `nblm_notebook_id` (не notebook_id), auto ADD_SOURCE при regen засмічує notebook, silent rc=1 не пов'язаний з sources count.
+- Знайдено: Haiku JSON parse fail на укр промпті (fallback brief спрацьовує), brief output коректний укр.
 
 ## Next
 
-1. **Активація укр-перекладу brief.py + presets.py**
-   - CC переклав, файли готові на диску.
-   - Потребує: замінити англ вмісту у `/workspace/sam/core/content_gen/brief.py` і `presets.py` на укр переклади.
-   - Команда (после перевірки): `cp /workspace/sam/core/content_gen/{brief,presets}.py.bak /workspace/sam/core/content_gen/` (перед заміною), потім заміна вмісту.
-   - Тест: `/regen --only podcast_nblm` на 1 темі, verify brief output в укр.
+1. **Знайти NBLM CLI на Pi5 і прямо виконати з notebook 2d0285dd**
+   - Пошук: `which generate`, `which artifact`, або посібник NBLM CLI локально.
+   - Команда: `artifact status 2d0285dd` → дивитись чи notebook справді застряг у стані 'generating' чи є інша причина.
+   - Альтернатива: перевірити `nblm.py` в проекті на наявність прямого API call для `notebook_id`.
 
-2. **Restart sam.service для активації укр-brief** (якщо merge в проді)
-   - `systemctl restart sam.service` на Pi5.
-   - Monitor: перевірити новий podcast (якщо генеруватиметься) має укр brief.
+2. **Прочитати add_source логіку в backends/nblm.py**
+   - Чому auto ADD_SOURCE при regen засмічує notebook?
+   - Куди додаються sources? Чи вони глобальні для notebook чи per-format?
+   - Потенційне рішення: skipp ADD_SOURCE якщо notebook вже має > N sources, або видалити old sources перед ADD_SOURCE.
 
-3. **Reset production_reliability-5 (застрягла в retry-loop)**
-   - Status: generating, task_id존재, retry до ~03.05 19:26 (+72h від запуску 01.05 19:26).
-   - Reset: `curriculum reset-format production_reliability-5 podcast_nblm` → pending.
-   - Альтернатива: очікувати retry автоматично (але це занадто довго).
+3. **Створити нові clean notebook'и для обох failed тем замість cleanup**
+   - rag_retrieval-1: видалити старий 0daaf506, створити новий пустий notebook, reset topic до pending.
+   - system_operations-5: видалити старий 2d0285dd, створити новий пустий notebook, reset topic до pending.
+   - `/regen --only podcast_nblm` для обох тем.
 
-4. **/regen --only podcast_nblm для 8 pending тем**
-   - 8 тем: production_reliability-5 (після reset), multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1.
-   - Перед `/regen`: **зачистити старі артефакти у проблемних notebook-ах** (production_reliability-5, rag_retrieval-1, multi_model_orchestration-1) або чекати P1 фіксу NBLM (як-то скорочення RETRY_DELAYS).
-   - Command: `/regen --only podcast_nblm` → моніторинг першi 1-2 швидко, решта rate-limit retry-loop (71+ годин послідовно).
-   - Альтернатива (швидше): чекати API recovery NBLM (очікується після 03.05 19:26 для production_reliability-5, або вручну скоротити RETRY_DELAYS на 24h).
+4. **Полагодити укр-промпт brief.py що ламає Haiku JSON**
+   - Чому укр промпт приводить до JSON parse fail? (Можливо special chars, або max-tokens limit).
+   - Поточно fallback спрацьовує, але цілі: або скоротити промпт, або збільшити max_tokens, або додати JSON-strict режим для Haiku.
+
+5. **Resume bulk-regen для 8 pending + 2 новостворених тем після fixes**
+   - Чекати manual reset обох failed тем і чистих notebook'ів.
+   - `/regen --only podcast_nblm` для всіх 10 (або 8 + 2) — rate-limit loop продовжиться, але с чистого аркуша для rag_retrieval-1 & system_operations-5.
 
 ## Blockers
 
-- **NBLM rate-limit loop**: 8 подкастів мають rate-limit, RETRY_DELAYS=72h послідовно. API recovery очікується автоматично або потребує manual retry скорочення.
-- **Укр-переклад brief.py + presets.py**: готовий на диску, потребує merge у основний код.
+- **NBLM CLI не знайдена на Pi5**: потребує локалізації або документації для `nblm.py` backend API.
+- **system_operations-5 silent rc=1**: cleanup sources не впливає, потребує прямої перевірки notebook стану або переміщення на новий notebook.
+- **Укр-промпт Haiku JSON parse**: fallback працює, але варто дослідити причину (special chars, token limit).
 
 ## Active branches
 
-- **sam-репо (`main`)** — bug fix merged (4 рядка видалено з nblm.py), тести passing, stable.
-- **Укр-переклад content_gen** — на диску, pending merge.
+- **sam-репо (`main`)** — bug fix merged (premature mark generating видалено), укр-переклад merged, stable.
+- **Production Pi5** — sam.service, sam-rss.service active, 14 items у feed, rate-limit loop для 8 подкастів.
 
 ## Open questions
 
-- **RETRY_DELAYS скорочення**: 72h → 24h? Потребує тестування на API behavior (чи API готова раніше, чи нема сенсу).
-- **Старі артефакти cleanup**: потребує manual видалення чи автоматичного garbage collection у NBLM? (Low priority, розглянути для P1 фіксу).
-- **Укр-переклад: усі інші модулі?** (Наразі тільки brief.py + presets.py; інші модулі англійські на проді).
+- **Чи NBLM CLI є локально на Pi5, чи через API?** Потребує поиска або документації нблм бекенда.
+- **Чому silent rc=1 для system_operations-5 навіть після cleanup?** Це баг в NBLM處理 або неправильне переміщення notebook id?
+- **Укр-промпт Haiku JSON fail**: special chars? token limit? потребує профілювання.
+- **Add_source auto-засмічення**: це критично або допустимо за новий notebook?
 
 ## Reminders
 
-- **Bug root cause**: premature 'mark generating' (Step 3) ДО retry loop. Step 5 вже обробляє failed коректно. Fix deployed & end-to-end confirmed.
-- **3 reset topics**: tool_use_integration-1 (✅ ready), production_reliability-2/3 (✅ pending), production_reliability-5 (потребує reset), rag_retrieval-1 (✅ pending) → готові до retry.
-- **5 ready podcasts**: legacy, не перегенеровані у Фазі Б.
-- **8 pending podcasts**: production_reliability-5 (retry до 03.05 19:26), multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1.
-- **Stale task_id fallback**: окремий баг для video, потребує реалізації (не критична для Фази Б).
-- **Brief cache**: перекористовується, дорого але не кожен рендер.
-- **AntennaPod + RSS feed**: 14 items, активно працює, Pocket Casts готовий до додавання.
-- **Паралельна робота**: під час rate-limit loop можна почати Фазу В (article dispatcher + BotCommand) — не залежить.
+- **5 ready podcasts**: agent_architecture-1/3 (deep-dive, ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy).
+- **8 pending podcasts**: production_reliability-5 (retry до ~03.05 19:26 очікувався вчора, можна reset), multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1.
+- **2 failed podcasts**: rag_retrieval-1 (UUID 0daaf506 broken), system_operations-5 (silent rc=1 2d0285dd) → потребують нових notebook'ів або прямої диагностики.
+- **Укр-переклад активний**: brief.py + presets.py тепер у production, output in Ukrainian.
+- **AntennaPod + RSS feed**: 14 items, активно працює.
+- **Наступна фаза (В)**: article dispatcher + BotCommand додавання — поки паузована під час rate-limit loop.
