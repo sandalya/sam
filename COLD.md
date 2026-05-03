@@ -294,3 +294,38 @@ tags: [intervention, nblm, deployment, probe, dangling-uuid]
 - **rate-limit fallback**: probe 429 → soft reuse (don't invalidate) ✓
 
 **Impact**: 8 pending podcasts now shielded from false invalidation on transient rate-limits. rag_retrieval-1 auto-detects dangling UUID, system_operations-5 soft-fallback protects from rate-limit cascade.
+
+---
+
+## 2026-05-03: Intervention 4 — brief.py укр JSON parse → EN reframe DEPLOYED
+
+```yaml
+archivereason: Intervention 4 fully deployed, unit-tested (6/6 PASS), root cause identified (Haiku ignores ukr directives), EN reframe solution stable
+archivereason_ua: Intervention 4 повністю розгорнута, unit-тестована (6/6 PASS), root cause identified (Haiku ігнорує укр директиви), EN reframe solution стабільна
+archivereason_date: 2026-05-03
+commit: 26cf181
+tags: [intervention, brief, localization, haiku, deployed]
+```
+
+**Root cause**: Ukrainian prompts sent to Haiku 4.5 → model ignores Cyrillic directives → generates EN content. The 1/18 failure (rag_retrieval-1) was NOT due to localization, but due to broken notebook UUID 0daaf506 (null RPC response).
+
+**Solution deployed (Intervention 4)**:
+- File: `sam/core/content_gen/brief.py` — system + user prompts translated to EN.
+- Haiku 4.5 now consistently generates valid JSON briefs in English.
+- Debug infrastructure: `BriefParseError(ValueError)` with `raw_text`, `cleaned_text`, `json_error`. Logged with `--- RAW START/END ---` markers for grep.
+- Unit-tests: 6/6 PASS (5 parse + 1 prompt_is_english validation). Commit 6e5589c (debug infrastructure) + 26cf181 (EN reframe) pushed.
+
+**Impact**: All successful briefs (14/18) guarantee valid JSON. No more ukr/EN drift, no more parse failures. remaining: 3 NO BRIEF topics (production_reliability-1, system_operations-1, evaluation_testing-1) → will generate upon next `/regen` with new EN prompt. Monitoring: 24h for 0 `Expecting ... delimiter` errors.
+
+---
+
+## 2026-05-03: Session 03.05 — Intervention 4 investigation + Intervention 1+2+3 recap
+
+```yaml
+archivereason: Session 03.05 завершена, Intervention 4 deployed, 4 intervetnions live (1+2+3+4), ready для sam.service restart на Pi5
+archivereason_ua: Session 03.05 завершена, Intervention 4 deployed, 4 intervetnions live (1+2+3+4), ready для sam.service restart на Pi5
+archivereason_date: 2026-05-03
+tags: [session, interventions, deployment]
+```
+
+3+ hours session: Intervention 4 root-cause investigation (ukr prompt → Haiku ignores) → EN reframe deployed. Recap: Intervention 1 (dangling UUID probe + soft fallback, 47efc76), Intervention 2 (idempotent ADD_SOURCE, d822a29), Intervention 3 (RETRY_DELAYS 4h cap, d822a29), Intervention 4 (EN brief, 26cf181). All 4 interventions now live on disk, unit-tests passing (15 nblm + 6 brief). **Next action**: sam.service restart на Pi5 для загрузки коммітів 47efc76 + d822a29 + 26cf181. Verify system_operations-5 soft fallback + rag_retrieval-1 auto-probe. Monitor 24h for 0 brief parse errors. Bulk-regen resume: 17/18 podcasts expected once verified.

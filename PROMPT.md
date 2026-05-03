@@ -1,9 +1,12 @@
 Проект: sam
 
-**Стан**: Intervention 1 (dangling UUID probe + soft fallback) щойно deployed на prod — commit 47efc76, 15/15 unit-тестів PASS. Dangling UUID detection + soft fallback для rate-limit 429 тепер захищають bulk-regen від false invalidation. End-to-end верифікація: /regen rag_retrieval-1 auto-детектує 0daaf506 dangling, створює новий notebook; orphaned video tasks успішно re-attach без інвалідації; rate-limit soft fallback працює. Intervention 2+3 (idempotent ADD_SOURCE, 4h RETRY_DELAYS cap) раніше deployed (commit d822a29).
+Текущий статус: Intervention 4 (EN brief reframe) + Intervention 1+2+3 (dangling UUID probe + idempotent ADD_SOURCE + 4h RETRY_DELAYS) развёрнуты на disk (commits 26cf181, 47efc76, d822a29). 6 brief unit-тестов + 15 nblm unit-тестов PASS. Bulk-регенерация 13 подкастов: 5 ready, 8 pending в 4h retry-loop, 2 recovering (auto-probe + soft fallback).
 
-**Що робити далі**: (1) Рестартни sam.service на Pi5 щоб загрузити commit 47efc76, моніторинь 1-2 retry cycles для system_operations-5 (2d0285dd RATE_LIMITED 429) на предмет soft fallback success. (2) Паралельно: investigate Intervention 4 (brief.py укр JSON parse fail) — чому Ukrainian prompts іноді приводять до Haiku JSON parse failure. Low priority, fallback спрацьовує. (3) Після verify: bulk-regen резюміється для 8 pending + 2 recovering, target 17/18 podcasts (5 ready, 8 pending 4h loops, 2 auto-recovering).
+Что нужно сделать: 
+1. Перезагрузить sam.service на Pi5 для загрузки нових коммітов (47efc76 + d822a29 + 26cf181). 
+2. Мониторить 24h на 0 ошибок parse: ищем строку 'Expecting ... delimiter' в логах.
+3. Проверить system_operations-5 (UUID 2d0285dd) → soft fallback протокол работает на реальном rate-limit 429.
+4. Проверить rag_retrieval-1 (UUID 0daaf506 dangling) → auto-probe детектирует null RPC, создаёт новый notebook.
+5. Если оба успешны → resume bulk-regen для 17/18 подкастов.
 
-**Блокери**: system_operations-5 soft fallback на проді — потребує рестарту. rag_retrieval-1 auto-create — перевірити лог що новий notebook успішно створився.
-
-Давай вмісту HOT.md + WARM.md з моєю попередньою сесією, перевірю що не забув деталей.
+Блокер: без sam.service restart, новый код не загружен в памяти. Запроси HOT.md + WARM.md для контекста.

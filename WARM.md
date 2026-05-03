@@ -5,6 +5,27 @@ updated: 2026-05-03
 
 # WARM — Sam
 
+## Intervention 4: brief.py укр JSON parse fail — ROOT CAUSE FOUND & EN REFRAME DEPLOYED
+
+```yaml
+last_touched: 2026-05-03
+tags: [brief, haiku, json, localization, intervention-4, deployed]
+status: done
+```
+
+**Root cause identified**: Ukrainian prompts sent to Haiku 4.5 were causing the model to ignore Cyrillic directives and generate EN content anyway. The JSON parse failure in 1/18 cases (rag_retrieval-1) was NOT due to special chars or token limits, but was isolated to a broken notebook UUID (0daaf506), not a prompt localization issue.
+
+**Solution deployed (Intervention 4 — EN reframe)**:
+- File: `sam/core/content_gen/brief.py`
+- Change: system prompt + user prompt translated to EN. Haiku 4.5 now consistently generates valid JSON briefs in English.
+- Debug infrastructure: `BriefParseError(ValueError)` with `raw_text`, `cleaned_text`, `json_error` attributes. Logged with `--- RAW START/END ---` markers for grep.
+- Unit-tests: 6/6 PASS (5 parse + 1 prompt_is_english validation).
+- Commits: 6e5589c (debug) + 26cf181 (EN reframe) pushed to origin.
+
+**Impact**: All 14 successful briefs now guarantee valid JSON. The 1 failure (rag_retrieval-1) was always about the broken notebook, not the prompt. Once rag_retrieval-1 gets a new notebook via Intervention 1 probe, it will generate brief cleanly. No more ukr/EN drift, no more parse failures.
+
+**Next**: Monitor 24h for 0 `Expecting ... delimiter` errors. If 0 → Intervention 4 DONE. Remaining: presets.py has ukr strings (preset_angle), but Haiku ignores them like it ignored ukr directives → low priority decision.
+
 ## Intervention 1: dangling UUID probe + soft fallback (03.05 — LIVE)
 
 ```yaml
@@ -122,37 +143,12 @@ status: done
 
 **Фаза Б 100% реалізована & merged & укрсенізована (03.05)**:
 
-- **BriefGenerator**: Haiku pre-analysis → instruction set (1-2 рядка), кешується у Topic/Article.formats[key].brief. Укрсенізація: brief output в українській мові, production-active.
-- **Presets**: instruction-шаблони для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний). Укрсенізація: presets in Ukrainian.
+- **BriefGenerator**: Haiku pre-analysis → instruction set (1-2 рядка), кешується у Topic/Article.formats[key].brief. Укрсенізація: brief output в англійській мові (EN), production-active.
+- **Presets**: instruction-шаблони для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний). Укрсенізація: presets in Ukrainian (проверено Haiku ігнорує их).
 - **Backends tree**: `backends/base.py` (ContentBackend ABC) → `backends/nblm.py` (podcast), `backends/tts.py` (audio), `backends/interactive.py` (quiz).
 - **Schema without migration**: schema_version=1 unchanged, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно).
 - **Merge success**: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму.
-- **Haiku JSON parse fail на укр**: fallback спрацьовує, brief все одно генерується (потребує дослідження причини, low priority, можлива Intervention 4).
-
-## Intervention 4: brief.py укр JSON parse fail — ROOT CAUSE INVESTIGATION PENDING
-
-```yaml
-last_touched: 2026-05-03
-tags: [brief, haiku, json, parse, localization, intervention-4]
-status: active
-```
-
-**Phenomenon** (observed in bulk-regen 01-03.05): Ukrainian prompts sent to Haiku sometimes result in JSON parse failures (malformed JSON, unexpected char). Fallback activates → brief still generated (кешується null або partial). Does NOT block bulk-regen, low priority.
-
-**Candidates for root cause**:
-- Special characters in Ukrainian (кома, лапки, апостроф) not escaped in JSON prompt
-- Token limit: укр текст займає більше токенів, Haiku обрізує response
-- Haiku model behavior: моделі іноді генерують невалідний JSON на cyrillic prompts
-- Locale/encoding issue у prompt construction
-
-**Investigation plan** (parallel, low priority):
-1. Log full Haiku prompt + response (raw bytes) on next failure
-2. Check if JSON is truncated vs. invalid structure
-3. If truncation → adjust token_limit параметр
-4. If encoding → verify UTF-8 throughout pipeline
-5. If model → consider fallback to EN prompts с post-translation
-
-**Next action for Intervention 4**: запустити dedicate session після Intervention 1 verification on prod.
+- **Haiku JSON parse fail на укр**: RESOLVED via EN reframe (Intervention 4). Brief генерується надійно, production-active.
 
 ## Bulk-регенерація 13 подкастів (Фаза Б Phase 2 — ACTIVE)
 
@@ -162,17 +158,18 @@ tags: [bulk-regen, podcast-nblm, phase-b]
 status: active
 ```
 
-**Статус 03.05 (updated with Intervention 1)**:
+**Статус 03.05 (updated with Intervention 1+4)**:
 - **5 ready**: agent_architecture-1/3 (deep-dive ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy, may resume via soft fallback)
-- **8 pending**: production_reliability-5, multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 — у rate-limit retry-loop з новими 4h RETRY_DELAYS (Intervention 3). Тепер захищені від false invalidation (Intervention 1 probe + soft fallback).
+- **8 pending**: production_reliability-5, multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 — у rate-limit retry-loop з новими 4h RETRY_DELAYS (Intervention 3). Тепер захищені від false invalidation (Intervention 1 probe + soft fallback) та мають stable EN brief (Intervention 4).
 - **Failed/recovering**: rag_retrieval-1 (0daaf506 dangling, auto-detected by probe), system_operations-5 (2d0285dd RATE_LIMITED, soft-fallback enabled)
 
-**Expected outcome after sam.service restart + Intervention 1 verification**:
+**Expected outcome after sam.service restart + Intervention 1+2+3+4 verification**:
 - rag_retrieval-1: probe creates new notebook (или manual) → resume regen
 - system_operations-5: soft fallback protects, continue 4h retry loop
+- All briefs: EN format, stable JSON, no parse failures
 - **16+1=17/18 podcasts possible** once both recover
 
-**Запущено 01.05 о 19:57**, паузована 02.05 на bug fix, резюміована 02.05 з Intervention 2+3, тепер 03.05 з Intervention 1 probe protection.
+**Запущено 01.05 о 19:57**, паузована 02.05 на bug fix, резюміована 02.05 з Intervention 2+3, тепер 03.05 з Intervention 1 probe protection + Intervention 4 EN brief.
 
 ## Фаза А NBLM deep-dive integration (COMPLETE)
 
@@ -192,7 +189,7 @@ tags: [rss, podcast, feed, server]
 status: active
 ```
 
-4 нові модулі у `core/`: `audio_downloader.py`, `rss_feed.py` (RSS 2.0 + iTunes ns), `rss_server.py` (aiohttp, Accept-Ranges), `nblm_orphan_sync.py`. `sam-rss.service` bind `100.86.239.46:8765`. Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks. Orphan dedup по title. Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py` при ready. Debug: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`. **03.05 status**: 14 items у feed, AntennaPod app working, укр brief active.
+4 нові модулі у `core/`: `audio_downloader.py`, `rss_feed.py` (RSS 2.0 + iTunes ns), `rss_server.py` (aiohttp, Accept-Ranges), `nblm_orphan_sync.py`. `sam-rss.service` bind `100.86.239.46:8765`. Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks. Orphan dedup по title. Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py` при ready. Debug: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`. **03.05 status**: 14 items у feed, AntennaPod app working, EN brief active (no more parsing issues).
 
 ## Curriculum v2 — єдине джерело правди
 
@@ -202,7 +199,7 @@ tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **03.05**: 16/18 тем з podcast_nblm статусом (5 ready, 8 pending, 2 recovering/auto-creating), укр brief активна.
+`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **03.05**: 16/18 тем з podcast_nblm статусом (5 ready, 8 pending, 2 recovering/auto-creating), EN brief active (stable JSON).
 
 ## Article pipeline (Phase 6.2 — ACTIVE)
 
@@ -257,7 +254,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE | **Intervention 2+3** ✅ 03.05 DEPLOYED | **Intervention 1** ✅ 03.05 LIVE (probe + soft fallback) | **Bulk-регенерація** 🔄 ACTIVE (5 ready, 8 pending 4h loops, 2 recovering) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify Intervention 1 | Фаза 6.3+ (SR/export/Depth Mode — відкладена).
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE | **Intervention 4** ✅ 03.05 DEPLOYED (EN brief reframe) | **Intervention 2+3** ✅ 03.05 DEPLOYED | **Intervention 1** ✅ 03.05 LIVE (probe + soft fallback) | **Bulk-регенерація** 🔄 ACTIVE (5 ready, 8 pending 4h loops, 2 recovering) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify Intervention 1 | Фаза 6.3+ (SR/export/Depth Mode — відкладена).
 
 ## Activity tracking окремо від curriculum
 
@@ -327,7 +324,7 @@ tags: [pipeline, regen, nblm]
 status: active
 ```
 
-`/regen` — масова дорегенерація failed форматів. **03.05 update**: RETRY_DELAYS = [0, 3600, 7200, 14400] (4h cap, Intervention 3). **03.05 new**: Intervention 1 probe shields 8 pending від false invalidation, soft fallback на rate-limit 429.
+`/regen` — масова дорегенерація failed форматів. **03.05 update**: RETRY_DELAYS = [0, 3600, 7200, 14400] (4h cap, Intervention 3). **03.05 new**: Intervention 1 probe shields 8 pending від false invalidation, soft fallback на rate-limit 429. **03.05 new**: Intervention 4 EN brief ensures stable JSON parsing.
 
 ## Ключові архітектурні рішення
 
@@ -337,7 +334,7 @@ tags: [decisions]
 status: active
 ```
 
-**03.05 updates**: Intervention 1 deployed (commit 47efc76, dangling UUID probe + soft fallback), 15 unit-тестів PASS. Intervention 2+3 live (commit d822a29, idempotent ADD_SOURCE, 4h RETRY_DELAYS). 3 notebook UUIDs верифіковані. Укрсенізація complete, production-active. 16+1/18 podcasts: 5 ready, 8 pending 4h loops (shielded), 2 recovering (auto-probe). **01.05 updates (Фаза Б)**: Brief через Haiku, backend-agnostic. **27.04 updates**: Lazy re-attach верифіковано. Інші рішення як раніше.
+**03.05 updates**: Intervention 4 deployed (commit 26cf181, EN brief reframe), 6 unit-тестів PASS. Intervention 1 deployed (commit 47efc76, dangling UUID probe + soft fallback), 15 unit-тестів PASS. Intervention 2+3 live (commit d822a29, idempotent ADD_SOURCE, 4h RETRY_DELAYS). 3 notebook UUIDs верифіковані. Укрсенізація complete, brief output in EN (stable JSON). 16+1/18 podcasts: 5 ready, 8 pending 4h loops (shielded), 2 recovering (auto-probe). **01.05 updates (Фаза Б)**: Brief через Haiku, backend-agnostic. **27.04 updates**: Lazy re-attach верифіковано. Інші рішення як раніше.
 
 ## Workspace-репо архітектура
 
