@@ -222,3 +222,42 @@ tags: [nblm, diagnostics, bug-isolation, intervention]
 ```
 
 NBLM diagnostic session 03.05 (2+ hours): CLI локалізована у venv, backends/nblm.py прочитано (428 рядків), 3 notebook'и верифіковані через `nblm artifact status`. **healthy 8aca66e9** (agent_architecture-1) OK. **broken-A 0daaf506** (rag_retrieval-1) null RPC response — dangling UUID. **broken-B 2d0285dd** (system_operations-5) RATE_LIMITED 429 (Google). **Identified bugs**: (1) ADD_SOURCE дублювання (line 261, не перевіряє існуючі sources перед додаванням), (2) RETRY_DELAYS скорочення (71*3600 = 72h послідовно, кандидат на 3-5h), (3) JSON edit не перериває in-flight task (bonus, low priority). **Intervention 2+3 plan**: idempotent ADD_SOURCE (перевірити source list) + rate_limit redesign (скоротити RETRY_DELAYS, інформативний error на null-RPC). Session 2 CC: 5-6h для обох вмешательств. **Impact**: 2 failed topics (rag_retrieval-1 + system_operations-5) потребують нових clean notebook'ів, решта 8 pending в rate-limit loop з потенційним скороченням до 3-5h.
+
+---
+
+## 2026-05-03: Intervention 2+3 DEPLOYED — idempotent ADD_SOURCE + RETRY_DELAYS 4h cap + structured null-RPC error
+
+```yaml
+archivereason: Session 2 CC fully completed, implementation deployed to main, unit-tested (11/11 PASS)
+archivereason_ua: Session 2 CC повністю завершена, реалізація розгорнута на main, unit-тестована (11/11 PASS)
+archivereason_date: 2026-05-03
+commit: d822a29
+tags: [intervention, nblm, deployment, unit-tests]
+```
+
+**Session 2 CC: Intervention 2+3 fully implemented, tested, deployed (03.05)**.
+
+**Intervention 2: idempotent ADD_SOURCE**. Файл: `sam/core/content_gen/backends/nblm.py` line ~261. Зміна: перед `add_source()`, прочитати `artifact info` → скан `sources[]` → `if source not in existing_sources: add_source()`. Тест: `test_add_source_idempotent()` — додавання одного source 2x → тільки 1 у notebook.
+
+**Intervention 3: RETRY_DELAYS скорочення + structured error + external stop detection**. Файл: `sam/core/content_gen/backends/nblm.py` (module level). RETRY_DELAYS = `[0, 3600, 7200, 14400]` (4h cap замість [0] + [3600]*71, скорочено з 72h послідовно). Structured error: `nblm_{code}` коди (e.g., `nblm_null_rpc` для null response) → сигнал broken UUID. External stop detection: retry+wait loops слухають `should_stop` flag для graceful shutdown. Тести: `test_retry_delays_cap()`, `test_null_rpc_error_structure()`, `test_external_stop_detection()` — 11/11 PASS (0.056s).
+
+**Deployment**: commit d822a29 live на main (+82 рядки backends/nblm.py, +281 рядок test_nblm_backend.py). systemd sam.service прибирає старий код. **Next action**: `systemctl restart sam.service` на Pi5. 8 pending подкастів матимуть 4h retry loops замість 72h, скоротить очікування з 24-72h до ~4h.
+
+---
+
+## 2026-05-03: NBLM diagnostic: 3 notebook UUIDs verified, 2 failed topics isolated for recreation
+
+```yaml
+archivereason_ua: NBLM diagnostic завершена, 3 notebook UUIDs верифіковані (healthy OK, 2 broken), bugs root-cause identified для фази восстановления
+archivereason: NBLM diagnostic complete, 3 notebook UUIDs verified (healthy OK, 2 broken), bugs root-cause identified for recovery phase
+archivereason_date: 2026-05-03
+tags: [nblm, diagnostics, failed-topics]
+```
+
+NBLM diagnostic session 03.05 (2+ hours): CLI локалізована `/workspace/venv/bin/nblm`, backends/nblm.py прочитано (428→282 рядків). **3 notebook UUIDs верифіковані**:
+
+1. **healthy 8aca66e9** (agent_architecture-1): `nblm artifact status` → OK, має 2 ідентичні sources [18, 19] (manually added, BUG 2 confirmed).
+2. **broken-A 0daaf506** (rag_retrieval-1): `nblm artifact status` → null RPC response (dangling UUID, потребує нового notebook).
+3. **broken-B 2d0285dd** (system_operations-5): `nblm artifact status` → RATE_LIMITED 429 (Google rate-limit, потребує нового notebook).
+
+**Bugs root-cause identified**: (1) ADD_SOURCE дублювання (line 261, не скануює перед додаванням) — **FIX: Intervention 2 deployed**, (2) RETRY_DELAYS скорочення (72h послідовно занадто довгий) — **FIX: Intervention 3 deployed 4h cap**, (3) JSON edit не перериває async (low priority bonus). **Failed topics action**: rag_retrieval-1 (UUID 0daaf506) + system_operations-5 (UUID 2d0285dd) потребують видалення старих notebooks + створення нових clean notebooks + reset curriculum.json + `/regen --only podcast_nblm`. **Impact**: 2 failed topics isolated, 8 pending матимуть скорочені 4h retry loops (замість 72h), Bulk-regen резюміється з новими параметрами.
