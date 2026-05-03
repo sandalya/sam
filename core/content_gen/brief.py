@@ -7,6 +7,14 @@ from curriculum.models import ContentBrief
 
 log = logging.getLogger("core.content_gen.brief")
 
+
+class BriefParseError(ValueError):
+    def __init__(self, message, *, raw_text: str, cleaned_text: str, json_error: json.JSONDecodeError):
+        super().__init__(message)
+        self.raw_text = raw_text
+        self.cleaned_text = cleaned_text
+        self.json_error = json_error
+
 _BRIEF_SYSTEM = (
     "Ти — контент-аналітик. Проаналізуй навчальний матеріал і поверни структурований JSON-brief. "
     "Виводь лише JSON — без markdown, без преамбули, без code fences."
@@ -61,6 +69,15 @@ async def generate_brief(entity, kind: str, preset_angle: str = "") -> ContentBr
         raw = resp.content[0].text.strip()
         data = _parse_json(raw)
         return _validate_and_build(data, entity.title, MODEL_FAST)
+    except BriefParseError as e:
+        log.error(
+            "BRIEF JSON PARSE FAIL\nraw_len=%d\nerror=%s\n--- RAW START ---\n%s\n--- RAW END ---",
+            len(e.raw_text), e.json_error, e.raw_text,
+        )
+        return ContentBrief(
+            suggested_instructions=entity.title,
+            generated_by="fallback",
+        )
     except Exception as e:
         log.warning(f"generate_brief failed for {entity.id!r}: {e} — using fallback")
         return ContentBrief(
@@ -72,7 +89,16 @@ async def generate_brief(entity, kind: str, preset_angle: str = "") -> ContentBr
 def _parse_json(raw: str) -> dict:
     text = re.sub(r"^```(?:json)?\s*", "", raw.strip())
     text = re.sub(r"\s*```\s*$", "", text)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise BriefParseError(
+            f"JSON parse failed: {e.msg} at line {e.lineno} col {e.colno} (pos {e.pos}); "
+            f"cleaned[:200]={text[:200]!r}; raw_len={len(raw)}",
+            raw_text=raw,
+            cleaned_text=text,
+            json_error=e,
+        ) from e
 
 
 def _validate_and_build(data: dict, title: str, model: str) -> ContentBrief:
