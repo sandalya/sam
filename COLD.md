@@ -209,3 +209,16 @@ tags: [bulk-regen, podcast-nblm, debugging]
 ```
 
 У bulk-регенерації 13 подкастів (запущена 01.05) виявлено 2 failed topics: **rag_retrieval-1** (notebook UUID 0daaf506 поламаний, sources скорочено вручну до 1, статус не змінився), **system_operations-5** (notebook 2d0285dd silent rc=1 навіть після cleanup джерел до 1). Причина: **ADD_SOURCE auto засмічує notebook** — auto ADD_SOURCE при regen додає sources, cleanup видаляє їх, але rc=1 не змінюється. Потребує нових clean notebook'ів замість cleanup або дослідження add_source логіки в backends/nblm.py. Решта 8 тем pending у rate-limit loop, 5 тем ready.
+
+---
+
+## 2026-05-03: NBLM diagnostic complete — 3 notebook UUIDs verified, bugs isolated
+
+```yaml
+archivereason: NBLM diagnostic session завершена, notebook UUIDs верифіковані, bugs root-cause identified для Intervention 2+3
+archivereason_ua: NBLM diagnostic session завершена, notebook UUIDs верифіковані, bugs root-cause identified для Intervention 2+3
+archivereason_date: 2026-05-03
+tags: [nblm, diagnostics, bug-isolation, intervention]
+```
+
+NBLM diagnostic session 03.05 (2+ hours): CLI локалізована у venv, backends/nblm.py прочитано (428 рядків), 3 notebook'и верифіковані через `nblm artifact status`. **healthy 8aca66e9** (agent_architecture-1) OK. **broken-A 0daaf506** (rag_retrieval-1) null RPC response — dangling UUID. **broken-B 2d0285dd** (system_operations-5) RATE_LIMITED 429 (Google). **Identified bugs**: (1) ADD_SOURCE дублювання (line 261, не перевіряє існуючі sources перед додаванням), (2) RETRY_DELAYS скорочення (71*3600 = 72h послідовно, кандидат на 3-5h), (3) JSON edit не перериває in-flight task (bonus, low priority). **Intervention 2+3 plan**: idempotent ADD_SOURCE (перевірити source list) + rate_limit redesign (скоротити RETRY_DELAYS, інформативний error на null-RPC). Session 2 CC: 5-6h для обох вмешательств. **Impact**: 2 failed topics (rag_retrieval-1 + system_operations-5) потребують нових clean notebook'ів, решта 8 pending в rate-limit loop з потенційним скороченням до 3-5h.

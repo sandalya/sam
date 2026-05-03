@@ -1,13 +1,9 @@
 Проект: sam
 
-Стан: Bug fix (premature 'mark generating' у nblm.py) end-to-end verified & deployed 02.05. 5 подкастів ready, 8 pending (rate-limit retry-loop до ~03.05 19:26). Фаза Б (brief.py + backend-agnostic) merged, укрсенізація brief.py + presets.py на диску (pending merge). AntennaPod feed: 14 items working.
+**Стан**: Укрсенізація brief.py + presets.py активована (output in Ukrainian), 16/18 podcasts ready/pending (5 ready, 8 pending rate-limit, 2 failed isolated). Виявлено: ADD_SOURCE auto засмічує notebook, Haiku JSON parse fail на укр промпті (fallback спрацьовує). 
 
-Наступні кроки:
-1. Активувати укр-переклад brief.py + presets.py (merge у основний код).
-2. Reset production_reliability-5 (retry до 03.05 19:26) + `/regen --only podcast_nblm` для 8 pending тем (або чекати автоматичного retry).
-3. Розглянути RETRY_DELAYS скорочення (72h → 24h) для швидшого retry.
-4. Паралельно: Фаза В (article dispatcher у pinned.py + додавання BotCommand для articles).
+**Наступний крок**: (1) Знайти NBLM CLI на Pi5, прямо виконати на 2d0285dd для диагностики; (2) Прочитати add_source логіку в backends/nblm.py — чому засмічує notebook?; (3) Створити нові clean notebook'и для rag_retrieval-1 + system_operations-5 замість cleanup; (4) Полагодити укр-промпт brief.py що ламає Haiku JSON (special chars? token limit?).
 
-Блокери: NBLM rate-limit loop, укр-переклад на диску не активований.
+**Блокери**: NBLM CLI не знайдена, system_operations-5 silent rc=1 незрозумілий.
 
-Задача: Поділись HOT.md + WARM.md, підтверди наступні кроки.
+**Поділи HOT.md + WARM.md при старті.**
