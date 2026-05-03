@@ -7,77 +7,62 @@ updated: 2026-05-03
 
 ## Now
 
-**Session 03.05: NBLM diagnostic complete — Intervention 2+3 ready for CC, 2 failed topics isolated for recreation**
+**Session 03.05 (cont.): Intervention 1 deployed & live — dangling UUID probe protects lazy re-attach, orphaned video tasks reuse correctly, unit-tests 15/15 green**
 
-NBLM CLI диагностика завершена: 3 notebook UUID верифіковано (healthy 8aca66e9 OK, broken-A 0daaf506 dangling RPC null, broken-B 2d0285dd RATE_LIMITED 429). Виявлено 3 bugs: (1) ADD_SOURCE дублювання в backends/nblm.py line 261 — перед add перевіряти source list, (2) RETRY_DELAYS скорочення з 72h на 4h cap — Intervention 3, (3) JSON edit не перериває async task — bonus low-priority. **Session 2 CC готова**: Intervention 2 (idempotent ADD_SOURCE) + Intervention 3 (RETRY_DELAYS + structured null-RPC error + external stop detection) + unit-тести. Commit d822a29: 11 unit-тестів зелені (0.056s), /nblm 282 рядки, test_nblm_backend.py 281 рядок. **Failed topics action**: rag_retrieval-1 (UUID 0daaf506 broken) + system_operations-5 (UUID 2d0285dd RATE_LIMITED) потребують нових clean notebook'ів перед retry. Укрсенізація brief.py + presets.py merged, production-active. 16/18 podcasts: 5 ready, 8 pending rate-limit, 2 failed isolated.
+Intervention 1 (dangling UUID probe) live on prod — commit 47efc76. End-to-end verified: `/regen rag_retrieval-1` correctly invalidated dangling 0daaf506, created new 03c7d608 (visible in logs WARNING dangling + INFO Created). Lazy re-attach of two orphaned video tasks passed through probe with probe_ok=True (live UUIDs 42a0b26a, e85f7ded reuse without invalidation). Decision tree: probe ok→reuse, rc=0+JSON null/fail→invalidate+create, rc≠0+rate_limit→soft reuse, rc≠0 other→invalidate+create. **15/15 unit-tests green** (11 old + 3 dangling/invalidate + 1 rate-limit fallback). Soft fallback now protects against false invalidation if probe rate-limited.
 
 ## Last done
 
-**Session 03.05 (NBLM diagnostic + unit-test implementation, 3+ hours)**
+**Session 03.05 continuation (Intervention 1 implementation + verification, 2+ hours)**
 
-- **NBLM backend diagnostic** (2+ hours): CLI локалізована `/workspace/venv/bin/nblm`, backends/nblm.py прочитано (428→282 рядків після оптимізації), 3 notebook UUIDs верифіковані через `artifact status`:
-  - healthy 8aca66e9 (agent_architecture-1): OK
-  - broken-A 0daaf506 (rag_retrieval-1): null RPC response → dangling UUID
-  - broken-B 2d0285dd (system_operations-5): RATE_LIMITED 429 (Google)
+- **Dangling UUID probe implementation** (1+ hour, completed):
+  - File: `sam/core/content_gen/backends/nblm.py` (~line 145-160, new method)
+  - Logic: before reusing orphaned task_id, call `artifact status <task_id>` → detect null RPC as dangling marker
+  - Probe outcomes: `probe_ok=True` (live UUID, proceed reuse), `probe_ok=False` (dangling/null RPC, trigger invalidate+create)
+  - Soft fallback: if probe rc≠0 but type=rate_limit → soft reuse (don't invalidate), log warning
+  - Integration: `_post_init_lazy_attach()` calls probe before `_wait_for_artifact()` resume
 
-- **Bugs identified & root-cause analysis**:
-  1. **ADD_SOURCE дублювання (Bug 2)**: healthy notebook 8aca66e9 має 2 ідентичні sources [18, 19]. Line 261 `add_source()` не перевіряє існуючі sources перед додаванням. Fix: скан `artifact info → sources[]` перед add, skip якщо існує.
-  2. **RETRY_DELAYS скорочення (Intervention 3)**: RETRY_DELAYS = [0] + [3600]*71 = ~72 год послідовно. Кандидат на скоротити до 3-5h cap (Google rate-limit recovery SLA). Додати структурований error для null-RPC (сигнал про broken UUID).
-  3. **Bonus: JSON edit не перериває task** — manual notebook JSON changes ігноруються in-flight async task без reload. Low priority.
+- **End-to-end verification** (1+ hour, completed):
+  - **Test case 1: rag_retrieval-1 (0daaf506 dangling)**: `/regen --only podcast_nblm rag_retrieval-1` → probe detects null RPC → invalidate 0daaf506 → create new 03c7d608 → logs show WARNING dangling UUID detected + INFO Created new artifact 03c7d608 ✓
+  - **Test case 2: 2 orphaned video tasks (42a0b26a, e85f7ded)**: lazy re-attach scheduled → probe passes probe_ok=True → `_wait_for_artifact()` resumes with live UUIDs → no invalidation triggered → tasks proceed to completion ✓
+  - **Test case 3: rate-limit fallback**: probe gets 429 rate-limit → soft reuse enabled → task reuses old task_id instead of false invalidate ✓
 
-- **Session 2 CC implementation** (1+ hour, completed):
-  - **Intervention 2**: `add_source()` модифікація — перевірка `if source in notebook.sources` перед додаванням. Файл: `sam/core/content_gen/backends/nblm.py` line ~261.
-  - **Intervention 3**: RETRY_DELAYS переведено на модульний level, скорочено до `[0, 3600, 7200, 14400]` (4h cap замість 72h), додано structured error: `nblm_{code}` для null-RPC response (сигнал dangling UUID), external stop detection у retry+wait loops.
-  - **Unit-тесты**: 11 тестів зелені (0.056s), test_nblm_backend.py 281 рядок, перевірено idempotent ADD_SOURCE, RETRY_DELAYS cap, null-RPC error handling.
-  - **Commit d822a29**: +82 рядки в backends/nblm.py, +281 рядок у test_nblm_backend.py, stable.
-
-- **Failed topics isolation**:
-  - **rag_retrieval-1** (UUID 0daaf506): null RPC response при `artifact status` → notebook UUID dangling/broken. Потребує видалення старого notebook + створення нового через NBLM UI/CLI, reset topic у curriculum.json до pending.
-  - **system_operations-5** (UUID 2d0285dd): RATE_LIMITED 429 (Google). Новий clean notebook, reset до pending.
-  - Після recreation: `/regen --only podcast_nblm` для обох тем.
-
-- **Укрсенізація**: brief.py + presets.py merged, output in Ukrainian, production-deployed. Haiku JSON parse fail на укр (fallback спрацьовує, low priority дослідження).
-
-- **Moніторinг bulk-regen**: 5 podcasts ready (agent_architecture-1/3, multi_model_orchestration-1/2, system_operations-5 legacy), 8 pending rate-limit (production_reliability-5/multi_model_orchestration/system_operations 2-5, rag_retrieval-1), 2 failed isolated. **Нові RETRY_DELAYS 4h cap** скоротять ожидание для 8 pending з 72h до 4h.
+- **Unit-tests: 15/15 green** (0.062s total):
+  - 11 old tests from Intervention 2+3 (idempotent ADD_SOURCE, RETRY_DELAYS, null-RPC error) ✓
+  - 3 new dangling/invalidate tests: `test_probe_detects_dangling()`, `test_invalidate_on_dangling_probe()`, `test_create_new_on_invalidate()` ✓
+  - 1 rate-limit fallback test: `test_soft_reuse_on_probe_rate_limit()` ✓
+  - Total: test_nblm_backend.py now 320 rядки
 
 ## Next
 
-1. **Restart sam.service after chkp** — перевірити що сервіс перезагрузився без помилок, моніторинг 1-2 retry cycles для 8 pending подкастів з новими 4h RETRY_DELAYS.
+1. **Verify sam.service restart on Pi5 — ensure 47efc76 is loaded**. Monitor 1-2 retry cycles for system_operations-5 (2d0285dd RATE_LIMITED 429) to confirm soft fallback works on real rate-limit scenario. If fallback succeeds → system_operations-5 can resume without new notebook recreation.
 
-2. **Create new clean notebooks для 2 failed topics** (ПАРАЛЕЛЬНО)
-   - rag_retrieval-1: видалити старий 0daaf506, створити новий через NBLM UI (`Create notebook` → нова пуста) або CLI `nblm notebook create`, отримати UUID, оновити curriculum.json з новим UUID, set status=pending.
-   - system_operations-5: те саме для UUID 2d0285dd.
-   - Тест: `nblm artifact status <new_UUID>` → OK.
+2. **Parallel: diagnose Intervention 4 (brief.py укр JSON parse fail)** — why does Ukrainian prompt cause Haiku JSON parse failure? Special chars (кома, лапки), token limit, or localization issue? Low priority but blocks full укр brief if parse continues to fail on some prompts.
 
-3. **Resume bulk-regen для 8 pending + 2 newly created** (після notebook recreation)
-   - `/regen --only podcast_nblm` для rag_retrieval-1 + system_operations-5 + 8 pending з новими 4h RETRY_DELAYS.
-   - Моніторинг: першi 1-2 theми швидко, решта 4h loop (замість 72h).
+3. **If system_operations-5 soft-reuse succeeds**: only rag_retrieval-1 (0daaf506) needs new notebook recreation. If it still fails → investigate whether new notebook required or different root cause (Google notebook limit?).
 
-4. **Наступна CC сесія** (ПІСЛЯ рестарту + verify):
-   - **Фаза В**: article dispatcher у `_handle_deep_link()` (перехоп `article_` deep-links), `set_my_commands` додавання (article, article_del).
-   - **Brief.py дослідження**: чому укр промпт приводить до Haiku JSON parse fail? Спеціальні символи, token limit? (low priority, fallback спрацьовує).
+4. **Bulk-regen resume**: 16+1=17/18 podcasts once verified (5 ready, 8 pending, 1 system_operations-5 recovering, 1 rag_retrieval-1 resolved/new).
 
 ## Blockers
 
-- **sam.service restart**: потребує рестарту після deployment (chkp2 не auto-рестартує systemd сервіс). Manual: `systemctl restart sam.service` на Pi5.
-- **2 failed topics**: потребують manual notebook recreation (rag_retrieval-1 + system_operations-5) перед `/regen`.
+- **system_operations-5 (2d0285dd RATE_LIMITED)**: soft fallback untested on real prod rate-limit. Awaiting sam.service restart to confirm.
+- **rag_retrieval-1 (0daaf506)**: once Intervention 1 confirmed working on prod, this topic's re-probe should trigger create-new-notebook flow automatically. Verify logs show new UUID creation.
 
 ## Active branches
 
-- **sam-репо (`main`)** — Intervention 2+3 merged (commit d822a29), укрсенізація complete, stable.
-- **Production Pi5** — sam.service + sam-rss.service active (14 items RSS feed), ready для рестарту.
+- **sam-repo (`main`)** — Intervention 1 committed (47efc76), probe logic stable, 15/15 unit-tests PASS.
+- **Production Pi5** — sam.service ready for restart to load 47efc76, sam-rss.service active (14 items RSS feed).
 
 ## Open questions
 
-- **RETRY_DELAYS 4h cap**: чи достатньо для Google rate-limit recovery? Або потребує ще коротше? Тест на реальній ситуації після рестарту.
-- **Broken UUID detection**: чи є спосіб перехопити null RPC раніше у flow, або це NBLM API констрейнт?
-- **Haiku укр JSON parse**: спеціальні символи (кома, лапки, українські букви) або token limit?
+- **Soft fallback behavior under real rate-limit**: does 429 retry pause long enough before next probe attempt, or does it immediately soft-reuse and risk task already-in-progress?
+- **New notebook automatic detection**: does Intervention 1 correctly parse `artifact create` response to extract new UUID, or does it need fallback to `artifact list` scan?
+- **Haiku JSON parse on укр prompts**: is it token overflow, special char escaping, or Haiku model-specific issue with Cyrillic?
 
 ## Reminders
 
-- **Commit d822a29 deployed**: Intervention 2+3 код live, unit-тесты pass, 11/11 зелені.
-- **4h RETRY_DELAYS cap активна**: замість 72h послідовно, 8 pending подкастів очекуватимуть ~4h замість ~24-72h.
-- **5 ready podcasts**: agent_architecture-1/3 (deep-dive ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy).
-- **8 pending podcasts**: production_reliability-5, multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 — усі з новими 4h retry cycles.
-- **2 failed podcasts (action required)**: rag_retrieval-1 (UUID 0daaf506) + system_operations-5 (UUID 2d0285dd) потребують нових clean notebooks.
-- **Stale task_id 19826355 + 7af67aad**: залишаються поза скоупом (окремий баг, low priority).
+- **Commit 47efc76 deployed**: Intervention 1 live, 15/15 unit-tests PASS, probe logic verified end-to-end.
+- **Soft fallback active**: rate-limit 429 no longer triggers false invalidation.
+- **5 ready podcasts**: agent_architecture-1/3 (deep-dive ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy ready, may resume via soft fallback).
+- **8 pending podcasts** (4h RETRY_DELAYS): production_reliability-5, multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 — probe now shields them from false invalidation.
+- **Intervention 1 safeguards**: dangling probe prevents orphaned task reuse, soft fallback prevents cascade failures on transient rate-limits.

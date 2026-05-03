@@ -261,3 +261,36 @@ NBLM diagnostic session 03.05 (2+ hours): CLI локалізована `/workspa
 3. **broken-B 2d0285dd** (system_operations-5): `nblm artifact status` → RATE_LIMITED 429 (Google rate-limit, потребує нового notebook).
 
 **Bugs root-cause identified**: (1) ADD_SOURCE дублювання (line 261, не скануює перед додаванням) — **FIX: Intervention 2 deployed**, (2) RETRY_DELAYS скорочення (72h послідовно занадто довгий) — **FIX: Intervention 3 deployed 4h cap**, (3) JSON edit не перериває async (low priority bonus). **Failed topics action**: rag_retrieval-1 (UUID 0daaf506) + system_operations-5 (UUID 2d0285dd) потребують видалення старих notebooks + створення нових clean notebooks + reset curriculum.json + `/regen --only podcast_nblm`. **Impact**: 2 failed topics isolated, 8 pending матимуть скорочені 4h retry loops (замість 72h), Bulk-regen резюміється з новими параметрами.
+
+---
+
+## 2026-05-03: Intervention 1 — dangling UUID probe + soft fallback DEPLOYED
+
+```yaml
+archivereason: Intervention 1 fully implemented, unit-tested (15/15), live on prod (commit 47efc76), end-to-end verified
+archivereason_ua: Intervention 1 повністю реалізована, unit-тестована (15/15), live на prod (commit 47efc76), end-to-end верифіковано
+archivereason_date: 2026-05-03
+commit: 47efc76
+tags: [intervention, nblm, deployment, probe, dangling-uuid]
+```
+
+**Intervention 1: dangling UUID probe + soft fallback fully deployed 03.05**.
+
+**Problem**: lazy re-attach resumes orphaned tasks by task_id, but some tasks have dangling/null UUIDs (e.g., 0daaf506 rag_retrieval-1). Without detection, reusing dangling task_id causes silent failures. Transient rate-limits (429) also incorrectly triggered full invalidate+create, cascading failures.
+
+**Solution — Intervention 1**:
+1. **Dangling UUID probe** (`_probe_artifact_alive(task_id)`): before reusing orphaned task, call `artifact status <task_id>` → detect null RPC as dangling marker.
+2. **Soft fallback**: if probe 429 rate-limit → don't invalidate, reuse task_id with warning. Prevents cascade on transient limits.
+3. **Decision tree**: probe ok→reuse, rc=0+null→invalidate+create, rc≠0+rate_limit→soft reuse, rc≠0 other→invalidate+create.
+
+**Implementation**:
+- File: `sam/core/content_gen/backends/nblm.py` (~line 145-160, new method)
+- Integration: `_post_init_lazy_attach()` calls probe before `_wait_for_artifact()` resume
+- Unit-tests: 15/15 PASS (0.062s) — 11 old + 3 dangling/invalidate + 1 rate-limit fallback
+
+**End-to-end verification**:
+- **rag_retrieval-1 (0daaf506 dangling)**: `/regen` → probe detects null RPC → invalidate → create new 03c7d608 → logs WARNING + INFO ✓
+- **orphaned video tasks (42a0b26a, e85f7ded live)**: lazy re-attach → probe passes → reuse without invalidation ✓
+- **rate-limit fallback**: probe 429 → soft reuse (don't invalidate) ✓
+
+**Impact**: 8 pending podcasts now shielded from false invalidation on transient rate-limits. rag_retrieval-1 auto-detects dangling UUID, system_operations-5 soft-fallback protects from rate-limit cascade.

@@ -1,14 +1,9 @@
 Проект: sam
-Стан: NBLM diagnostic complete (03.05) — 3 notebook UUIDs верифіковані (healthy OK, broken-A RPC null, broken-B RATE_LIMITED), 3 bugs ізольовані для Intervention 2+3. Укрсенізація brief.py + presets.py merged, production-active. 16/18 podcasts: 5 ready, 8 pending rate-limit, 2 failed потребують нових notebook'ів.
 
-Що далі:
-Сесія 2 CC (5-6h): 
-- Intervention 2: idempotent ADD_SOURCE — перевірити source list перед додаванням у backends/nblm.py line 261.
-- Intervention 3: rate_limit retry redesign — скоротити RETRY_DELAYS з 71*3600 (72h) на 3-5h, додати інформативний error для null-RPC кейсу.
-- Підготувати CC-prompt у chornetka/ перед сесією.
+**Стан**: Intervention 1 (dangling UUID probe + soft fallback) щойно deployed на prod — commit 47efc76, 15/15 unit-тестів PASS. Dangling UUID detection + soft fallback для rate-limit 429 тепер захищають bulk-regen від false invalidation. End-to-end верифікація: /regen rag_retrieval-1 auto-детектує 0daaf506 dangling, створює новий notebook; orphaned video tasks успішно re-attach без інвалідації; rate-limit soft fallback працює. Intervention 2+3 (idempotent ADD_SOURCE, 4h RETRY_DELAYS cap) раніше deployed (commit d822a29).
 
-Паралельно: нові clean notebook'и для rag_retrieval-1 (0daaf506) і system_operations-5 (2d0285dd), reset у curriculum.json, потім `/regen --only podcast_nblm` для обох.
+**Що робити далі**: (1) Рестартни sam.service на Pi5 щоб загрузити commit 47efc76, моніторинь 1-2 retry cycles для system_operations-5 (2d0285dd RATE_LIMITED 429) на предмет soft fallback success. (2) Паралельно: investigate Intervention 4 (brief.py укр JSON parse fail) — чому Ukrainian prompts іноді приводять до Haiku JSON parse failure. Low priority, fallback спрацьовує. (3) Після verify: bulk-regen резюміється для 8 pending + 2 recovering, target 17/18 podcasts (5 ready, 8 pending 4h loops, 2 auto-recovering).
 
-Блокери: потребує CC для вмешательств 2+3, потім manual notebook creation.
+**Блокери**: system_operations-5 soft fallback на проді — потребує рестарту. rag_retrieval-1 auto-create — перевірити лог що новий notebook успішно створився.
 
-Діліти HOT.md + WARM.md для контексту.
+Давай вмісту HOT.md + WARM.md з моєю попередньою сесією, перевірю що не забув деталей.
