@@ -18,6 +18,7 @@ from core.content_gen.backends.nblm import (
     _start_generation,
     _wait_for_artifact,
     generate_and_notify,
+    get_or_create_notebook,
 )
 
 
@@ -263,6 +264,92 @@ class TestRetryLoopBehavior(unittest.IsolatedAsyncioTestCase):
         # Only 1 _start_generation call (delay=0 iteration), then external stop on delay=3600
         self.assertEqual(mock_run.call_count, 1)
         mock_bot.send_message.assert_not_called()
+
+
+# ── Intervention 1: dangling notebook probe ──────────────────────────────────
+
+class TestNotebookProbe(unittest.IsolatedAsyncioTestCase):
+
+    def _state(self, nb_id):
+        entity = MagicMock()
+        entity.nblm_notebook_id = nb_id
+        state = MagicMock()
+        state.get_topic.return_value = entity
+        state.get_article.return_value = None
+        return state, entity
+
+    async def test_probe_success_reuses_uuid(self):
+        """probe rc=0 + valid JSON → return existing UUID, no create call."""
+        state, _ = self._state("existing-uuid")
+        probe_json = json.dumps({"sources": []})
+        with patch("core.content_gen.backends.nblm._run",
+                   new_callable=AsyncMock,
+                   return_value=(0, probe_json, "")) as mock_run, \
+             patch("core.content_gen.backends.nblm.load", return_value=state), \
+             patch("core.content_gen.backends.nblm.save") as mock_save:
+            result = await get_or_create_notebook(
+                "topic-1", "Topic One", Path("/fake"), kind="topic"
+            )
+        self.assertEqual(result, "existing-uuid")
+        self.assertEqual(mock_run.call_count, 1)
+        mock_save.assert_not_called()
+
+    async def test_probe_rc_nonzero_invalidates_and_creates(self):
+        """probe rc!=0 → invalidate (set None), fallthrough to create, return new UUID."""
+        state, _ = self._state("dangling-uuid")
+        run_side_effects = [
+            (1, "", "not found"),
+            (0, "Created notebook: fresh-uuid extra", ""),
+        ]
+        with patch("core.content_gen.backends.nblm._run",
+                   new_callable=AsyncMock, side_effect=run_side_effects), \
+             patch("core.content_gen.backends.nblm.load", return_value=state), \
+             patch("core.content_gen.backends.nblm.save") as mock_save, \
+             patch("core.content_gen.backends.nblm.set_nblm_notebook_id") as mock_set, \
+             patch("core.content_gen.backends.nblm.set_article_nblm_notebook_id"):
+            result = await get_or_create_notebook(
+                "topic-1", "Topic One", Path("/fake"), kind="topic"
+            )
+        self.assertEqual(result, "fresh-uuid")
+        self.assertIsNone(mock_set.call_args_list[0].args[2])   # invalidation
+        self.assertEqual(mock_set.call_args_list[1].args[2], "fresh-uuid")  # new id
+        self.assertEqual(mock_save.call_count, 2)
+
+    async def test_probe_rate_limited_falls_back_to_reuse(self):
+        """probe rc!=0 з 'rate limited' у stderr → reuse без інвалідації."""
+        state, _ = self._state("existing-uuid")
+        with patch("core.content_gen.backends.nblm._run",
+                   new_callable=AsyncMock,
+                   return_value=(1, "", "Error: rate limited by Google")) as mock_run, \
+             patch("core.content_gen.backends.nblm.load", return_value=state), \
+             patch("core.content_gen.backends.nblm.save") as mock_save, \
+             patch("core.content_gen.backends.nblm.set_nblm_notebook_id") as mock_set:
+            result = await get_or_create_notebook(
+                "topic-1", "Topic One", Path("/fake"), kind="topic"
+            )
+        self.assertEqual(result, "existing-uuid")
+        self.assertEqual(mock_run.call_count, 1)
+        mock_save.assert_not_called()
+        mock_set.assert_not_called()
+
+    async def test_probe_json_decode_error_invalidates_and_creates(self):
+        """probe rc=0 but JSON malformed → invalidate, fallthrough to create."""
+        state, _ = self._state("dangling-uuid")
+        run_side_effects = [
+            (0, "not-valid-json", ""),
+            (0, "Created notebook: fresh-uuid2 extra", ""),
+        ]
+        with patch("core.content_gen.backends.nblm._run",
+                   new_callable=AsyncMock, side_effect=run_side_effects), \
+             patch("core.content_gen.backends.nblm.load", return_value=state), \
+             patch("core.content_gen.backends.nblm.save"), \
+             patch("core.content_gen.backends.nblm.set_nblm_notebook_id") as mock_set, \
+             patch("core.content_gen.backends.nblm.set_article_nblm_notebook_id"):
+            result = await get_or_create_notebook(
+                "topic-1", "Topic One", Path("/fake"), kind="topic"
+            )
+        self.assertEqual(result, "fresh-uuid2")
+        self.assertIsNone(mock_set.call_args_list[0].args[2])
 
 
 if __name__ == "__main__":

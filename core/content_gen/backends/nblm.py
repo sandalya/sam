@@ -108,8 +108,38 @@ async def get_or_create_notebook(
         return None
 
     if entity.nblm_notebook_id:
-        log.info(f"Reusing notebook {entity.nblm_notebook_id} for {kind} {topic_id}")
-        return entity.nblm_notebook_id
+        existing_id = entity.nblm_notebook_id
+        probe_rc, probe_out, probe_err = await _run(
+            ["source", "list", "-n", existing_id, "--json"], timeout=30
+        )
+        probe_ok = False
+        if probe_rc == 0:
+            try:
+                probe_data = json.loads(probe_out)
+                if probe_data is not None:
+                    probe_ok = True
+            except json.JSONDecodeError:
+                pass
+        if probe_ok:
+            log.info(f"Reusing notebook {existing_id} for {kind} {topic_id}")
+            return existing_id
+        if probe_rc != 0:
+            probe_text = (probe_out + probe_err).lower()
+            if "rate limited" in probe_text or "rate_limit" in probe_text:
+                log.warning(
+                    f"Probe rate-limited for {existing_id} ({kind} {topic_id}), "
+                    f"reusing UUID without invalidation"
+                )
+                return existing_id
+        log.warning(
+            f"Notebook {existing_id} dangling for {kind} {topic_id} "
+            f"(probe rc={probe_rc}), invalidating"
+        )
+        if kind == "article":
+            set_article_nblm_notebook_id(state, topic_id, None)
+        else:
+            set_nblm_notebook_id(state, topic_id, None)
+        save(state, cur_path)
 
     notebook_name = f"{category} — {topic_title}"
     rc, stdout, stderr = await _run(["create", notebook_name])
