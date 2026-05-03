@@ -32,6 +32,7 @@ NOTEBOOKLM_BIN = Path("/home/sashok/.openclaw/workspace/sam/venv/bin/notebooklm"
 NOTEBOOKLM_BASE_URL = "https://notebooklm.google.com/notebook/"
 
 CURRICULUM_FILENAME = "curriculum.json"
+RETRY_DELAYS = [0] + [3600] * 4  # hourly retry, 5 attempts total (~4h cap)
 
 # ── UI names для форматів ─────────────────────────────────────────────────────
 
@@ -167,6 +168,16 @@ async def _start_generation(
         return "", "rate_limit"
     if rc != 0:
         log.error(f"Start {fmt} failed rc={rc}: stdout={stdout[:300]} stderr={stderr[:300]}")
+        try:
+            data = json.loads(stdout)
+            code = data.get("code", "")
+            if code:
+                msg = data.get("message", "")
+                if msg:
+                    log.error(f"Start {fmt} NBLM error code={code}: {msg}")
+                return "", f"nblm_{code.lower()}"
+        except json.JSONDecodeError:
+            pass
         return "", "error"
     try:
         data = json.loads(stdout)
@@ -187,9 +198,23 @@ async def _wait_for_artifact(
     task_id: str,
     notebook_id: str,
     timeout: int = 1800,
+    topic_id: str | None = None,
+    kind: str = "topic",
+    cur_path: Path | None = None,
+    fmt: str | None = None,
 ) -> tuple[bool, str]:
     """Phase 2: чекає на завершення артефакту. Loop при timeout (нескінченно)."""
     while True:
+        if cur_path and topic_id and fmt:
+            _w_state = load(cur_path)
+            _w_entity = (
+                _w_state.get_article(topic_id) if kind == "article"
+                else _w_state.get_topic(topic_id)
+            )
+            if (_w_entity and _w_entity.formats.get(fmt)
+                    and _w_entity.formats[fmt].status != "generating"):
+                log.info(f"External stop detected in wait loop for {topic_id}/{fmt}")
+                return False, "external_stop"
         args = ["artifact", "wait", task_id, "-n", notebook_id,
                 "--timeout", str(timeout), "--json"]
         rc, stdout, stderr = await _run(args, timeout=timeout + 60)
@@ -259,15 +284,27 @@ async def generate_and_notify(
 
     nb_url = notebook_url(notebook_id)
 
-    # Step 2: add source (best effort, warnings ignored)
+    # Step 2: add source idempotent (best effort, warnings ignored)
     if not skip_source and source_url:
-        rc, stdout, stderr = await _run(["source", "add", "-n", notebook_id, source_url])
-        if rc != 0:
-            log.warning(f"Add source warning (ignored) for {topic_id}: {stderr}")
+        _should_add = True
+        _sl_rc, _sl_out, _sl_err = await _run(["source", "list", "-n", notebook_id, "--json"])
+        if _sl_rc == 0:
+            try:
+                _sl_data = json.loads(_sl_out)
+                _existing_urls = {s.get("url", "") for s in _sl_data.get("sources", [])}
+                if source_url in _existing_urls:
+                    log.info(f"Source already present for {topic_id}, skipping add")
+                    _should_add = False
+            except json.JSONDecodeError:
+                log.warning(f"Source list JSON malformed for {topic_id}, fallback to add")
+        else:
+            log.warning(f"Source list failed rc={_sl_rc} for {topic_id}, fallback to add")
+        if _should_add:
+            rc, stdout, stderr = await _run(["source", "add", "-n", notebook_id, source_url])
+            if rc != 0:
+                log.warning(f"Add source warning (ignored) for {topic_id}: {stderr}")
 
     # Step 4: two-phase generation with re-attach support
-    RETRY_DELAYS = [0] + [3600] * 71  # hourly retry up to 72h on rate_limit at start
-
     # Lazy re-attach: if there is already a task_id in state, skip Phase 1
     state = load(cur_path)
     existing = (state.get_article(topic_id) if kind == "article"
@@ -286,6 +323,18 @@ async def generate_and_notify(
             if delay:
                 log.info(f"Retry start {fmt} for {topic_id} after {delay}s")
                 await asyncio.sleep(delay)
+                _chk_state = load(cur_path)
+                _chk_entity = (
+                    _chk_state.get_article(topic_id) if kind == "article"
+                    else _chk_state.get_topic(topic_id)
+                )
+                if (_chk_entity and _chk_entity.formats.get(fmt)
+                        and _chk_entity.formats[fmt].status != "generating"):
+                    log.info(
+                        f"External stop detected for {topic_id}/{fmt} "
+                        f"(status={_chk_entity.formats[fmt].status}), exiting retry loop"
+                    )
+                    return
             task_id, start_err = await _start_generation(
                 notebook_id, fmt, instructions,
                 nblm_format=nblm_format, length=length,
@@ -293,6 +342,8 @@ async def generate_and_notify(
             if task_id or start_err != "rate_limit":
                 break
         if not task_id:
+            if start_err == "rate_limit":
+                start_err = "rate_limit_exhausted"
             ok, err = False, start_err
         else:
             # Save task_id to state before waiting (re-attach point on restart)
@@ -305,10 +356,28 @@ async def generate_and_notify(
 
     # Phase 2: wait (only if we have a task_id)
     if task_id:
-        ok, err = await _wait_for_artifact(task_id, notebook_id)
+        ok, err = await _wait_for_artifact(
+            task_id, notebook_id,
+            topic_id=topic_id, kind=kind, cur_path=cur_path, fmt=fmt,
+        )
 
     # Step 5: persist outcome
     state = load(cur_path)
+    if err == "external_stop":
+        _es_entity = (
+            state.get_article(topic_id) if kind == "article"
+            else state.get_topic(topic_id)
+        )
+        _es_fmt = _es_entity.formats.get(fmt) if _es_entity else None
+        _es_status = _es_fmt.status if _es_fmt else "unknown"
+        if _es_status in ("failed", "cancelled"):
+            log.info(f"External stop confirmed for {topic_id}/{fmt}: status={_es_status}")
+        else:
+            log.warning(
+                f"External stop for {topic_id}/{fmt}: unexpected status={_es_status!r}, "
+                f"exiting without mutation"
+            )
+        return
     if kind == "article":
         if ok:
             set_article_format_status(state, topic_id, fmt, "ready", url=nb_url)
