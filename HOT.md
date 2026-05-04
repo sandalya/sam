@@ -63,6 +63,8 @@ Manual `/regen 04.05 20:53` end-to-end validation completed. All 4 interventions
    - **Sprint D** (Sam evals + agentic ingest): run Ed evaluations, agentic curriculum ingest (~3h)
    - **Phase C** (article dispatcher + BotCommand): parallel if bandwidth
 
+5. **Cheat-sheet Linux/bash** (low priority, paused mid-block 2): grep as point of friction, resume in separate session after fresh mind.
+
 ## Blockers
 
 None. Both P3 bugs (external_stop zombie, regen message) are low priority and don't prevent Sprint B closure or 18/18 verification.
@@ -83,3 +85,4 @@ None. Both P3 bugs (external_stop zombie, regen message) are low priority and do
 - **2 P3 bugs identified (non-blocking)**: external_stop zombie, regen message outdated. Move to backlog after Sprint B closure.
 - **Next decision point**: Within 10-30 min, verify 18/18 ready. Then choose Sprint C (voice extraction) vs Sprint D (evals) vs Phase C (article dispatcher).
 - **RSS feed**: 18 items synced, deep-links functional, ready for podcast app distribution.
+- **Cheat-sheet Linux/bash**: Paused mid-block 2 (grep friction point). Return in separate session with fresh mind.
