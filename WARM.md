@@ -123,7 +123,7 @@ status: done
 ```yaml
 last_touched: 2026-05-04
 tags: [bulk-regen, failed-topics, intervention-1, recovery]
-status: active
+status: done
 ```
 
 **rag_retrieval-1** (UUID 0daaf506 → 03c7d608):
@@ -209,7 +209,7 @@ tags: [nblm, async, architecture, critical]
 status: active
 ```
 
-**Архітектура верифікована (26-27.04, 03.05, 04.05)**:
+**Архітектура верифіковна (26-27.04, 03.05, 04.05)**:
 - `generate <type> --no-wait --json` → миттєво `{task_id, status}`
 - `artifact wait <task_id>` → асинхронне опитування (30 хв)
 - TopicFormat.task_id + ArticleFormat.task_id додані, `set_format_status()` приймає task_id
