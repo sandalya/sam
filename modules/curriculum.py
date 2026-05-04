@@ -465,7 +465,7 @@ async def cmd_regen(update, context):
 
     titles = "\n".join(f"  • {t.title}" for t in topics_to_regen)
     only_note = f" [only={','.join(only_formats)}]" if only_formats else ""
-    msg = f"🔄 Regen: {len(topics_to_regen)} тем{only_note}\n" + titles + "\n\nЗапускаю послідовно (retry до 72 год на rate limit)..."
+    msg = f"🔄 Regen: {len(topics_to_regen)} тем{only_note}\n" + titles + "\n\nЗапускаю послідовно (retry до 4 год на rate limit)..."
     await update.message.reply_text(msg, parse_mode="HTML")
 
     bot = update.get_bot()
