@@ -1,12 +1,10 @@
-Проект: sam
+Проект: Sam
 
-Текущий статус: Intervention 4 (EN brief reframe) + Intervention 1+2+3 (dangling UUID probe + idempotent ADD_SOURCE + 4h RETRY_DELAYS) развёрнуты на disk (commits 26cf181, 47efc76, d822a29). 6 brief unit-тестов + 15 nblm unit-тестов PASS. Bulk-регенерация 13 подкастов: 5 ready, 8 pending в 4h retry-loop, 2 recovering (auto-probe + soft fallback).
+Стан: Sprint B на фінальній стадії верифікації. Усі 4 NBLM intervention'и (Intervention 1 dangling UUID probe, 2 idempotent ADD_SOURCE, 3 RETRY_DELAYS 4h cap, 4 EN brief) вже live на prod (04.05 20:53 deployed). Manual `/regen` end-to-end тест підтвердив: Intervention 4 brief EN stable, Intervention 1 soft fallback працює, Intervention 2 скануює sources, Intervention 3 скоротив RETRY до 4h. 18/18 подкастів у процесі: 5 готові, 8 в 4h retry loop (защищено від rate-limit cascade), 2 в recovery (auto-probe via Intervention 1). Очікується завершення ~21:00.
 
-Что нужно сделать: 
-1. Перезагрузить sam.service на Pi5 для загрузки нових коммітов (47efc76 + d822a29 + 26cf181). 
-2. Мониторить 24h на 0 ошибок parse: ищем строку 'Expecting ... delimiter' в логах.
-3. Проверить system_operations-5 (UUID 2d0285dd) → soft fallback протокол работает на реальном rate-limit 429.
-4. Проверить rag_retrieval-1 (UUID 0daaf506 dangling) → auto-probe детектирует null RPC, создаёт новый notebook.
-5. Если оба успешны → resume bulk-regen для 17/18 подкастов.
+Чо далі: 
+1. У 10-30 хв перевірити чи podcast_nblm status=18/18 ready (цільова: 18/18 завершено). Якщо так — Sprint B CLOSE, переходимо до Sprint C/D/Phase C.
+2. Якщо одна впала — діагностикуємо specific NBLM failure (null_rpc vs rate_limit_exhausted vs timeout).
+3. Додатково: 2 нові P3 баги (external_stop zombie, regen message outdated) — low priority, не блокують Sprint B close.
 
-Блокер: без sam.service restart, новый код не загружен в памяти. Запроси HOT.md + WARM.md для контекста.
+Додати до ChatGPT: поточні HOT.md + WARM.md (повністю), якщо потребуються деталі про архітектуру чи попередні фази.

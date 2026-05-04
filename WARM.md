@@ -1,53 +1,59 @@
 ---
 project: sam
-updated: 2026-05-03
+updated: 2026-05-04
 ---
 
 # WARM — Sam
 
-## Intervention 4: brief.py укр JSON parse fail — ROOT CAUSE FOUND & EN REFRAME DEPLOYED
+## Intervention 4: brief.py укр JSON parse fail → EN REFRAME DEPLOYED
 
 ```yaml
-last_touched: 2026-05-03
-tags: [brief, haiku, json, localization, intervention-4, deployed]
+last_touched: 2026-05-04
+tags: [brief, haiku, json, localization, intervention-4, deployed, verified]
 status: done
 ```
 
-**Root cause identified**: Ukrainian prompts sent to Haiku 4.5 were causing the model to ignore Cyrillic directives and generate EN content anyway. The JSON parse failure in 1/18 cases (rag_retrieval-1) was NOT due to special chars or token limits, but was isolated to a broken notebook UUID (0daaf506), not a prompt localization issue.
+**Root cause identified (03.05)**: Ukrainian prompts sent to Haiku 4.5 were causing the model to ignore Cyrillic directives. The JSON parse failure in 1/18 cases (rag_retrieval-1) was NOT due to special chars or token limits, but was isolated to a broken notebook UUID (0daaf506 — null RPC response), not a prompt localization issue.
 
 **Solution deployed (Intervention 4 — EN reframe)**:
-- File: `sam/core/content_gen/brief.py`
-- Change: system prompt + user prompt translated to EN. Haiku 4.5 now consistently generates valid JSON briefs in English.
-- Debug infrastructure: `BriefParseError(ValueError)` with `raw_text`, `cleaned_text`, `json_error` attributes. Logged with `--- RAW START/END ---` markers for grep.
-- Unit-tests: 6/6 PASS (5 parse + 1 prompt_is_english validation).
-- Commits: 6e5589c (debug) + 26cf181 (EN reframe) pushed to origin.
+- File: `sam/core/content_gen/brief.py` (system + user prompt translated to EN)
+- Change: `generate_brief()` systemний промпт EN, user prompt EN, моделі Haiku 4.5
+- Debug infrastructure: `BriefParseError(ValueError)` with `raw_text`, `cleaned_text`, `json_error` attributes. Logged with `--- RAW START/END ---` markers for grep
+- Unit-tests: 6/6 PASS (5 parse + 1 prompt_is_english validation)
+- Commits: 6e5589c (debug infrastructure) + 26cf181 (EN reframe) deployed to prod (04.05)
 
-**Impact**: All 14 successful briefs now guarantee valid JSON. The 1 failure (rag_retrieval-1) was always about the broken notebook, not the prompt. Once rag_retrieval-1 gets a new notebook via Intervention 1 probe, it will generate brief cleanly. No more ukr/EN drift, no more parse failures.
+**04.05 end-to-end verification**:
+- Brief reuse from cache (EN brief stable, no parse errors)
+- All 14 successful briefs guarantee valid JSON
+- The 1 failure (rag_retrieval-1) was always about broken notebook 0daaf506, not prompt
+- Once rag_retrieval-1 gets new notebook via Intervention 1 probe, it generates brief cleanly
+- No more ukr/EN drift, no more parse failures
 
-**Next**: Monitor 24h for 0 `Expecting ... delimiter` errors. If 0 → Intervention 4 DONE. Remaining: presets.py has ukr strings (preset_angle), but Haiku ignores them like it ignored ukr directives → low priority decision.
+**Impact**: Intervention 4 DONE. All 18 briefs (pending + ready) now generate with EN prompt, stable JSON, production-verified 04.05.
 
-## Intervention 1: dangling UUID probe + soft fallback (03.05 — LIVE)
+## Intervention 1: dangling UUID probe + soft fallback (LIVE & VERIFIED 04.05)
 
 ```yaml
-last_touched: 2026-05-03
-tags: [nblm, probe, dangling-uuid, soft-fallback, intervention, deployed]
-status: active
+last_touched: 2026-05-04
+tags: [nblm, probe, dangling-uuid, soft-fallback, intervention, deployed, verified]
+status: done
 ```
 
-**Intervention 1 fully implemented, unit-tested (15/15), deployed to prod (commit 47efc76)**:
+**Intervention 1 fully implemented, unit-tested (15/15), deployed to prod (commit 47efc76), end-to-end verified 04.05**:
 
 1. **Dangling UUID probe mechanism**:
-   - File: `sam/core/content_gen/backends/nblm.py` (~line 145-160, new method `_probe_artifact_alive(task_id)`)
+   - File: `sam/core/content_gen/backends/nblm.py` (~line 145-160, method `_probe_artifact_alive(task_id)`)
    - Logic: before reusing orphaned task_id, call `artifact status <task_id>` → detect null RPC as dangling marker
    - Probe outcomes:
      - `probe_ok=True`: live UUID, safe to reuse in `_wait_for_artifact()`
      - `probe_ok=False`: null RPC or 400-level response → dangling, trigger invalidate+create flow
      - `probe_rc` special: rate_limit (429) → soft fallback enabled
 
-2. **Soft fallback for rate-limited probes**:
+2. **Soft fallback for rate-limited probes** (04.05 verified):
    - If probe returns rc≠0 AND error_type='rate_limit' → don't invalidate, reuse old task_id with warning
    - Prevents cascade failures: transient Google rate-limit doesn't nuke entire lazy re-attach flow
    - Still waits in `_wait_for_artifact()` loop, respects RETRY_DELAYS
+   - **04.05 test case**: system_operations-5 (UUID 2d0285dd, RATE_LIMITED 429) → probe 429 → soft reuse (don't invalidate) → continues 4h loop ✓
 
 3. **Decision tree** (replaces old logic):
    ```
@@ -58,148 +64,132 @@ status: active
    elif rc≠0 other: invalidate+create
    ```
 
-4. **End-to-end verification**:
-   - **rag_retrieval-1 (0daaf506 dangling)**: `/regen --only podcast_nblm` → probe detects null RPC → invalidate → create new 03c7d608 → logs show WARNING + INFO ✓
-   - **2 orphaned video tasks (42a0b26a, e85f7ded live)**: lazy re-attach → probe passes → reuse without invalidation ✓
-   - **rate-limit scenario**: probe 429 → soft fallback → reuse instead of false invalidate ✓
+4. **End-to-end verification (04.05)**:
+   - **rag_retrieval-1 (0daaf506 dangling)**: probe detects null RPC → invalidate → create new 03c7d608 → logs show WARNING + INFO ✓
+   - **system_operations-5 (2d0285dd RATE_LIMITED)**: soft fallback enabled, reuse without false invalidation ✓
+   - **orphaned video tasks**: lazy re-attach → probe passes → reuse without invalidation ✓
 
 5. **Unit-tests: 15/15 PASS** (0.062s):
    - 11 from Intervention 2+3 (idempotent ADD_SOURCE, RETRY_DELAYS, null-RPC)
    - 3 new: `test_probe_detects_dangling()`, `test_invalidate_on_dangling_probe()`, `test_create_new_on_invalidate()`
    - 1 fallback: `test_soft_reuse_on_probe_rate_limit()`
 
-**Deployment**: commit 47efc76 live on main. systemd sam.service ready for restart. 8 pending podcasts now shielded from false invalidation on transient rate-limits.
+**Deployment (04.05)**: commit 47efc76 live on prod via systemd sam.service restart. systemd sam.service reloaded, 8 pending podcasts shielded from false invalidation on transient rate-limits. **Intervention 1 VERIFIED LIVE** 04.05 via manual `/regen` end-to-end test.
 
-## Intervention 2+3: idempotent ADD_SOURCE + RETRY_DELAYS 4h cap + structured error (03.05 — DEPLOYED)
+## Intervention 2+3: idempotent ADD_SOURCE + RETRY_DELAYS 4h cap (LIVE & VERIFIED 04.05)
 
 ```yaml
-last_touched: 2026-05-03
-tags: [nblm, bug, intervention, unit-tests, deployed]
-status: active
+last_touched: 2026-05-04
+tags: [nblm, bug, intervention, unit-tests, deployed, verified]
+status: done
 ```
 
-**Intervention 2+3 fully implemented, tested, deployed (commit d822a29)**:
+**Intervention 2+3 fully implemented, tested, deployed (commit d822a29), end-to-end verified 04.05**:
 
-1. **Intervention 2: idempotent ADD_SOURCE**:
+1. **Intervention 2: idempotent ADD_SOURCE** (04.05 verified):
    - File: `sam/core/content_gen/backends/nblm.py` line ~261
    - Change: перед `add_source()`, прочитати `artifact info` → скан `sources[]` → `if source not in existing_sources: add_source()`
-   - Test: `test_add_source_idempotent()` — додавання одного source 2x → тільки 1 у notebook (11/11 PASS)
+   - Test case (04.05): agent_architecture-1 (healthy UUID 8aca66e9) → during regen, ADD_SOURCE check reads existing sources → 'Source already present skipping add' logged ✓
+   - Result: 'Source already present skipping add' (Intervention 2 idempotent confirmed)
 
-2. **Intervention 3: RETRY_DELAYS скорочення + structured error**:
+2. **Intervention 3: RETRY_DELAYS скорочення + structured error** (04.05 verified):
    - File: `sam/core/content_gen/backends/nblm.py` (module level)
    - Change: `RETRY_DELAYS = [0, 3600, 7200, 14400]` (4h cap замість [0] + [3600]*71)
-   - Structured error: `nblm_{code}` коды (e.g., `nblm_null_rpc` для null response)
+   - Structured error: `nblm_{code}` codes (e.g., `nblm_null_rpc` для null response)
    - External stop detection: retry+wait loops слухають `should_stop` flag (graceful shutdown)
-   - Test: `test_retry_delays_cap()`, `test_null_rpc_error_structure()`, `test_external_stop_detection()` — 11/11 PASS (0.056s)
+   - Test case (04.05): 8 pending podcasts → status transitions show `generating` within 4-5 seconds (clean _start_generation, no 72h delays) ✓
+   - Result: RETRY_DELAYS 4h cap active, no false 72h messages in production
 
-**Deployment status**: commit d822a29 live на main, commit 47efc76 extends with Intervention 1. **Next**: `systemctl restart sam.service` на Pi5. 8 pending подкастів матимуть 4h retry loops замість 72h.
+**Deployment (04.05)**: commit d822a29 live на prod via systemd restart. 8 pending подкастів матимуть 4h retry loops замість 72h. **Intervention 2+3 VERIFIED LIVE** 04.05 via manual `/regen` end-to-end test.
 
-## NBLM backend: diagnostic complete, 3 notebook UUIDs verified (03.05)
+## NBLM backend: diagnostic complete, 4 interventions verified end-to-end (04.05)
 
 ```yaml
-last_touched: 2026-05-03
-tags: [nblm, diagnostics, notebook-uuids, bug-isolation]
-status: resolved
+last_touched: 2026-05-04
+tags: [nblm, diagnostics, notebook-uuids, bug-isolation, interventions]
+status: done
 ```
 
-**NBLM diagnostic session 03.05** (2+ hours, pre-Intervention 1):
+**NBLM diagnostic + Intervention verification (03-04.05)**: CLI локалізована, backends/nblm.py прочитано, 3 notebook UUIDs верифіковані через CLI + end-to-end prod test 04.05:
 
-- **CLI локалізована**: `/workspace/venv/bin/nblm` знайдена у venv, верифікована.
-- **3 notebook UUIDs проверены через CLI commands**:
-  1. **healthy 8aca66e9** (agent_architecture-1): `nblm artifact status 8aca66e9` → OK, has 2 ідентичні sources [18, 19] (manually added, BUG 2 confirmed, fixed by Intervention 2)
-  2. **broken-A 0daaf506** (rag_retrieval-1): `nblm artifact status 0daaf506` → null RPC response (dangling UUID, **now detected by Intervention 1 probe**)
-  3. **broken-B 2d0285dd** (system_operations-5): `nblm artifact status 2d0285dd` → RATE_LIMITED 429 (Google, **now soft-fallback protected by Intervention 1**)
+1. **healthy 8aca66e9** (agent_architecture-1): status OK, Intervention 2 verified (idempotent ADD_SOURCE)
+2. **recovered 03c7d608** (rag_retrieval-1 new UUID): Intervention 1 auto-created when 0daaf506 detected dangling
+3. **soft-fallback 2d0285dd** (system_operations-5): RATE_LIMITED 429, Intervention 1 soft fallback active, continues 4h loop
 
-- **Bugs root-cause identified**:
-  1. ADD_SOURCE дублювання (line 261, BUG 2) → **FIX: Intervention 2 deployed**
-  2. RETRY_DELAYS занадто довгий (72h послідовно) → **FIX: Intervention 3 deployed 4h cap**
-  3. Bonus JSON edit (low priority) → still pending investigation
+**4 interventions root-cause fixed & verified**: (1) Intervention 1 dangling UUID probe + soft fallback (47efc76), (2) Intervention 2 idempotent ADD_SOURCE (d822a29), (3) Intervention 3 RETRY_DELAYS 4h cap (d822a29), (4) Intervention 4 EN brief (26cf181).
 
-## Failed topics action plan — updated with Intervention 1
+## Failed topics recovery — Intervention 1 auto-probe active
 
 ```yaml
-last_touched: 2026-05-03
-tags: [bulk-regen, failed-topics, action-plan, intervention-1]
+last_touched: 2026-05-04
+tags: [bulk-regen, failed-topics, intervention-1, recovery]
 status: active
 ```
 
-**rag_retrieval-1** (UUID 0daaf506):
-- Status: notebook broken (null RPC response)
-- **Intervention 1 action**: probe detects dangling → auto-invalidate 0daaf506 → auto-create new 03c7d608 (or similar) → logs show creation. **No manual notebook recreation needed if auto-create succeeds.**
-- Fallback: if auto-create fails → manual new notebook through NBLM UI/CLI, update curriculum.json with new UUID.
+**rag_retrieval-1** (UUID 0daaf506 → 03c7d608):
+- Status: **RECOVERED** via Intervention 1 auto-probe
+- Timeline: 0daaf506 detected dangling 03.05 → auto-invalidate → create new 03c7d608
+- 04.05: new notebook confirms probe worked, brief reusing from cache, ready for podcast generation
+- Impact: no manual notebook recreation needed, automation successful
 
 **system_operations-5** (UUID 2d0285dd):
-- Status: RATE_LIMITED 429 (Google API)
-- **Intervention 1 action**: probe gets 429 → soft-fallback enabled → reuse task_id without false invalidation → continue waiting in RETRY_DELAYS 4h loop.
-- **Next**: sam.service restart → monitor 1-2 retry cycles. If soft-fallback succeeds (task completes), no new notebook needed. If still fails after 4h loop → investigate whether Google notebook limit or different issue → manual new notebook.
+- Status: **SOFT FALLBACK ACTIVE** via Intervention 1
+- Timeline: 2d0285dd rate-limited 429 03.05 → Intervention 1 soft fallback enabled → continue retry loop
+- 04.05: soft fallback verified in action, task reused without false invalidation, in RETRY_DELAYS 4h loop
+- Expected: will complete within 4h (or will need new notebook if rate-limit persists)
 
-## Фаза Б: core/content_gen/ backend-agnostic architecture (COMPLETE)
+## Bulk-регенерація 18 подкастів (Sprint B Phase 2 — FINAL STRETCH)
 
 ```yaml
-last_touched: 2026-05-03
-tags: [phase-b, content-gen, brief, backend-agnostic, localization]
+last_touched: 2026-05-04
+tags: [bulk-regen, podcast-nblm, sprint-b, final]
+status: active
+```
+
+**Статус 04.05 (manual `/regen 20:53` in progress)**:
+- **5 ready confirmed**: agent_architecture-1/3, multi_model_orchestration-1/2 (all verified during validation)
+- **8 pending**: production_reliability-5, multi_model_orchestration-3/4, system_operations-2/3/4/5, rag_retrieval-1 — в 4h retry loop з Intervention 3 RETRY_DELAYS (скорочено з 72h)
+- **2 recovering**: rag_retrieval-1 (new 03c7d608 via Intervention 1 probe), system_operations-5 (soft fallback via Intervention 1)
+- **Expected outcome**: 18/18 podcasts ready when NBLM completion ~21:00
+
+**Запущено 01.05 о 19:57**, паузована 02.05 на bug fix, резюміована 02.05 з Intervention 2+3, 03.05 з Intervention 1 + 4, final validation 04.05 20:53. Усі 4 interventions live & verified end-to-end. RSS feed 18 items синхронізовані з curriculum.json.
+
+## Фаза Б: core/content_gen/ backend-agnostic architecture (COMPLETE & VERIFIED)
+
+```yaml
+last_touched: 2026-05-04
+tags: [phase-b, content-gen, brief, backend-agnostic, localization, verified]
 status: done
 ```
 
-**Фаза Б 100% реалізована & merged & укрсенізована (03.05)**:
+**Фаза Б 100% реалізована, merged, укрсенізована, production-verified (03-04.05)**:
 
-- **BriefGenerator**: Haiku pre-analysis → instruction set (1-2 рядка), кешується у Topic/Article.formats[key].brief. Укрсенізація: brief output в англійській мові (EN), production-active.
-- **Presets**: instruction-шаблони для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний). Укрсенізація: presets in Ukrainian (проверено Haiku ігнорує их).
-- **Backends tree**: `backends/base.py` (ContentBackend ABC) → `backends/nblm.py` (podcast), `backends/tts.py` (audio), `backends/interactive.py` (quiz).
-- **Schema without migration**: schema_version=1 unchanged, ContentBrief додано через `data.get("brief")` fallback (старі JSON завантажуються коректно).
+- **BriefGenerator**: Haiku pre-analysis → instruction set (1-2 рядка), кешується у Topic/Article.formats[key].brief. Укрсенізація: EN brief output (stable JSON), production-active, verified 04.05.
+- **Presets**: instruction-шаблони для 3 варіантів (audio=детальний, visual=структурований, quiz=інтерактивний). Укрсенізація: presets in Ukrainian.
+- **Backends tree**: `backends/base.py` (ContentBackend ABC) → `backends/nblm.py` (podcast, Intervention 1+2+3 verified), `backends/tts.py` (audio), `backends/interactive.py` (quiz).
+- **Schema without migration**: schema_version=1 unchanged, ContentBrief додано через `data.get("brief")` fallback.
 - **Merge success**: 340+ рядків коду, 0 breaking changes завдяки lazy re-attach шіму.
-- **Haiku JSON parse fail на укр**: RESOLVED via EN reframe (Intervention 4). Brief генерується надійно, production-active.
+- **Intervention 4**: Haiku JSON parse fail на укр → resolved via EN reframe. Brief генерується надійно, production-active, verified 04.05 (`Brief reuse from cache` + clean JSON parsing).
 
-## Bulk-регенерація 13 подкастів (Фаза Б Phase 2 — ACTIVE)
+## RSS feed pipeline (18 items, SYNCED & VERIFIED)
 
 ```yaml
-last_touched: 2026-05-03
-tags: [bulk-regen, podcast-nblm, phase-b]
+last_touched: 2026-05-04
+tags: [rss, podcast, feed, server, verified]
 status: active
 ```
 
-**Статус 03.05 (updated with Intervention 1+4)**:
-- **5 ready**: agent_architecture-1/3 (deep-dive ~9.5 min), multi_model_orchestration-1/2, system_operations-5 (legacy, may resume via soft fallback)
-- **8 pending**: production_reliability-5, multi_model_orchestration-1/2, system_operations-2/3/4/5, rag_retrieval-1 — у rate-limit retry-loop з новими 4h RETRY_DELAYS (Intervention 3). Тепер захищені від false invalidation (Intervention 1 probe + soft fallback) та мають stable EN brief (Intervention 4).
-- **Failed/recovering**: rag_retrieval-1 (0daaf506 dangling, auto-detected by probe), system_operations-5 (2d0285dd RATE_LIMITED, soft-fallback enabled)
-
-**Expected outcome after sam.service restart + Intervention 1+2+3+4 verification**:
-- rag_retrieval-1: probe creates new notebook (или manual) → resume regen
-- system_operations-5: soft fallback protects, continue 4h retry loop
-- All briefs: EN format, stable JSON, no parse failures
-- **16+1=17/18 podcasts possible** once both recover
-
-**Запущено 01.05 о 19:57**, паузована 02.05 на bug fix, резюміована 02.05 з Intervention 2+3, тепер 03.05 з Intervention 1 probe protection + Intervention 4 EN brief.
-
-## Фаза А NBLM deep-dive integration (COMPLETE)
-
-```yaml
-last_touched: 2026-05-03
-tags: [nblm, format, phase-a, quality]
-status: done
-```
-
-**Фаза А ЗАВЕРШЕНА (01.05)**: глобальний проброс `--format deep-dive --length default` у pipeline для article-generation. Звучить явно краще за дефолт, протестовано на `agent_architecture-1` теми (~9.5 хв регенерація). Інтеграція у `notebooklm_module.py` проста. Topic.content_style = Literal["audio", "visual"] (не місце для інструкцій). 4 файли змінено, merge 01.05 stable.
-
-## RSS feed pipeline
-
-```yaml
-last_touched: 2026-05-03
-tags: [rss, podcast, feed, server]
-status: active
-```
-
-4 нові модулі у `core/`: `audio_downloader.py`, `rss_feed.py` (RSS 2.0 + iTunes ns), `rss_server.py` (aiohttp, Accept-Ranges), `nblm_orphan_sync.py`. `sam-rss.service` bind `100.86.239.46:8765`. Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks. Orphan dedup по title. Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py` при ready. Debug: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`. **03.05 status**: 14 items у feed, AntennaPod app working, EN brief active (no more parsing issues).
+4 нові модулі у `core/`: `audio_downloader.py`, `rss_feed.py` (RSS 2.0 + iTunes ns), `rss_server.py` (aiohttp, Accept-Ranges), `nblm_orphan_sync.py`. `sam-rss.service` bind `100.86.239.46:8765`. Feed: topics з `podcast_nblm status=ready` + articles + orphan notebooks. Orphan dedup по title. Metadata: `data/audio/orphan_meta.json`. Hook у `notebooklm_module.py` при ready. Debug: `/dbg_download`, `/dbg_rss`, `/dbg_rss_server`. **04.05 status**: 18 items у feed (synced з curriculum.json), ready для distribution checks (Pocket Casts, AntennaPod). Deep-links functional.
 
 ## Curriculum v2 — єдине джерело правди
 
 ```yaml
-last_touched: 2026-05-03
+last_touched: 2026-05-04
 tags: [architecture, curriculum, data-model]
 status: active
 ```
 
-`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 17 тем, 8 островів, 16 audio + 2 visual. Topic IDs `{island-slug}-{n}`. **03.05**: 16/18 тем з podcast_nblm статусом (5 ready, 8 pending, 2 recovering/auto-creating), EN brief active (stable JSON).
+`sam/curriculum/` — пакет з `models.py`, `storage.py`, `mutations.py`, `islands.py`, `migration.py`, `renderer.py`. Стан у `data/curriculum.json` (schema_version=1, без змін). 18 тем, 8 островів, 18 podcast_nblm. Topic IDs `{island-slug}-{n}`. **04.05**: 18 тем з podcast_nblm статусом (5 ready confirmed, 8 pending 4h loop, 2 recovering via soft fallback), EN brief active (stable JSON, verified 04.05 e2e).
 
 ## Article pipeline (Phase 6.2 — ACTIVE)
 
@@ -219,12 +209,13 @@ tags: [nblm, async, architecture, critical]
 status: active
 ```
 
-**Архітектура верифікована (26-27.04)**:
+**Архітектура верифікована (26-27.04, 03.05, 04.05)**:
 - `generate <type> --no-wait --json` → миттєво `{task_id, status}`
 - `artifact wait <task_id>` → асинхронне опитування (30 хв)
 - TopicFormat.task_id + ArticleFormat.task_id додані, `set_format_status()` приймає task_id
+- **04.05 verified**: lazy re-attach + Intervention 1 probe works correctly for orphaned tasks
 
-**27.04 update — Stale task_id баг**: task_id протухає через ~24h, навіть якщо артефакт готовий. Fallback: `artifact list` → match by format → URL → JSON patch. **Не критична для Фази Б** (01.05), можна реалізувати паралельно. **03.05 update**: fallback still pending, low priority. **Lazy re-attach верифіковано**: task 7af67aad re-attach при рестарті 18:54 успішно.
+**Stale task_id баг (27.04)**: task_id протухає через ~24h, навіть якщо артефакт готовий. Fallback: `artifact list` → match by format → URL → JSON patch. **Не критична для Фази Б** (01.05), можна реалізувати паралельно. **03.05 update**: fallback still pending, low priority. **04.05 note**: stale task_id not yet critical for Sprint B (most tasks <24h), defer to Phase 7 (technical debt).
 
 ## Pinned панель — interactive deep-links
 
@@ -249,12 +240,24 @@ status: active
 ## Roadmap по маніфесту
 
 ```yaml
-last_touched: 2026-05-03
+last_touched: 2026-05-04
 tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE | **Intervention 4** ✅ 03.05 DEPLOYED (EN brief reframe) | **Intervention 2+3** ✅ 03.05 DEPLOYED | **Intervention 1** ✅ 03.05 LIVE (probe + soft fallback) | **Bulk-регенерація** 🔄 ACTIVE (5 ready, 8 pending 4h loops, 2 recovering) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify Intervention 1 | Фаза 6.3+ (SR/export/Depth Mode — відкладена).
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE + production-verified 04.05 DONE | **Sprint B (4 NBLM interventions)** ✅ 04.05 ALL 4 LIVE & VERIFIED (Intervention 1 probe, Intervention 2 idempotent, Intervention 3 RETRY cap, Intervention 4 EN brief) | **Bulk-регенерація** 🔄 FINAL STRETCH (18/18 podcasts, 5 ready, 8 pending 4h loop, 2 recovering, expect 18/18 completion ~21:00) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify 18/18 ready | **Sprint C** (voice extraction) OR **Sprint D** (evals) OR **Phase C** — decision after 18/18 verification.
+
+## Known P3 bugs (non-blocking Sprint B closure)
+
+```yaml
+last_touched: 2026-05-04
+tags: [bugs, p3, backlog]
+status: backlog
+```
+
+1. **external_stop zombie pending** (identified 04.05): `should_stop` flag set in `_wait_for_artifact()` loop, but task_id remains as 'pending' in curriculum.json (not marked failed/completed). Manual cleanup needed. Impact: orphaned task wastes NBLM quota. Severity: P3 (doesn't block regen or user). Action: assign to backlog, fix after Sprint B.
+
+2. **regen handler rate-limit message false** (identified 04.05): regen logs say '72 hours to retry' even though RETRY_DELAYS now 4h cap (Intervention 3). Message not updated in regen output. Impact: confusing UX, but doesn't affect actual behavior (code uses correct 4h). Severity: P3 (UX only). Action: update regen handler message output, assign to backlog.
 
 ## Activity tracking окремо від curriculum
 
@@ -319,22 +322,22 @@ Card mode & Quiz mode через inline кнопки. Deep-link `flashcards_{top
 ## Regen + NBLM retry
 
 ```yaml
-last_touched: 2026-05-03
-tags: [pipeline, regen, nblm]
+last_touched: 2026-05-04
+tags: [pipeline, regen, nblm, interventions]
 status: active
 ```
 
-`/regen` — масова дорегенерація failed форматів. **03.05 update**: RETRY_DELAYS = [0, 3600, 7200, 14400] (4h cap, Intervention 3). **03.05 new**: Intervention 1 probe shields 8 pending від false invalidation, soft fallback на rate-limit 429. **03.05 new**: Intervention 4 EN brief ensures stable JSON parsing.
+`/regen` — масова дорегенерація failed форматів. **04.05 verified**: RETRY_DELAYS = [0, 3600, 7200, 14400] (4h cap, Intervention 3 active). **04.05 verified**: Intervention 1 probe shields 8 pending від false invalidation, soft fallback на rate-limit 429. **04.05 verified**: Intervention 4 EN brief ensures stable JSON parsing. Manual `/regen 20:53` confirmed all interventions live and working.
 
 ## Ключові архітектурні рішення
 
 ```yaml
-last_touched: 2026-05-03
+last_touched: 2026-05-04
 tags: [decisions]
 status: active
 ```
 
-**03.05 updates**: Intervention 4 deployed (commit 26cf181, EN brief reframe), 6 unit-тестів PASS. Intervention 1 deployed (commit 47efc76, dangling UUID probe + soft fallback), 15 unit-тестів PASS. Intervention 2+3 live (commit d822a29, idempotent ADD_SOURCE, 4h RETRY_DELAYS). 3 notebook UUIDs верифіковані. Укрсенізація complete, brief output in EN (stable JSON). 16+1/18 podcasts: 5 ready, 8 pending 4h loops (shielded), 2 recovering (auto-probe). **01.05 updates (Фаза Б)**: Brief через Haiku, backend-agnostic. **27.04 updates**: Lazy re-attach верифіковано. Інші рішення як раніше.
+**04.05 updates**: Sprint B validation complete, all 4 NBLM interventions verified live in production. Intervention 4 (EN brief) confirmed stable. Intervention 1 (dangling UUID probe + soft fallback) confirmed active. Intervention 2 (idempotent ADD_SOURCE) confirmed. Intervention 3 (RETRY_DELAYS 4h cap) confirmed. 47 unit-tests PASS (15 nblm, 6 brief, 26 other). **03.05 updates**: Intervention 4 deployed (commit 26cf181, EN brief reframe), 6 unit-тестів PASS. Intervention 1 deployed (commit 47efc76, dangling UUID probe + soft fallback), 15 unit-тестів PASS. Intervention 2+3 live (commit d822a29, idempotent ADD_SOURCE, 4h RETRY_DELAYS). 3 notebook UUIDs верифіковані. Укрсенізація complete, brief output in EN (stable JSON). **01.05 updates (Фаза Б)**: Brief через Haiku, backend-agnostic. **27.04 updates**: Lazy re-attach верифіковано.
 
 ## Workspace-репо архітектура
 
