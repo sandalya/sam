@@ -402,6 +402,16 @@ async def generate_and_notify(
         _es_status = _es_fmt.status if _es_fmt else "unknown"
         if _es_status in ("failed", "cancelled"):
             log.info(f"External stop confirmed for {topic_id}/{fmt}: status={_es_status}")
+        elif _es_status == "generating":
+            log.warning(
+                f"External stop zombie for {topic_id}/{fmt}: "
+                f"status still generating, marking failed"
+            )
+            if kind == "article":
+                set_article_format_status(state, topic_id, fmt, "failed", error="external_stop")
+            else:
+                set_format_status(state, topic_id, fmt, "failed", error="external_stop")
+            save(state, cur_path)
         else:
             log.warning(
                 f"External stop for {topic_id}/{fmt}: unexpected status={_es_status!r}, "

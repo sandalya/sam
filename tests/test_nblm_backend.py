@@ -352,5 +352,56 @@ class TestNotebookProbe(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(mock_set.call_args_list[0].args[2])
 
 
+# ── Variant B: external_stop zombie resolution ────────────────────────────────
+
+class TestExternalStopZombieResolution(unittest.IsolatedAsyncioTestCase):
+
+    async def _run_with_external_stop(self, step5_status):
+        """Run generate_and_notify where _wait_for_artifact returns external_stop.
+        Returns all set_format_status calls captured during the run."""
+        state_initial, _ = _mock_state(fmt_status=None)
+        state_step5, _ = _mock_state(fmt_status=step5_status)
+
+        captured = []
+
+        def capture_set(st, tid, fmt, status, **kw):
+            captured.append((status, kw))
+
+        with patch("core.content_gen.backends.nblm.get_or_create_notebook",
+                   new_callable=AsyncMock, return_value="nb-id"), \
+             patch("core.content_gen.backends.nblm._start_generation",
+                   new_callable=AsyncMock, return_value=("task-123", "")), \
+             patch("core.content_gen.backends.nblm._wait_for_artifact",
+                   new_callable=AsyncMock, return_value=(False, "external_stop")), \
+             patch("core.content_gen.backends.nblm.load",
+                   side_effect=[state_initial, state_initial, state_step5]), \
+             patch("core.content_gen.backends.nblm.save"), \
+             patch("core.content_gen.backends.nblm.set_format_status",
+                   side_effect=capture_set), \
+             patch("core.content_gen.backends.nblm.set_article_format_status"):
+            await generate_and_notify(
+                bot=AsyncMock(), chat_id=123,
+                topic_id="topic-1", topic_title="Test",
+                source_url="", fmt="slides", instructions="test",
+                skip_source=True, data_dir=Path("/fake"),
+            )
+        return captured
+
+    async def test_external_stop_with_generating_status_sets_failed(self):
+        """Zombie case: status still 'generating' when external_stop fires → mark failed."""
+        captured = await self._run_with_external_stop("generating")
+        failed = [
+            (s, kw) for s, kw in captured
+            if s == "failed" and kw.get("error") == "external_stop"
+        ]
+        self.assertEqual(len(failed), 1, f"Expected 1 failed/external_stop call, got: {captured}")
+
+    async def test_external_stop_with_pending_status_keeps_pending(self):
+        """Manual edit case: status='pending' when external_stop fires → no failed mutation."""
+        captured = await self._run_with_external_stop("pending")
+        failed = [s for s, kw in captured if s == "failed"]
+        self.assertEqual(len(failed), 0, f"Expected no failed calls, got: {captured}")
+
+
 if __name__ == "__main__":
     unittest.main()
