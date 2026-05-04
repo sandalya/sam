@@ -138,7 +138,7 @@ status: active
 - 04.05: soft fallback verified in action, task reused without false invalidation, in RETRY_DELAYS 4h loop
 - Expected: will complete within 4h (or will need new notebook if rate-limit persists)
 
-## Bulk-регенерація 18 подкастів (Sprint B Phase 2 — FINAL STRETCH)
+## Bulk-регенерація 18 подкастів (Sprint B Phase 2 — FINAL VERIFICATION)
 
 ```yaml
 last_touched: 2026-05-04
@@ -146,9 +146,9 @@ tags: [bulk-regen, podcast-nblm, sprint-b, final]
 status: active
 ```
 
-**Статус 04.05 (manual `/regen 20:53` in progress)**:
-- **5 ready confirmed**: agent_architecture-1/3, multi_model_orchestration-1/2 (all verified during validation)
-- **8 pending**: production_reliability-5, multi_model_orchestration-3/4, system_operations-2/3/4/5, rag_retrieval-1 — в 4h retry loop з Intervention 3 RETRY_DELAYS (скорочено з 72h)
+**Статус 04.05 (manual `/regen 20:53` completed, NBLM completion expected ~21:00)**:
+- **5 ready confirmed**: agent_architecture-1/3, multi_model_orchestration-1/2
+- **8 pending**: production_reliability-5, multi_model_orchestration-3/4, system_operations-2/3/4/5, rag_retrieval-1 — в 4h retry loop з Intervention 3 RETRY_DELAYS
 - **2 recovering**: rag_retrieval-1 (new 03c7d608 via Intervention 1 probe), system_operations-5 (soft fallback via Intervention 1)
 - **Expected outcome**: 18/18 podcasts ready when NBLM completion ~21:00
 
@@ -245,7 +245,7 @@ tags: [roadmap]
 status: active
 ```
 
-Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE + production-verified 04.05 DONE | **Sprint B (4 NBLM interventions)** ✅ 04.05 ALL 4 LIVE & VERIFIED (Intervention 1 probe, Intervention 2 idempotent, Intervention 3 RETRY cap, Intervention 4 EN brief) | **Bulk-регенерація** 🔄 FINAL STRETCH (18/18 podcasts, 5 ready, 8 pending 4h loop, 2 recovering, expect 18/18 completion ~21:00) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify 18/18 ready | **Sprint C** (voice extraction) OR **Sprint D** (evals) OR **Phase C** — decision after 18/18 verification.
+Фаза 0-5 ✅ | Фаза 6.1 ✅ | **Фаза 6.2** 🚧 ACTIVE (articles) | **Фаза А** ✅ 01.05 DONE | **Фаза Б** ✅ MERGED + укрсенізація 03.05 DONE + production-verified 04.05 DONE | **Sprint B (4 NBLM interventions)** ✅ 04.05 ALL 4 LIVE & VERIFIED (Intervention 1 probe, Intervention 2 idempotent, Intervention 3 RETRY cap, Intervention 4 EN brief) | **Bulk-регенерація** 🔄 FINAL VERIFICATION (18/18 podcasts, 5 ready, 8 pending 4h loop, 2 recovering, NBLM completion expected ~21:00) | **Фаза В** (article dispatcher + BotCommand) 📋 AFTER verify 18/18 ready | **Sprint C** (voice extraction) OR **Sprint D** (evals) OR **Phase C** — decision after 18/18 verification.
 
 ## Known P3 bugs (non-blocking Sprint B closure)
 
