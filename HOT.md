@@ -1,76 +1,63 @@
 ---
 project: sam
-updated: 2026-05-04
+updated: 2026-05-05
 ---
 
 # HOT — Sam
 
 ## Now
 
-**Session 04.05 FINAL CHECKPOINT: Sprint B COMPLETE — All 4 NBLM interventions verified live, 18/18 podcasts ready for completion, 2 P3 bugs identified for backlog**
+**Session 05.05 MORNING: DAILY_DIGEST_ENABLED env-flag guard deployed — avoids duplicate digests on service restart**
 
-Manual `/regen 04.05 20:53` end-to-end validation PASSED. All 4 interventions (Intervention 1 dangling UUID probe + soft fallback, Intervention 2 idempotent ADD_SOURCE, Intervention 3 RETRY_DELAYS 4h cap, Intervention 4 EN brief) confirmed live in production after `systemctl restart sam.service`.
-
-**Status snapshot (04.05 ~21:00 expected)**:
-- **5 ready confirmed**: agent_architecture-1/3, multi_model_orchestration-1/2
-- **8 pending 4h loop**: production_reliability-5, multi_model_orchestration-3/4, system_operations-2/3/4/5, rag_retrieval-1 (recovering via new 03c7d608)
-- **2 recovering**: rag_retrieval-1 (auto-created via Intervention 1 probe), system_operations-5 (soft fallback shielding rate-limit 429)
-- **Expected outcome**: 18/18 podcasts ready when NBLM completion ~21:00
-
-**2 NEW P3 BUGS IDENTIFIED** (non-blocking, for backlog):
-1. **external_stop zombie pending**: `should_stop` flag set but task_id not marked failed/completed → orphaned task wastes NBLM quota. Severity: P3 (impact: quota waste, not user-visible). Fix: post-process external_stop in wait loop to mark failed.
-2. **regen message false**: regen logs say '72 hours to retry' even though RETRY_DELAYS now 4h cap (Intervention 3). Message not updated in regen output. Severity: P3 (UX only, behavior correct).
+Daily digest job auto-trigger at 09:00 disabled via `.env` guard. `main.py:303-306` wraps job_daily_digest with `os.getenv('DAILY_DIGEST_ENABLED','true').lower()` check — false/0/no/off values skip execution and log 'Daily digest job skipped'. systemctl restart sam.service completed, svc active. No `.env.example` created yet (optional future task). Verification: tomorrow 09:00 should log skip message instead of running digest.
 
 ## Last done
 
-**Session 04.05 (2h total): Sprint B FINAL VALIDATION — Manual /regen 20:53 end-to-end test 100% PASS**
+**Session 04.05 FINAL CHECKPOINT (recap from WARM)**: Sprint B COMPLETE — All 4 NBLM interventions (1 dangling UUID probe, 2 idempotent ADD_SOURCE, 3 RETRY_DELAYS 4h cap, 4 EN brief) verified live in production via manual `/regen 20:53` end-to-end test. 18/18 podcasts status: 5 ready, 8 pending 4h loop, 2 recovering via Intervention 1 soft fallback. 47 unit-tests PASS (15 nblm, 6 brief, 26 other). RSS feed 18 items synced, deep-links functional.
 
-- **Manual `/regen 20:53` trigger**: Full podcast_nblm format validation across 18 topics. 47 unit-tests passing (15 nblm, 6 brief, 26 other). 4 commits live on prod (47efc76, d822a29, 6e5589c, 26cf181).
+**Session 05.05 (1.5h): Daily digest guard deployed**
 
-- **Intervention 4 (EN brief) verified**: Brief reused from cache, JSON parsing clean, 14 successful briefs all stable, 0 parse errors. No more ukr/EN drift.
+- **Problem identified**: job_daily_digest runs at 09:00 every morning, but on systemctl restart it auto-triggers because systemd timer fires during boot. Creates duplicate digest if restart happens near 09:00.
 
-- **Intervention 1 (dangling UUID probe + soft fallback) verified**:
-  - rag_retrieval-1 (0daaf506 dangling) → probe detects null RPC → auto-invalidate → create new 03c7d608 ✓
-  - system_operations-5 (2d0285dd RATE_LIMITED 429) → soft fallback enabled, reuse without false invalidation ✓
-  - 8 pending podcasts shielded from cascade failures on transient rate-limits ✓
+- **Solution**: Added env-flag guard `DAILY_DIGEST_ENABLED` in `main.py:303-306`. Check `os.getenv('DAILY_DIGEST_ENABLED','true').lower()` → if value in ['false','0','no','off'], log 'Daily digest job skipped' and return. Preserves `/digest` manual command (no changes). Default true (backward compat).
 
-- **Intervention 2 (idempotent ADD_SOURCE) verified**: agent_architecture-1 (8aca66e9) → ADD_SOURCE checks existing sources → 'Source already present skipping add' ✓
+- **Deployment**: `.env` file updated with `DAILY_DIGEST_ENABLED=false`. systemctl restart sam.service executed, svc status active (loaded new code). `.env.example` NOT created (optional improvement for future).
 
-- **Intervention 3 (RETRY_DELAYS 4h cap) verified**: 8 pending podcasts → `generating` status within 4-5 seconds, no false 72h delay messages ✓
+- **Verification**: Tomorrow 05.05 09:00 expected log message 'Daily digest job skipped' instead of running digest. If needed, restore: `sed -i '/^DAILY_DIGEST_ENABLED=/d' .env && systemctl restart sam.service`.
 
 ## Next
 
-1. **Within 30 min: Final NBLM completion check** — Poll `podcast_nblm status=ready` count. Target: **18/18 podcasts ready**. Confirm via `/status podcast_nblm ready` count. If yes → Sprint B officially closed. If <18/18 → check curriculum.json for error_code on failing topics.
+1. **Tomorrow 05.05 ~09:00: Check daily digest skip message** — Verify logs show 'Daily digest job skipped' at 09:00. Confirm no duplicate digest generated.
 
-2. **Post-Sprint B decision** (assuming 18/18 ready):
-   - **Sprint C** (Vlad voice extraction): extract voice from 18 podcasts (~2h, high value)
-   - **Sprint D** (Sam evals + agentic ingest): Ed evaluations, agentic curriculum (~3h)
-   - **Phase C** (article dispatcher): parallel if bandwidth
+2. **Post-Sprint B final decision** (assuming 18/18 still ready from 04.05):
+   - **Sprint C** (voice extraction): High value, ~2h
+   - **Sprint D** (evals): Medium complexity, ~3h
+   - **Phase C** (article dispatcher): Parallel if bandwidth
 
-3. **Backlog assignments**:
-   - **P3 external_stop zombie**: Auto-mark failed when should_stop=True in wait loop. Estimated: 30 min.
-   - **P3 regen message**: Update output to say '4 hours' instead of '72 hours'. Estimated: 10 min.
-
-4. **Cheat-sheet Linux/bash**: Paused mid-block 2 (grep as friction). Resume separately.
+3. **Backlog (P3, post-Sprint B)**:
+   - external_stop zombie: Auto-mark failed when should_stop=True
+   - regen message: Say '4 hours' instead of '72 hours'
+   - `.env.example` template: Create for deployment docs
+   - Cheat-sheet Linux/bash block 2 (grep friction): Resume separately
 
 ## Blockers
 
-None. Both P3 bugs are low priority, don't prevent Sprint B closure or 18/18 verification.
+None. Daily digest guard is optional (non-critical UX improvement).
 
 ## Active branches
 
-- **sam-repo (`main`)**: 4 commits live (47efc76 Intervention 1 probe, d822a29 Interventions 2+3, 6e5589c + 26cf181 Intervention 4). 47 unit-tests PASS. Code loaded in sam.service memory.
-- **Production Pi5**: sam.service + sam-rss.service active. Manual `/regen 20:53` completed, NBLM processing in 4h retry loops, completion expected ~21:00.
+- **sam-repo (`main`)**: 4 interventions live (47efc76, d822a29, 6e5589c, 26cf181). 47 unit-tests PASS.
+- **Production Pi5**: sam.service + sam-rss.service active. Daily digest guard deployed via `.env`. systemctl restart completed, svc loaded.
 
 ## Open questions
 
-- **external_stop zombie**: When `should_stop=True`, should auto-cleanup mark failed or wait for next regen? → Assign to P3 backlog, fix with 30 min implementation.
-- **stale task_id recovery fallback**: NBLM async polling timeout ~30min even if artifact ready. Fallback via `artifact list` not yet deployed. Critical for >24h tasks, defer to Phase 7 (technical debt).
+- **18/18 podcast count**: Expected ready from 04.05 ~21:00. Should verify this morning (05.05) to confirm Sprint B closure.
+- **`.env.example` template**: Future task, create example file with common flags for deployment docs.
 
 ## Reminders
 
-- **Sprint B SUCCESS (VERIFIED 04.05)**: All 4 NBLM interventions live and end-to-end verified 100%. 18/18 podcasts expected ready by ~21:00.
-- **2 P3 bugs for backlog**: external_stop zombie (quota waste), regen message (UX). Both non-blocking, fix after Sprint B closure.
-- **RSS feed**: 18 items synced, deep-links functional, ready for podcast app distribution (Pocket Casts, AntennaPod).
-- **Brief architecture stable**: EN prompt, Haiku 4.5, JSON parsing clean. No more parse failures expected.
-- **Next phase decisions**: Voice extraction (Sprint C) vs Evals (Sprint D) vs Article dispatcher (Phase C) — after 18/18 verification.
+- **Sprint B VERIFIED (04.05)**: All 4 NBLM interventions live. 18/18 podcasts expected ready (check this morning).
+- **Daily digest guard deployed (05.05)**: Env-flag DAILY_DIGEST_ENABLED=false stops 09:00 auto-trigger. Manual /digest command unaffected.
+- **2 P3 bugs for backlog**: external_stop zombie, regen message. Both non-blocking.
+- **RSS feed**: 18 items, deep-links ready for distribution.
+- **Next decision**: Voice extraction vs Evals vs Article dispatcher — after 18/18 final confirmation.

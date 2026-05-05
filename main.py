@@ -300,6 +300,10 @@ async def _extract_interests(user_text: str, bot_answer: str):
 
 async def job_daily_digest(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Running daily digest job")
+    _dde = os.getenv("DAILY_DIGEST_ENABLED", "true").lower()
+    if _dde in {"false", "0", "no", "off"}:
+        logger.info(f"Daily digest job skipped (DAILY_DIGEST_ENABLED={_dde})")
+        return
     from modules.proactive import generate_proactive_message
     try:
         msg = generate_proactive_message()

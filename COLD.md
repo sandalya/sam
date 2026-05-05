@@ -421,3 +421,16 @@ Sprint B FINAL VALIDATION (04.05 20:53 UTC): Manual `/regen --only podcast_nblm`
 **47 unit-tests PASS**: 15 nblm, 6 brief, 26 other. All 4 commits live on prod, code loaded in sam.service memory. RSS feed synced, 18 items, deep-links functional.
 
 **Impact**: Sprint B ready for official closure pending 18/18 final completion check within 10-30 min. All 4 interventions verified end-to-end in production. 2 P3 bugs logged for backlog (external_stop zombie, regen message), neither blocking Sprint B or 18/18 verification. Decision point after 18/18 ready: Sprint C (voice extraction, ~2h) vs Sprint D (evals, ~3h) vs Phase C (article dispatcher).
+
+---
+
+## 2026-05-05: Daily digest guard env-flag deployed — avoids duplicate digest on service restart
+
+```yaml
+archivereason: Daily digest auto-trigger guard deployed via env-flag, addresses systemctl restart boot trigger issue
+archivereason_ua: Daily digest auto-trigger guard розгорнута через env-flag, вирішує systemctl restart boot trigger issue
+archivereason_date: 2026-05-05
+tags: [job, digest, guard, deployment]
+```
+
+Daily digest job auto-triggers at 09:00 every morning, but systemctl restart causes it to fire during boot → duplicate digest if restart happens near 09:00. Solution (05.05): Added `DAILY_DIGEST_ENABLED` env-flag guard in `main.py:303-306`. Check `os.getenv('DAILY_DIGEST_ENABLED','true').lower()` → if value in ['false','0','no','off'], log skip and return. Deployment: `.env` file set to `DAILY_DIGEST_ENABLED=false`. systemctl restart sam.service executed, svc loaded. Manual `/digest` command unaffected. Verification: tomorrow 05.05 ~09:00 expected skip log message. Recovery: `sed -i '/^DAILY_DIGEST_ENABLED=/d' .env && systemctl restart sam.service` if needed. Optional future: create `.env.example` template for deployment docs.

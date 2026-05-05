@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-05-04
+updated: 2026-05-05
 ---
 
 # WARM — Sam
@@ -236,6 +236,24 @@ status: active
 ```
 
 `curriculum/pipeline.py::run_pipeline()` — послідовна генерація 7 форматів (без exam). Skip ready/generating. Refresh pinned між кроками. Auto-pipeline при add_topic. **26.04 update**: розширення для article-артефактів. **01.05 update**: article pipeline отримав deep-dive параметри.
+
+## Daily digest job auto-trigger guard (05.05 DEPLOYED)
+
+```yaml
+last_touched: 2026-05-05
+tags: [job, digest, env-flag, guard]
+status: active
+```
+
+**Problem**: job_daily_digest runs at 09:00 every morning, but systemctl restart triggers it during boot → duplicate digest if restart near 09:00.
+
+**Solution (05.05 deployed)**:
+- File: `main.py:303-306` guard wrap
+- Logic: `os.getenv('DAILY_DIGEST_ENABLED','true').lower()` check → if value in ['false','0','no','off'], log 'Daily digest job skipped' and return
+- Deployment: `.env` file set `DAILY_DIGEST_ENABLED=false`. systemctl restart sam.service executed, svc active.
+- Manual `/digest` command unaffected (no changes)
+- Verification: Tomorrow 05.05 09:00 expected skip log message
+- Recovery if needed: `sed -i '/^DAILY_DIGEST_ENABLED=/d' .env && systemctl restart sam.service`
 
 ## Roadmap по маніфесту
 
