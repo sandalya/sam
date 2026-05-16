@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-05-05
+updated: 2026-05-16
 ---
 
 # WARM — Sam
@@ -240,7 +240,7 @@ status: active
 ## Daily digest job auto-trigger guard (05.05 DEPLOYED)
 
 ```yaml
-last_touched: 2026-05-05
+last_touched: 2026-05-16
 tags: [job, digest, env-flag, guard]
 status: active
 ```
@@ -254,6 +254,24 @@ status: active
 - Manual `/digest` command unaffected (no changes)
 - Verification: Tomorrow 05.05 09:00 expected skip log message
 - Recovery if needed: `sed -i '/^DAILY_DIGEST_ENABLED=/d' .env && systemctl restart sam.service`
+
+## /nbstatus command output improvement (16.05)
+
+```yaml
+last_touched: 2026-05-16
+tags: [ui, display, status-command, cosmetic]
+status: active
+```
+
+**Improvement**: Enhanced `/nbstatus` output clarity:
+- **Separator change**: `·` → `▪` for missing/empty status (distinguishes from actual space/gap)
+- **Alignment**: Wrapped output in `<code>` block for monospace formatting, tables align properly
+- **Name truncation**: Format names truncated to 22 chars max (e.g., `podcast_nblm` stays, longer names get `...`)
+- **Legend**: Added footer with symbol explanations (● ready, ◯ pending, ✗ failed, ▪ no status, ◆ generating)
+
+**Files**: `modules/notebooklm.py` (render_nbstatus method ~line 420)
+
+**Status**: Ready for deployment, pending sam.service restart on Pi5 (16.05).
 
 ## Roadmap по маніфесту
 

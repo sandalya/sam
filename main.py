@@ -26,11 +26,14 @@ _cost_tracker = _TokenTracker(
     log_path=_os.path.expanduser("~/.openclaw/workspace/shared/token_log.jsonl"),
     agent="sam",
 )
+from shared.agent_base import set_default_tracker as _set_tracker
+_set_tracker(_cost_tracker)
 from modules.notebooklm import cmd_notebooks
 from modules.curriculum import (
     cmd_done,
     cmd_cur_add,
     cmd_status,
+    cmd_nbstatus,
     cmd_regen,
 )
 from modules.state_manager import touch_activity
@@ -555,6 +558,7 @@ def main():
     app.add_handler(CommandHandler("done", cmd_done))
     app.add_handler(CommandHandler("cur_add", cmd_cur_add))
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("nbstatus", cmd_nbstatus))
     app.add_handler(CommandHandler("regen", cmd_regen))
     app.add_handler(CommandHandler("activate", cmd_activate))
     app.add_handler(CallbackQueryHandler(handle_activate_callback, pattern=r"^act_"))

@@ -336,6 +336,65 @@ async def cmd_status(update, context):
         "\n".join(lines), parse_mode="HTML",
     )
 
+
+# ── cmd_nbstatus (per-topic NBLM format grid) ────────────────────────────────
+
+_NBSTATUS_COLS = [
+    ("podcast_nblm", "🎙️"),
+    ("slides",       "📊"),
+    ("video",        "🎬"),
+    ("infographic",  "📈"),
+    ("flashcards",   "🃏"),
+]
+
+_NBSTATUS_ICON = {
+    "ready":      "✅",
+    "generating": "⏳",
+    "failed":     "💥",
+}
+_NBSTATUS_NONE = "▪"   # відсутній формат — не плутати з роздільником
+
+_NB_W = 22  # ширина колонки назви теми (chars)
+
+
+def _nb_trunc(s: str, n: int = _NB_W) -> str:
+    return s[: n - 1] + "…" if len(s) > n else s
+
+
+async def cmd_nbstatus(update, context):
+    state = load(CURRICULUM_V2_PATH)
+
+    col_header = " ".join(icon for _, icon in _NBSTATUS_COLS)
+    # легенда рядком перед таблицею
+    legend = "✅=готово  ⏳=генер.  💥=помилка  ▪=нема"
+    lines = [
+        f"📊 <b>NbLM</b>  [{col_header}]",
+        f"<i>{legend}</i>",
+        "<code>",
+    ]
+
+    island_order = {isl.id: isl.order for isl in state.islands}
+    island_titles = {isl.id: isl.title for isl in state.islands}
+    by_island: dict[str, list] = {}
+    for t in state.topics:
+        by_island.setdefault(t.island_id, []).append(t)
+
+    for island_id in sorted(by_island, key=lambda i: island_order.get(i, 999)):
+        title = island_titles.get(island_id, island_id)
+        lines.append(f"\n{title}")
+        for t in by_island[island_id]:
+            short = _nb_trunc(t.title)
+            statuses = []
+            for fk, _ in _NBSTATUS_COLS:
+                f = t.formats.get(fk)
+                statuses.append(_NBSTATUS_ICON.get(f.status if f else None, _NBSTATUS_NONE))
+            # emoji ~2 chars wide → компенсуємо різницю між emoji у назві
+            lines.append(f"  {short.ljust(_NB_W)}  {' '.join(statuses)}")
+
+    lines.append("</code>")
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
 # ── cmd_done (v2) ────────────────────────────────────────────────────────────
 
 def _resolve_topic_id(state: CurriculumState, arg: str) -> Optional[str]:

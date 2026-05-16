@@ -1,11 +1,7 @@
 Проект: sam
 
-Стан: Sprint B COMPLETE (04.05) — усі 4 NBLM intervention'и (1 dangling UUID probe, 2 idempotent ADD_SOURCE, 3 RETRY cap 4h, 4 EN brief) верифіковані live на prod. 18/18 подкастів: 5 ready, 8 pending 4h loop, 2 recovering. 47 unit-тестів PASS.
+Стан: /nbstatus команда покращена (▪ замість ·, <code> блок, обрізання до 22 символів, легенда). Потребує рестарту sam.service на Pi5. Sprint B 4 interventions live (47efc76, d822a29, 6e5589c, 26cf181), 18/18 podcasts очікуються ready, Daily digest guard deployed (DAILY_DIGEST_ENABLED=false).
 
-05.05: Daily digest guard env-flag розгорнута (`DAILY_DIGEST_ENABLED=false` у .env), вимикає 09:00 auto-trigger при systemctl restart.
+Наступне: systemctl restart sam.service, перевірити /nbstatus на Pi5, фінальна верифікація 18/18, вибір наступної фази (Voice extraction vs Evals vs Article dispatcher).
 
-Наступні кроки: (1) Завтра 09:00 перевірити skip log message, (2) Підтвердити 18/18 podcasts ready, (3) Вибрати Sprint C (voice extraction) vs Sprint D (evals) vs Phase C (article dispatcher).
-
-Блокери: немає. 2 P3 bugs (external_stop zombie, regen message) в backlog.
-
-Перед роботою скинь HOT.md + WARM.md для контексту.
+Блокерів немає. Діліш HOT.md + WARM.md та продовжимо.
