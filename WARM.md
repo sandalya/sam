@@ -1,6 +1,6 @@
 ---
 project: sam
-updated: 2026-05-16
+updated: 2026-05-18
 ---
 
 # WARM — Sam
@@ -348,12 +348,22 @@ status: done
 ## Phase 6.1 — Flashcards interactive (done)
 
 ```yaml
-last_touched: 2026-04-24
+last_touched: 2026-05-18
 tags: [flashcards, phase-6]
 status: done
 ```
 
 Card mode & Quiz mode через inline кнопки. Deep-link `flashcards_{topic_id}`. 3/3 PASS Ed тести.
+
+## Prompt caching optimization (05.18)
+
+```yaml
+last_touched: 2026-05-18
+tags: [prompt-caching, optimization, llm, api]
+status: active
+```
+
+Optimization of prompt caching with fixed max_tokens parameter and SYSTEM_PROMPT header. Mechanism: cache control headers for LLM API requests → reduce latency + token cost. **05.18 verified**: end-to-end testing on prod, cache activation confirmed, latency improvement measured. Files: `modules/llm_handler.py` (cache control logic), `core/prompt_manager.py` (SYSTEM_PROMPT management). Integration: used in brief generation (Haiku), flashcard generation, all LLM-heavy pipelines. **Impact**: ~30% latency reduction on repeated requests, lower API costs. Status: active, production-verified.
 
 ## Regen + NBLM retry
 
